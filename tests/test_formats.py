@@ -90,6 +90,7 @@ def test_corrupt_and_truncated_geopackage_rejected(tmp_path):
     with pytest.raises(FormatValidationError):
         inspect_geopackage(malformed)
 
+    pytest.importorskip("pyogrio")
     truncated = _make_gpkg(tmp_path / "truncated.gpkg")
     truncated.write_bytes(truncated.read_bytes()[: max(100, truncated.stat().st_size // 2)])
     with pytest.raises(FormatValidationError):
