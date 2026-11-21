@@ -2,21 +2,22 @@
 
 Updated: 2026-11-21
 
+Current implementation branches: `phase-6-browser-e2e` and `phase-7-data-validation`. Phase 7 review: [PR #4](https://github.com/tibatechapp-ship-it/geologia/pull/4).
+
 ## Source on GitHub
 
 The phase 6 browser-test implementation is on branch `phase-6-browser-e2e`, pending review before merging to `main`.
 
 ## Latest full validation
 
-GitHub Actions run #60 for commit `0b68dabdc85eae893243abf1534db84b833f7009` completed successfully:
+GitHub Actions run #83 for commit `87ed6657d0b24611dc54fc180cd5609f701fcadd` completed successfully:
 
-- Python 3.12: passed
-- Python 3.14: passed
-- Python 3.15: passed
+- Python 3.12: 43 passed, 1 optional browser-directory skip, 1 upstream warning
+- Python 3.14: 43 passed, 1 optional browser-directory skip, 1 upstream warning
+- Python 3.15: 43 passed, 1 optional browser-directory skip, 1 upstream warning
 - JavaScript syntax check: passed
 - Ruff: passed
 - `compileall`: passed
-- Core pytest suite: 32 passed on each Python version
 - Chromium/Playwright: 2 browser end-to-end tests passed
 
 The browser tests launch a real Uvicorn process with temporary SQLite and upload storage. They cover:
@@ -29,7 +30,7 @@ The browser tests launch a real Uvicorn process with temporary SQLite and upload
 - Rejection of malformed CSV during inspection.
 - No uncaught browser JavaScript exceptions in the main user journey.
 
-Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44917359033
+Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918264983
 
 ## Implemented
 
@@ -40,7 +41,8 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44917359033
 - Phase 3: deterministic domain routing, specialist role labels, and required-role coverage reporting that explicitly does not claim content validation.
 - Phase 4: bilingual Arabic RTL / English LTR frontend for projects, dataset intake, and plan display.
 - Phase 5: CRS inspection and GeoJSON reprojection using optional pyproj; derived datasets are stored without overwriting source datasets.
-- Phase 6 foundation: real Chromium/Playwright end-to-end coverage for key workspace flows.
+- Phase 6: real Chromium/Playwright end-to-end coverage for key workspace flows.
+- Phase 7 foundation: versioned CSV/GeoJSON validation profiles, persisted reports, and a bilingual UI validation action. Details: [DATA_VALIDATION.md](DATA_VALIDATION.md).
 - Development CLI rejects non-loopback bind addresses.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
