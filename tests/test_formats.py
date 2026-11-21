@@ -276,3 +276,17 @@ def test_geojson_reference_dataset_matches_known_projection_results():
         )
     assert info["axis_order"] == "x,y (always_xy)"
     assert info["tool_versions"]["pyproj"]
+
+def test_geotiff_metadata_output_is_bounded(tmp_path):
+    rasterio = pytest.importorskip("rasterio")
+    from rasterio.transform import from_origin
+
+    path = tmp_path / "metadata-heavy.tif"
+    with rasterio.open(
+        path, "w", driver="GTiff", width=4, height=4, count=1,
+        dtype="uint8", transform=from_origin(0, 4, 1, 1),
+    ) as dataset:
+        dataset.update_tags(**{f"custom_{index}": "v" * 3000 for index in range(140)})
+    report = inspect_geotiff(path)
+    assert len(report["metadata"]) <= 128
+    assert report["metadata_truncated"] is True
