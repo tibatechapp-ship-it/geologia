@@ -20,7 +20,7 @@ def test_provenance_event_hash_detects_payload_tampering(tmp_path, monkeypatch):
     assert len(valid["events"]) == 2
     with store.connect() as connection:
         connection.execute(
-            "UPDATE provenance_events SET payload_json='{}' WHERE dataset_id=? "
+            "UPDATE provenance_events SET payload_json='not-json' WHERE dataset_id=? "
             "AND event_type='dataset_inspected'",
             (dataset["id"],),
         )
