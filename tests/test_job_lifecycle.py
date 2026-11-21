@@ -124,3 +124,29 @@ def test_legacy_job_database_is_migrated_without_losing_records(tmp_path, monkey
     assert migrated["max_attempts"] == 3
     assert migrated["updated_at"] == migrated["created_at"]
     assert store.transition_job("job-1", "cancelled", actor="human")["status"] == "cancelled"
+
+
+def test_planned_job_cancellation_is_confirmed_and_idempotent(tmp_path, monkeypatch):
+    job = _new_job(tmp_path, monkeypatch)
+    first = client.post(f"/api/v1/jobs/{job['id']}/cancel")
+    second = client.post(f"/api/v1/jobs/{job['id']}/cancel")
+
+    assert first.status_code == second.status_code == 200
+    assert first.json()["job"]["status"] == "cancelled"
+    assert first.json()["execution_stopped"] is True
+    assert second.json()["cancellation"] == "confirmed"
+    events = client.get(f"/api/v1/jobs/{job['id']}/events").json()["events"]
+    assert [event["to_status"] for event in events] == ["planned", "cancelled"]
+
+
+def test_worker_acknowledges_requested_cancellation(tmp_path, monkeypatch):
+    job = _new_job(tmp_path, monkeypatch)
+    store.transition_job(job["id"], "queued", actor="system")
+    store.transition_job(job["id"], "running", actor="worker")
+    requested = store.request_job_cancellation(job["id"])
+    assert requested["status"] == "cancel_requested"
+    assert requested["finished_at"] is None
+
+    acknowledged = store.transition_job(job["id"], "cancelled", actor="worker")
+    assert acknowledged["status"] == "cancelled"
+    assert acknowledged["finished_at"] is not None
