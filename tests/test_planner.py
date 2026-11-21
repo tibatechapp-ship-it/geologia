@@ -64,7 +64,7 @@ def test_agent_status_declares_capabilities_and_limits_honestly():
     assert any("not calibrated" in item for item in status["limitations"])
 
 @pytest.mark.parametrize(
-    ("request", "expected_domain"),
+    ("query_text", "expected_domain"),
     [
         ("Изучить подземные воды и водоносный горизонт", "hydrology"),
         ("地下水与含水层评价", "hydrology"),
@@ -75,8 +75,8 @@ def test_agent_status_declares_capabilities_and_limits_honestly():
         ("地理信息系统与坐标参考系", "gis"),
     ],
 )
-def test_russian_and_chinese_domain_routing(request, expected_domain):
-    result = classify_request(request)
+def test_russian_and_chinese_domain_routing(query_text, expected_domain):
+    result = classify_request(query_text)
     assert expected_domain in result["matched_domains"]
     matched = next(item for item in result["routing_evidence"]
                    if item["domain"] == expected_domain)
