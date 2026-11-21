@@ -11,13 +11,13 @@ The source bundle was cleaned, rebuilt from scratch, extracted into a fresh dire
 - `python -m pip wheel . --no-deps --no-build-isolation`: wheel build passed.
 - ZIP integrity: passed.
 - Packaging inspection: no duplicate nested project folder, pytest cache, Python bytecode, or egg-info in the verified archive.
-- Archive SHA-256: `04591914fb62f4fb10d1b508dfe0a0f7209c58e9df95b61e30ea38c75b63923c`.
+- Local archive SHA-256: `59febf459fb9a59a47262afb43fbef81cec579a21e3de35ac86384a53004c08e`.
 
 Ruff was not available locally. Docker is not installed, so container build/runtime was not verified.
 
 ## Repository transfer status
 
-The GitHub repository currently contains bootstrap documentation and this validation record. The full application source tree has **not yet been committed to GitHub**. The ZIP is a local artifact, not a repository release. Do not interpret the repository as a complete or deployable implementation until the source tree is transferred and GitHub CI passes.
+The default branch still contains bootstrap documentation and this validation record, not the application source tree. A separate `phase-0-1/source-transfer` branch now contains a guarded GitHub Actions workflow that will validate and unpack the verified bundle when the bundle is committed at `bootstrap/geologia-phase-0-1.zip`. The bundle has not yet been committed to that branch; the workflow has not run. The local ZIP is not a GitHub release.
 
 ## Known release blockers
 
