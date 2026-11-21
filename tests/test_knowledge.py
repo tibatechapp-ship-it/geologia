@@ -324,3 +324,31 @@ def test_source_locator_schema_migrates_existing_text_chunks(tmp_path, monkeypat
         ).fetchone()
     assert row["source_locator"] == "local indexed text chunk 1"
 
+
+def test_pdf_extraction_enforces_per_page_text_limit(local_index, monkeypatch):
+    pytest.importorskip("pypdf")
+    source = local_index / "large-page.pdf"
+    _write_text_pdf(source, ["A" * 40])
+    monkeypatch.setattr(knowledge, "MAX_PDF_PAGE_CHARS", 25)
+    with pytest.raises(ValueError, match="page 1 exceeds"):
+        knowledge._extract_pdf_pages(source.read_bytes())
+
+
+def test_pdf_extraction_enforces_total_text_limit(local_index, monkeypatch):
+    pytest.importorskip("pypdf")
+    source = local_index / "many-text-pages.pdf"
+    _write_text_pdf(source, ["A" * 18, "B" * 18])
+    monkeypatch.setattr(knowledge, "MAX_PDF_PAGE_CHARS", 25)
+    monkeypatch.setattr(knowledge, "MAX_PDF_EXTRACTED_CHARS", 30)
+    with pytest.raises(ValueError, match="total extraction limit"):
+        knowledge._extract_pdf_pages(source.read_bytes())
+
+
+def test_pdf_extraction_accepts_document_under_text_limits(local_index, monkeypatch):
+    pytest.importorskip("pypdf")
+    source = local_index / "bounded.pdf"
+    _write_text_pdf(source, ["Groundwater aquifer", "Recharge mapping"])
+    monkeypatch.setattr(knowledge, "MAX_PDF_PAGE_CHARS", 100)
+    monkeypatch.setattr(knowledge, "MAX_PDF_EXTRACTED_CHARS", 200)
+    pages = knowledge._extract_pdf_pages(source.read_bytes())
+    assert [number for number, _ in pages] == [1, 2]
