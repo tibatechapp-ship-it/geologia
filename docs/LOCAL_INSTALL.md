@@ -78,7 +78,7 @@ These are unsigned portable binaries, not signed native installers. Windows Smar
 
 ## Local knowledge pack
 
-The first knowledge search or status request indexes 24 original GEOLOGIA-authored checklists in Arabic, English, Russian, and Chinese across six geoscience domains. This is a lightweight local retrieval pack, not neural training and not copied full-text publications. External documents are indexed only after explicit source/license review. See [the source/license matrix](ALI_SOURCE_LICENSE_MATRIX.md).
+The first knowledge search or status request indexes 24 original GEOLOGIA-authored checklists in Arabic, English, Russian, and Chinese across six geoscience domains. This is a lightweight local retrieval pack, not neural training and not copied full-text publications. Install scripts include the lightweight `pypdf` extra for local text-based PDF ingestion; files are limited to 20 MiB and 500 pages, and citations retain page numbers. Scanned PDFs require OCR elsewhere before ingestion; GEOLOGIA does not run OCR. External documents are indexed only after explicit source/license review. See [the source/license matrix](ALI_SOURCE_LICENSE_MATRIX.md).
 
 ## Safety and current limitations
 
