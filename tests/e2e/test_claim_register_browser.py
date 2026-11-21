@@ -142,7 +142,8 @@ def test_browser_claim_to_evidence_workflow(tmp_path, monkeypatch):
 
             linked = page.locator("#claimEvidenceLinked .claim-evidence-card")
             linked.wait_for(state="visible", timeout=10000)
-            assert "Groundwater recharge may raise measured aquifer water levels" in linked.inner_text()
+            linked_text = linked.inner_text()
+            assert "Groundwater recharge may raise measured aquifer water levels" in linked_text
             assert "The excerpt describes recharge" in linked.inner_text()
             basis = linked.locator('a[href="https://example.org/review-record"]')
             basis.wait_for(state="visible")
