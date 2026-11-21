@@ -66,10 +66,12 @@ def initialize() -> None:
         if "data_role" not in columns:
             conn.execute("ALTER TABLE datasets ADD COLUMN data_role TEXT")
 
+        conn.execute("BEGIN IMMEDIATE")
         job_schema = conn.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='jobs'"
         ).fetchone()["sql"]
         if "cancel_requested" not in job_schema:
+            conn.execute("DROP TABLE IF EXISTS jobs_new")
             conn.execute("""
                 CREATE TABLE jobs_new (
                     id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
@@ -129,6 +131,7 @@ def initialize() -> None:
             "CREATE INDEX IF NOT EXISTS idx_job_events_job_created "
             "ON job_events(job_id, id)"
         )
+        conn.execute("PRAGMA user_version = 1")
 
 
 def create_project(name: str, description: str, language: str) -> dict[str, Any]:
