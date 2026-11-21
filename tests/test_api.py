@@ -487,7 +487,14 @@ def test_external_source_metadata_rejects_unsafe_or_malformed_fields(tmp_path, m
     base = {"X-Dataset-Name": "Source check", "X-Filename": "source.geojson"}
     payload = b'{"type":"FeatureCollection","features":[]}'
     endpoint = f"/api/v1/projects/{project['id']}/datasets"
-    assert client.post(endpoint, content=payload, headers={**base, "X-Source-URL": "javascript:alert(1)"}).status_code == 422
-    assert client.post(endpoint, content=payload, headers={**base, "X-Source-URL": "https://user:pass@example.org/data"}).status_code == 422
-    assert client.post(endpoint, content=payload, headers={**base, "X-Source-DOI": "not-a-doi"}).status_code == 422
-    assert client.post(endpoint, content=payload, headers={**base, "X-Source-Accessed-At": "21-11-2026"}).status_code == 422
+    invalid_headers = [
+        {"X-Source-URL": "javascript:alert(1)"},
+        {"X-Source-URL": "https://user:pass@example.org/data"},
+        {"X-Source-DOI": "not-a-doi"},
+        {"X-Source-Accessed-At": "21-11-2026"},
+    ]
+    for source_headers in invalid_headers:
+        response = client.post(
+            endpoint, content=payload, headers={**base, **source_headers}
+        )
+        assert response.status_code == 422
