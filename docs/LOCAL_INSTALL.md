@@ -80,6 +80,6 @@ These are unsigned portable binaries, not signed native installers. Windows Smar
 
 - Launchers bind to `127.0.0.1`; they do not provide a public or LAN server.
 - Do not change the bind address until authentication, authorization, tenant isolation, quotas, and worker security are implemented.
-- This provides a local install workflow and browser-installable PWA, not a signed native APK or packaged desktop executable.
+- Android remains Termux + PWA; no native APK is built. Desktop has unsigned portable one-file binaries, not signed MSI/DMG/AppImage installers.
 - Termux has not yet been validated on a physical Android device by this repository's CI. Record device, Android/Termux/Python versions, install output, and test results before declaring Android support stable.
 - Installing the optional GIS extra is separate because pyproj and projection libraries may need native platform support.
