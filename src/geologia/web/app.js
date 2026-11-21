@@ -7,6 +7,38 @@ let currentPlan=null;
 Object.assign(i18n.ar,{domainLabels:{hydrology:"المياه الجوفية",geology3d:"النمذجة الجيولوجية ثلاثية الأبعاد",seismology:"علم الزلازل",exploration:"استكشاف المعادن",remote_sensing:"الاستشعار عن بعد",gis:"نظم المعلومات الجغرافية"},confidenceLabels:{low:"منخفض",medium:"متوسط",high:"مرتفع"},planSummary:"ملخص الخطة",domains:"المجالات المحددة",specialist:"الاختصاص",candidateEngines:"محركات مرشحة (غير مفعلة)",requiredInputs:"المدخلات المطلوبة",availableInputs:"الأدوار المتوفرة",missingInputs:"المدخلات الناقصة",routeEvidence:"دليل التصنيف",knowledgeEvidence:"مراجع محلية مسترجعة",noKnowledge:"لم يُعثر على مرجع محلي معتمد لهذا الطلب.",source:"المصدر",confidence:"مستوى المطابقة",clarification:"يلزم توضيح الطلب",readiness:"جاهزية البيانات",notAssessed:"لم تُقيّم بعد",scientificBoundary:"حدود علمية",noEngine:"لم يُشغّل أي محرك علمي. هذه خطة قابلة للمراجعة وليست نتيجة علمية.",retrievalPending:"سيتم البحث بعد توضيح المجال.",chunk:"مقطع محلي",noEngines:"لا توجد محركات مرشحة لهذا الطلب."});
 Object.assign(i18n.en,{domainLabels:{hydrology:"Groundwater",geology3d:"3D geological modeling",seismology:"Seismology",exploration:"Mineral exploration",remote_sensing:"Remote sensing",gis:"Geographic information systems"},confidenceLabels:{low:"Low",medium:"Medium",high:"High"},planSummary:"Plan summary",domains:"Matched domains",specialist:"Specialist",candidateEngines:"Candidate engines (not enabled)",requiredInputs:"Required inputs",availableInputs:"Available data roles",missingInputs:"Missing inputs",routeEvidence:"Routing evidence",knowledgeEvidence:"Retrieved local references",noKnowledge:"No approved local reference matched this request.",source:"Source",confidence:"Match confidence",clarification:"Clarification required",readiness:"Data readiness",notAssessed:"Not assessed yet",scientificBoundary:"Scientific boundary",noEngine:"No scientific engine ran. This is a reviewable plan, not a scientific result.",retrievalPending:"Retrieval will run after the domain is clarified.",chunk:"Local chunk",noEngines:"No candidate engines for this request."});
 
+Object.assign(i18n.ar,{
+ claimRegisterKicker:"CLAIM & EVIDENCE REGISTER",claimRegisterTitle:"سجل الادعاءات والأدلة",reloadClaims:"تحديث",
+ claimRegisterBoundary:"سجل توثيقي بشري فقط؛ لا يثبت صحة الادعاء ولا يقيّم كفاية الأدلة.",
+ claimStatementLabel:"الادعاء العلمي",claimRecorderLabel:"سجّله بواسطة",createClaim:"تسجيل الادعاء",
+ claimsListTitle:"الادعاءات المسجلة",claimsLoading:"جارٍ تحميل السجل…",claimsPrev:"السابق",claimsNext:"التالي",
+ claimDetailTitle:"تفاصيل الادعاء",claimSelectPrompt:"اختر ادعاءً لربط الأدلة به.",
+ claimEvidenceSearchLabel:"ابحث في النص المحلي المفهرس",claimEvidenceSearchButton:"بحث عن مقاطع",
+ claimEvidenceNoResults:"لا توجد مقاطع مطابقة في الفهرس المحلي.",claimEvidenceAttach:"ربط المقطع",
+ claimEvidenceRelation:"علاقة الدليل",claimEvidenceRationale:"مبرر الربط",claimEvidenceRecorder:"سجّل الربط بواسطة",
+ claimEvidenceAttached:"تم ربط المقطع بالادعاء.",claimCreated:"تم تسجيل الادعاء. لم يُتحقق من صحته علمياً.",
+ claimLoadError:"تعذر تحميل سجل الادعاءات",claimEvidenceSearchError:"تعذر البحث عن الأدلة",
+ claimNoClaims:"لا توجد ادعاءات مسجلة بعد.",claimEvidenceTitle:"الأدلة المرتبطة",
+ claimValidationLabel:"التحقق العلمي: لم يُنفّذ",claimPageLabel:"صفحة",claimSourceKind:"نوع المصدر",
+ claimReviewStatus:"حالة المراجعة العلمية",claimLocator:"موضع المصدر",
+ relationLabels:{supports:"يدعم",contradicts:"يعارض",contextualizes:"يضع في سياق",unclear:"غير واضح"}
+});
+Object.assign(i18n.en,{
+ claimRegisterKicker:"CLAIM & EVIDENCE REGISTER",claimRegisterTitle:"Claim and evidence register",reloadClaims:"Refresh",
+ claimRegisterBoundary:"Human-recorded provenance only; it does not prove a claim or assess evidence sufficiency.",
+ claimStatementLabel:"Scientific claim",claimRecorderLabel:"Recorded by",createClaim:"Record claim",
+ claimsListTitle:"Recorded claims",claimsLoading:"Loading register…",claimsPrev:"Previous",claimsNext:"Next",
+ claimDetailTitle:"Claim details",claimSelectPrompt:"Select a claim to link evidence.",
+ claimEvidenceSearchLabel:"Search locally indexed source text",claimEvidenceSearchButton:"Search passages",
+ claimEvidenceNoResults:"No matching passages in the local index.",claimEvidenceAttach:"Link passage",
+ claimEvidenceRelation:"Evidence relation",claimEvidenceRationale:"Link rationale",claimEvidenceRecorder:"Recorded by",
+ claimEvidenceAttached:"Passage linked to the claim.",claimCreated:"Claim recorded. It has not been scientifically validated.",
+ claimLoadError:"Could not load claim register",claimEvidenceSearchError:"Could not search evidence",
+ claimNoClaims:"No claims recorded yet.",claimEvidenceTitle:"Linked evidence",
+ claimValidationLabel:"Scientific validation: not performed",claimPageLabel:"Page",claimSourceKind:"Source type",
+ claimReviewStatus:"Scientific review",claimLocator:"Source locator",
+ relationLabels:{supports:"Supports",contradicts:"Contradicts",contextualizes:"Contextualizes",unclear:"Unclear"}
+});
 const $=id=>document.getElementById(id);
 function tr(key){return i18n[lang][key]||key}
 function feedback(id,msg,error=false){const el=$(id);el.textContent=msg||"";el.classList.toggle("error",!!error)}
@@ -88,5 +120,70 @@ function renderPlan(plan){
 }
 
 $("jobForm").addEventListener("submit",async e=>{e.preventDefault();if(!activeProject){feedback("jobStatus",tr("needProject"),true);return}feedback("jobStatus",tr("loading"));try{const job=await api("/api/v1/projects/"+encodeURIComponent(activeProject)+"/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request:$("analysisRequest").value.trim(),language:lang})});currentPlan=job.plan;renderPlan(currentPlan);feedback("jobStatus",tr("planDone"))}catch(err){feedback("jobStatus",err.message,true)}});
-async function start(){setLang("ar");initMap();await loadHealth();await loadProjects()}
+let claimPageOffset=0,claimTotal=0,selectedClaimId="";
+const claimPageSize=10;
+function claimText(tag,cls,value){return planElement(tag,cls,value)}
+function claimLink(url,label){const safe=safeCitationUrl(url);if(!safe)return null;const a=claimText("a","claim-source-link",label+" ↗");a.href=safe;a.target="_blank";a.rel="noopener noreferrer";return a}
+async function loadClaims(){
+ const list=$("claimList");list.replaceChildren();
+ try{
+  const data=await api("/api/v1/knowledge/claims?limit="+claimPageSize+"&offset="+claimPageOffset);
+  claimTotal=data.total;const claims=data.claims||[];
+  $("claimsPage").textContent=tr("claimPageLabel")+" "+(claimTotal?Math.floor(claimPageOffset/claimPageSize)+1:0)+" / "+Math.max(1,Math.ceil(claimTotal/claimPageSize));
+  $("claimsPrev").disabled=claimPageOffset===0;$("claimsNext").disabled=claimPageOffset+claimPageSize>=claimTotal;
+  if(!claims.length){list.append(claimText("p","muted",tr("claimNoClaims")));selectedClaimId="";$("selectedClaimText").textContent=tr("claimSelectPrompt");$("claimEvidenceLinked").replaceChildren();return}
+  if(!claims.some(c=>c.claim_id===selectedClaimId))selectedClaimId=claims[0].claim_id;
+  claims.forEach(c=>{
+   const button=claimText("button","claim-list-item"+(c.claim_id===selectedClaimId?" selected":""),"");
+   button.type="button";button.setAttribute("aria-pressed",String(c.claim_id===selectedClaimId));
+   button.append(claimText("strong","claim-list-statement",c.statement),claimText("small","claim-list-meta",c.evidence_count+" · "+tr("claimEvidenceTitle")));
+   button.addEventListener("click",()=>{selectedClaimId=c.claim_id;loadClaims();loadClaimDetail()});list.append(button);
+  });
+  await loadClaimDetail();
+ }catch(err){list.append(claimText("p","feedback error",tr("claimLoadError")+": "+err.message))}
+}
+async function loadClaimDetail(){
+ if(!selectedClaimId)return;
+ try{
+  const claim=await api("/api/v1/knowledge/claims/"+encodeURIComponent(selectedClaimId));
+  $("selectedClaimText").textContent=claim.statement;
+  $("claimEvidenceLinked").replaceChildren();
+  const header=claimText("p","claim-validation-note",tr("claimValidationLabel"));$("claimEvidenceLinked").append(header);
+  const title=claimText("h4","claim-evidence-heading",tr("claimEvidenceTitle")+" ("+claim.evidence_count+")");$("claimEvidenceLinked").append(title);
+  (claim.evidence_annotations||[]).forEach(e=>{
+   const card=claimText("article","claim-evidence-card","");
+   card.append(claimText("strong","claim-evidence-relation",i18n[lang].relationLabels?.[e.relation]||e.relation));
+   card.append(claimText("p","claim-evidence-body",e.body));
+   card.append(claimText("small","claim-evidence-meta",[e.title,e.source_kind,e.scientific_review_status,e.source_locator].filter(Boolean).join(" · ")));
+   card.append(claimText("p","claim-evidence-rationale",e.rationale));
+   const link=claimLink(e.source_url,tr("source"));if(link)card.append(link);
+   $("claimEvidenceLinked").append(card);
+  });
+ }catch(err){feedback("claimStatus",err.message,true)}
+}
+function renderClaimSearchResults(results){
+ const box=$("claimEvidenceResults");box.replaceChildren();
+ if(!results.length){box.append(claimText("p","muted",tr("claimEvidenceNoResults")));return}
+ results.forEach(item=>{
+  const card=claimText("article","claim-search-result","");
+  card.append(claimText("h4","claim-evidence-heading",item.title||item.source_id||tr("source")));
+  card.append(claimText("p","claim-search-excerpt",item.excerpt||""));
+  card.append(claimText("small","claim-evidence-meta",[item.source_kind,item.scientific_review_status,item.citation_locator,item.chunk_id].filter(Boolean).join(" · ")));
+  const form=claimText("form","claim-link-form","");
+  const relationLabel=claimText("label","",tr("claimEvidenceRelation"));const relation=claimText("select","","");
+  ["supports","contradicts","contextualizes","unclear"].forEach(value=>{const option=claimText("option","",i18n[lang].relationLabels?.[value]||value);option.value=value;relation.append(option)});
+  relationLabel.append(relation);form.append(relationLabel);
+  const rationaleLabel=claimText("label","",tr("claimEvidenceRationale"));const rationale=claimText("textarea","");rationale.rows=2;rationale.minLength=1;rationale.maxLength=2000;rationale.required=true;rationale.placeholder=tr("claimEvidenceRationale");rationaleLabel.append(rationale);form.append(rationaleLabel);
+  const recorderLabel=claimText("label","",tr("claimEvidenceRecorder"));const recorder=claimText("input","");recorder.value=$("claimRecorder").value.trim()||"researcher";recorder.maxLength=200;recorder.required=true;recorderLabel.append(recorder);form.append(recorderLabel);
+  const attach=claimText("button","secondary-button",tr("claimEvidenceAttach"));attach.type="submit";form.append(attach);
+  form.addEventListener("submit",async event=>{event.preventDefault();if(!selectedClaimId){feedback("claimStatus",tr("claimSelectPrompt"),true);return}attach.disabled=true;try{await api("/api/v1/knowledge/claims/"+encodeURIComponent(selectedClaimId)+"/evidence",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chunk_id:item.chunk_id,relation:relation.value,rationale:rationale.value.trim(),recorded_by:recorder.value.trim()})});feedback("claimStatus",tr("claimEvidenceAttached"));rationale.value="";await loadClaims();}catch(err){feedback("claimStatus",err.message,true)}finally{attach.disabled=false}});
+  card.append(form);box.append(card);
+ });
+}
+$("claimForm").addEventListener("submit",async e=>{e.preventDefault();const button=$("claimForm").querySelector('button[type="submit"]');button.disabled=true;try{const claim=await api("/api/v1/knowledge/claims",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({statement:$("claimStatement").value.trim(),created_by:$("claimRecorder").value.trim()})});selectedClaimId=claim.claim_id;claimPageOffset=0;$("claimStatement").value="";feedback("claimStatus",tr("claimCreated"));await loadClaims()}catch(err){feedback("claimStatus",err.message,true)}finally{button.disabled=false}});
+$("claimEvidenceSearch").addEventListener("submit",async e=>{e.preventDefault();if(!selectedClaimId){feedback("claimStatus",tr("claimSelectPrompt"),true);return}const q=$("claimEvidenceQuery").value.trim();try{const result=await api("/api/v1/knowledge/search?q="+encodeURIComponent(q)+"&limit=10");renderClaimSearchResults(result.results||[])}catch(err){feedback("claimStatus",tr("claimEvidenceSearchError")+": "+err.message,true)}});
+$("reloadClaims").addEventListener("click",loadClaims);
+$("claimsPrev").addEventListener("click",()=>{claimPageOffset=Math.max(0,claimPageOffset-claimPageSize);loadClaims()});
+$("claimsNext").addEventListener("click",()=>{if(claimPageOffset+claimPageSize<claimTotal){claimPageOffset+=claimPageSize;loadClaims()}});
+\nasync function start(){setLang("ar");initMap();await loadHealth();await loadProjects();await loadClaims()}
 start();
