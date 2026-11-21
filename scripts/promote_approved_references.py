@@ -25,7 +25,7 @@ def valid_candidate(item: dict) -> bool:
 
 
 def promote(inbox: dict, registry: dict) -> tuple[dict, int]:
-    known = {item.get("candidate_id") for item in registry.get("references", [])}
+    known = {item.get("reference_id") for item in registry.get("references", [])}
     added = []
     promoted_at = datetime.now(timezone.utc).isoformat()
     for candidate in inbox.get("candidates", []):
