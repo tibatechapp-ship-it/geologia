@@ -57,6 +57,14 @@ Optional GIS dependencies:
 powershell -ExecutionPolicy Bypass -File scripts\install-windows.ps1 -GIS
 ```
 
+## Portable desktop executable
+
+The [desktop build workflow](https://github.com/tibatechapp-ship-it/geologia/actions/workflows/desktop-build.yml) creates one-file executables for Windows, Linux, and macOS. After a successful run, download the matching artifact from the workflow run's **Artifacts** section. The artifact contains the executable only and is retained for 30 days.
+
+The executable binds only to `127.0.0.1`, opens the browser when the server is ready, and keeps the database, uploads, and local knowledge index under `~/.geologia` (or the user's home equivalent). Override the port with `--port 8123`.
+
+These are unsigned portable binaries, not signed native installers. Windows SmartScreen and macOS Gatekeeper may warn because the binaries are not code-signed. Android is still Termux + PWA; there is no native APK in this repository.
+
 ## Safety and current limitations
 
 - Launchers bind to `127.0.0.1`; they do not provide a public or LAN server.
