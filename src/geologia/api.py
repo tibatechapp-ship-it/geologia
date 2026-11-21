@@ -110,7 +110,8 @@ def _geojson_summary(path: Path) -> dict:
         metrics = inspect_geojson(payload)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"invalid GeoJSON: {exc}") from exc
-    return {"validation": "structural_only", "feature_count": metrics["feature_count"]}
+    return {"validation": "structural_only", "feature_count": metrics["feature_count"],
+            "coordinate_count": metrics["coordinate_count"], "bbox_xy": metrics["bbox_xy"]}
 
 
 @app.get("/health")
@@ -178,7 +179,10 @@ async def dataset_upload(
     declared = request.headers.get("content-length")
     if declared:
         try:
-            if int(declared) > MAX_UPLOAD_BYTES:
+            declared_size = int(declared)
+            if declared_size < 0:
+                raise ValueError("negative Content-Length")
+            if declared_size > MAX_UPLOAD_BYTES:
                 raise HTTPException(status_code=413, detail="dataset exceeds upload limit")
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="invalid Content-Length") from exc
@@ -207,7 +211,40 @@ async def dataset_upload(
         effective_crs = crs.strip() if crs and crs.strip() else None
         if suffix in {".geojson", ".json"}:
             summary = _geojson_summary(temporary_path)
-            effective_crs = effective_crs or "EPSG:4326"
+            if effective_crs:
+                from geologia.geospatial import validate_geojson_crs
+
+                try:
+                    crs_report = validate_geojson_crs(_read_json(temporary_path), effective_crs)
+                except RuntimeError as exc:
+                    raise HTTPException(status_code=503, detail=str(exc)) from exc
+                except ValueError as exc:
+                    raise HTTPException(status_code=422, detail=str(exc)) from exc
+                effective_crs = crs_report["canonical"]
+                summary["crs_validation"] = crs_report
+            else:
+                effective_crs = "EPSG:4326"
+                bbox = summary["bbox_xy"]
+                if bbox and (bbox[0] < -180 or bbox[2] > 180
+                             or bbox[1] < -90 or bbox[3] > 90):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="default GeoJSON CRS is WGS84; coordinates exceed longitude/latitude bounds",
+                    )
+                summary["crs_validation"] = {
+                    "canonical": effective_crs,
+                    "coordinate_bounds_check": "passed",
+                    "crs_inference_performed": False,
+                    "scientific_validation": False,
+                }
+        elif suffix == ".csv":
+            try:
+                summary = inspect_csv(temporary_path)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            summary["validation"] = "csv_structural_only"
+            if summary["ragged_row_count"]:
+                summary["warnings"] = ["rows_have_inconsistent_column_counts"]
         os.replace(temporary_path, final_path)
         clean_filename = safe_name.replace("\\", "/").split("/")[-1]
         try:
