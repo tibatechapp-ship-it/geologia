@@ -165,7 +165,10 @@ async def dataset_upload(
         raise HTTPException(status_code=404, detail="project not found")
     dataset_name = dataset_name.strip()
     if len(dataset_name) < 2:
-        raise HTTPException(status_code=422, detail="dataset name must contain at least two non-space characters")
+        raise HTTPException(
+            status_code=422,
+            detail="dataset name must contain at least two non-space characters",
+        )
     if data_role and data_role not in ALLOWED_DATA_ROLES:
         raise HTTPException(status_code=422, detail="unknown dataset data role")
     safe_name = Path(filename.replace("\\", "/")).name
