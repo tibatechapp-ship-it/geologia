@@ -35,11 +35,11 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
    - Replaced with an application lifespan context.
 5. The development CLI could bind to a non-loopback interface even though the application has no authentication.
    - The CLI now rejects non-loopback bind addresses, and regression tests cover both rejection and valid localhost startup. Direct ASGI deployment can still bypass the CLI guard and remains unsafe without production controls.
-5. The readiness report used `data_complete` for a check that only compared user-supplied role tags.
+6. The readiness report used `data_complete` for a check that only compared user-supplied role tags.
    - Replaced it with `required_roles_present` and explicit `content_validation: not_performed`; execution remains blocked.
-6. Phase 5 documentation incorrectly said derived reprojection output was not saved.
+7. Phase 5 documentation incorrectly said derived reprojection output was not saved.
    - Corrected to describe the actual behavior: a new derived dataset is stored, while the source remains unchanged.
-7. Validation documentation referenced an obsolete commit and obsolete Python matrix.
+8. Validation documentation referenced an obsolete commit and obsolete Python matrix.
    - Refreshed the recorded evidence and explicit limitations.
 
 ## Verified by GitHub Actions
