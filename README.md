@@ -52,6 +52,8 @@ Default SQLite path: `.geologia/geologia.sqlite3`. Set `GEOLOGIA_DB_PATH` to mov
 
 ## Engineering audit
 
+See [DATA_VALIDATION.md](docs/DATA_VALIDATION.md) for supported validation profiles and their scientific limitations.
+
 See [the full-history engineering audit](docs/ENGINEERING_AUDIT.md) for verified fixes, known blockers, and the ordered remediation roadmap.
 
 ## Scientific and security honesty
