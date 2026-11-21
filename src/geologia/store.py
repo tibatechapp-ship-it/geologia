@@ -74,8 +74,10 @@ def initialize() -> None:
             "attempt_count", "max_attempts", "queued_at", "started_at",
             "finished_at", "updated_at", "error_code", "error_message",
         }
+        schema_version = conn.execute("PRAGMA user_version").fetchone()[0]
         needs_migration = (
-            "cancel_requested" not in job_schema
+            schema_version < 1
+            or "cancel_requested" not in job_schema
             or not required_job_columns.issubset(job_columns)
         )
         if needs_migration:
