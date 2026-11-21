@@ -31,6 +31,9 @@ def test_termux_bootstrap_is_explicit_and_model_free():
     assert "pkg install -y python git clang rust make pkg-config" in script
     assert "bash scripts/install-local.sh" in script
     assert "do not expose it to the network" in script
+    assert '$HOME/.shortcuts' in script
+    assert "termux-widget-start.sh" in script
+    assert "chmod 700" in script
 
 
 def test_windows_installer_and_launcher_bind_to_loopback():
@@ -46,3 +49,15 @@ def test_local_install_document_does_not_claim_native_package():
     doc = (ROOT / "docs" / "LOCAL_INSTALL.md").read_text(encoding="utf-8")
     assert "not a signed native APK" in doc
     assert "Termux has not yet been validated" in doc
+
+def test_termux_widget_launcher_is_local_and_health_checked():
+    start = (SCRIPTS / "termux-widget-start.sh").read_text(encoding="utf-8")
+    stop = (SCRIPTS / "termux-widget-stop.sh").read_text(encoding="utf-8")
+    status = (SCRIPTS / "termux-widget-status.sh").read_text(encoding="utf-8")
+    assert '--host 127.0.0.1 --port "$PORT"' in start
+    assert "is_geologia_healthy" in start
+    assert "nohup" in start
+    assert "termux-open-url" in start
+    assert "tr '\\0' ' '" in stop
+    assert "refusing to terminate it" in stop
+    assert "127.0.0.1" in status
