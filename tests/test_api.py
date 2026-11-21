@@ -314,3 +314,30 @@ def test_geojson_inspection_rejects_non_finite_coordinates():
         assert "finite" in str(exc)
     else:
         raise AssertionError("non-finite coordinates must be rejected")
+
+def test_agent_status_endpoint_reports_model_independent_runtime():
+    response = client.get("/api/v1/agent/status")
+    assert response.status_code == 200
+    status = response.json()
+    assert status["agent_id"] == "ali-algomori"
+    assert status["name_en"] == "Ali Algomori"
+    assert status["model_required"] is False
+    assert status["network_required"] is False
+    assert status["scientific_execution_enabled"] is False
+
+
+def test_unmatched_job_requests_clarification_without_false_readiness(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    project = client.post("/api/v1/projects", json={"name": "Clarification"}).json()
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/jobs",
+        json={"request": "Please analyze this area", "language": "en"},
+    )
+    assert response.status_code == 201
+    plan = response.json()["plan"]
+    assert plan["needs_clarification"] is True
+    assert plan["matched_domains"] == []
+    readiness = plan["data_readiness"]
+    assert readiness["readiness_status"] == "not_assessed"
+    assert readiness["required_roles_present"] is None
+    assert readiness["execution_allowed"] is False
