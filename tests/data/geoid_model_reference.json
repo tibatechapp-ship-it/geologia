@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "purpose": "Authoritative geoid-model registry and scientific acceptance checklist. This is not a sampled grid, known-answer point set, or vertical transformation implementation.",
+  "primary_authority": "NGA Office of Geomatics",
+  "models": [
+    {
+      "id": "EGM96",
+      "status": "legacy",
+      "grid_spacing": "15 arc-minutes",
+      "vertical_crs": "EPSG:5773",
+      "datum": "EPSG:5171 (EGM96 geoid)",
+      "grid_source": "https://earth-info.nga.mil/index.php?action=geoid&dir=wgs84",
+      "epsg_crs_source": "https://epsg.io/5773",
+      "datum_source": "https://epsg.io/5171-datum",
+      "notes": "NGA publishes worldwide interpolation grid. Treat grid variant, tide convention, interpolation, and realization as explicit metadata."
+    },
+    {
+      "id": "EGM2008",
+      "status": "NGA-current-published-model-at-reference-review",
+      "grid_spacing": "2.5 arc-minutes",
+      "vertical_crs": "EPSG:3855",
+      "grid_source": "https://earth-info.nga.mil/?action=wgs84&dir=wgs84",
+      "epsg_crs_source": "https://epsg.io/3855",
+      "notes": "NGA publishes worldwide 2.5-minute interpolation grid and spherical harmonic coefficients. Do not silently substitute EGM2008 for a dataset explicitly declared EGM96."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "NGA Earth Gravitational Model portal",
+      "url": "https://earth-info.nga.mil/geograv",
+      "role": "Primary model and data authority"
+    },
+    {
+      "source": "NGA Office of Geomatics WGS 84 data",
+      "url": "https://earth-info.nga.mil/?action=wgs84&dir=wgs84",
+      "role": "Model status, grid resolution, and official download listings"
+    },
+    {
+      "source": "OSGeo PROJ-data NGA grid README",
+      "url": "https://github.com/OSGeo/PROJ-data/blob/master/us_nga/us_nga_README.txt",
+      "role": "Secondary packaging reference; describes converted grid format and public-domain status for listed converted NGA grids"
+    },
+    {
+      "source": "NOAA NGS EGM96 geoid paper",
+      "url": "https://www.ngs.noaa.gov/PUBS_LIB/EGM96_GEOID_PAPER/egm96_geoid_paper.html",
+      "role": "Scientific caution on geoid realization and conventions"
+    }
+  ],
+  "required_grid_manifest_fields": [
+    "model_name_and_version",
+    "original_source_url",
+    "retrieval_date",
+    "original_filename",
+    "original_sha256",
+    "grid_format_and_dimensions",
+    "grid_spacing_and_extent",
+    "longitude_wrap_and_row_order",
+    "nodata_and_units",
+    "tide_system_and_model_conventions",
+    "license_evidence",
+    "interpolation_method",
+    "source_and_target_crs",
+    "coordinate_operation_identifier",
+    "operation_area_of_use",
+    "published_accuracy_or_uncertainty"
+  ],
+  "acceptance_gates": [
+    "Obtain and pin a complete official or explicitly traceable grid artifact; never download it dynamically during CI.",
+    "Record the exact file SHA-256 and verify it before loading.",
+    "Use at least one numerical point value from an independently published authoritative source or independently derived, documented oracle; do not use the same library under test as sole oracle.",
+    "Test grid node values and interior interpolation separately, including axis order, longitude wrap, grid edge, outside coverage, nodata, and missing-grid behavior.",
+    "Verify vertical operation sign convention with a known pair: h_ellipsoid = H_orthometric + N, with N defined by the selected model; do not assume every national datum uses this relationship without its operation metadata.",
+    "Report transformation accuracy/uncertainty and operation/grid provenance; reject unavailable or out-of-area operations rather than silently falling back."
+  ],
+  "status": {
+    "grid_bundled": false,
+    "numerical_known_answer_points_bundled": false,
+    "vertical_transformation_implemented": false,
+    "scientific_validation": false
+  }
+}
