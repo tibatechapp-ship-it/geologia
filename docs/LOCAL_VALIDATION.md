@@ -13,6 +13,11 @@ The runnable application source is committed to the default branch `main`.
 - Local installer PR #11 validation [#44939710621](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44939710621) passed all three Python versions; 51 tests passed on Python 3.12, including Bash syntax validation.
 - Ali agent PR #12 validation [#44940027519](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44940027519) passed all three Python versions; 60 tests passed on Python 3.12.
 
+- Local knowledge PR #13 validation [#44940734988](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44940734988) passed all three Python versions; 70 tests passed on Python 3.12.
+- Desktop PR #14 validation [#44941262275](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44941262275) passed all three Python versions; 73 tests passed on Python 3.12. Portable Windows, Linux, and macOS binaries passed packaged HTTP health, root-page, and manifest smoke checks.
+- Main desktop build [#44941454934](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44941454934) passed and uploaded three artifacts (Windows x64, Linux x64, macOS ARM64). Artifacts are retained for 30 days.
+- Main CI after desktop merge [#44941454941](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44941454941) passed the Python 3.12/3.14/3.15 matrix; 73 tests passed on Python 3.12.
+
 ## Implemented
 
 - Phase 1: FastAPI, SQLite projects/jobs, deterministic plan records.
@@ -22,6 +27,8 @@ The runnable application source is committed to the default branch `main`.
 - Phase 5: CRS inspection and GeoJSON reprojection using optional pyproj; derived datasets are stored without overwriting source datasets.
 - Installable PWA manifest, SVG icon, service worker, and static-shell offline fallback; API responses are not cached by the service worker.
 - Local installer and loopback launcher scripts for POSIX systems, Termux bootstrap, and Windows PowerShell.
+- Termux:Widget one-tap shortcut with background start, health/status, and guarded stop scripts; physical Android testing remains outstanding.
+- One-file portable desktop binaries built and smoke-tested on Windows x64, Linux x64, and macOS ARM64; artifacts are available from the linked GitHub Actions run.
 - Ali agent status endpoint and explicit model-independent runtime contract.
 - Local SQLite knowledge retrieval foundation with FTS5/token-scan fallback, explicit license-reviewed ingestion, SHA-256 deduplication, and source-attributed chunks; no model or auto-download.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
