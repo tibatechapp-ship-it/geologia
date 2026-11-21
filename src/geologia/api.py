@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+from datetime import date
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -210,18 +211,20 @@ async def dataset_upload(
     }
     source_fields = [key for key, value in external_source.items() if key not in {"status"} and value]
     if source_url and source_url.strip():
-        parsed_source = urlsplit(source_url.strip())
+        try:
+            parsed_source = urlsplit(source_url.strip())
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="source URL is malformed") from exc
         if parsed_source.scheme not in {"http", "https"} or not parsed_source.hostname:
             raise HTTPException(status_code=422, detail="source URL must be an absolute HTTP(S) URL")
         if parsed_source.username or parsed_source.password:
             raise HTTPException(status_code=422, detail="source URL must not contain embedded credentials")
     if source_doi and source_doi.strip() and not re.fullmatch(
-        r"10\\.\\d{4,9}/\\S+", source_doi.strip(), flags=re.IGNORECASE
+        r"10\.\d{4,9}/\S+", source_doi.strip(), flags=re.IGNORECASE
     ):
         raise HTTPException(status_code=422, detail="source DOI must use the standard 10.xxxx/... form")
     if source_accessed_at and source_accessed_at.strip():
         try:
-            from datetime import date
             date.fromisoformat(source_accessed_at.strip())
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="source accessed-at must be YYYY-MM-DD") from exc
