@@ -510,7 +510,7 @@ def test_knowledge_cli_accepts_scientific_review_metadata(tmp_path, monkeypatch,
     result = json.loads(capsys.readouterr().out)
     assert result["source_kind"] == "research_article"
     assert result["scientific_review_status"] == "subject_matter_reviewed"
-    assert result["scientific_review_basis"] == "https://example.org/scientific-review"
+    assert result["scientific_review_basis"] == "https://example.org/review-record"
 
 
 def test_scientific_review_metadata_is_separate_from_license_review(local_index):
@@ -774,3 +774,91 @@ def test_not_assessed_rejects_scientific_review_basis(local_index):
         knowledge.ingest_document(
             source, metadata(scientific_review_basis="https://example.org/review")
         )
+
+
+def test_legacy_review_check_migrates_without_losing_document_chunk(tmp_path, monkeypatch):
+    db_path = tmp_path / "old-review-check.sqlite3"
+    monkeypatch.setenv("GEOLOGIA_KNOWLEDGE_DB_PATH", str(db_path))
+    monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE knowledge_documents (
+                id TEXT PRIMARY KEY, source_id TEXT NOT NULL, title TEXT NOT NULL,
+                author TEXT, publisher TEXT, source_url TEXT, doi TEXT,
+                license_name TEXT NOT NULL, source_kind TEXT NOT NULL DEFAULT 'other',
+                scientific_review_status TEXT NOT NULL DEFAULT 'not_assessed' CHECK (
+                    scientific_review_status IN (
+                        'not_assessed', 'editorial_reviewed', 'subject_matter_reviewed'
+                    )
+                ),
+                scientific_reviewed_by TEXT, scientific_review_date TEXT,
+                scientific_review_basis TEXT,
+                license_status TEXT NOT NULL CHECK (
+                    license_status IN ('public_domain', 'open_license', 'permission', 'original_work')
+                ),
+                reviewed_by TEXT NOT NULL, review_date TEXT NOT NULL,
+                language TEXT NOT NULL, filename TEXT NOT NULL,
+                file_sha256 TEXT NOT NULL, indexed_at TEXT NOT NULL,
+                UNIQUE(source_id, file_sha256)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO knowledge_documents VALUES (
+                'old-doc', 'old-source', 'Old source', NULL, NULL, NULL, NULL,
+                'CC BY 4.0', 'textbook', 'not_assessed', NULL, NULL, NULL,
+                'open_license', 'rights reviewer', '2026-11-21', 'en',
+                'old.txt', 'oldsha', '2026-11-21T00:00:00Z'
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE knowledge_chunks (
+                chunk_id TEXT PRIMARY KEY,
+                document_id TEXT NOT NULL REFERENCES knowledge_documents(id),
+                chunk_index INTEGER NOT NULL, body TEXT NOT NULL,
+                source_locator TEXT NOT NULL DEFAULT '',
+                UNIQUE(document_id, chunk_index)
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO knowledge_chunks VALUES "
+            "('old-chunk','old-doc',0,'preserved evidence','')"
+        )
+
+    knowledge.initialize()
+    with closing(knowledge._connect()) as connection:
+        document = connection.execute(
+            "SELECT source_id, scientific_review_status FROM knowledge_documents "
+            "WHERE id='old-doc'"
+        ).fetchone()
+        chunk = connection.execute(
+            "SELECT document_id, body FROM knowledge_chunks WHERE chunk_id='old-chunk'"
+        ).fetchone()
+        schema = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' "
+            "AND name='knowledge_documents'"
+        ).fetchone()["sql"]
+    assert document["source_id"] == "old-source"
+    assert document["scientific_review_status"] == "not_assessed"
+    assert chunk["document_id"] == "old-doc"
+    assert chunk["body"] == "preserved evidence"
+    assert "'peer_reviewed'" in schema
+
+    source = tmp_path / "new-peer-reviewed.txt"
+    source.write_text("New peer reviewed source with citation.", encoding="utf-8")
+    result = knowledge.ingest_document(
+        source,
+        metadata(
+            source_id="new-peer-review-001",
+            scientific_review_status="peer_reviewed",
+            scientific_reviewed_by="Bibliographic reviewer",
+            scientific_review_date="2026-11-21",
+            scientific_review_basis="https://example.org/review-record",
+        ),
+    )
+    assert result["scientific_review_status"] == "peer_reviewed"
