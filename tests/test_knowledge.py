@@ -90,7 +90,7 @@ def test_ingestion_rejects_invalid_utf8_and_unsupported_extension(local_index):
     with pytest.raises(ValueError, match="UTF-8"):
         knowledge.ingest_document(invalid, metadata())
 
-    unsupported = local_index / "source.pdf"
+    unsupported = local_index / "source.bin"
     unsupported.write_bytes(b"not a pdf parser input")
     with pytest.raises(ValueError, match="only UTF-8"):
         knowledge.ingest_document(unsupported, metadata())
@@ -232,3 +232,87 @@ def test_fts_v2_rebuilds_legacy_index_and_preserves_chunks(local_index):
 
     found = knowledge.search("geological mapping")
     assert any(item["source_id"] == "fts-migration-01" for item in found["results"])
+
+
+def _write_text_pdf(path, page_texts):
+    pytest.importorskip("pypdf")
+    from pypdf import PdfWriter
+    from pypdf.generic import (
+        DecodedStreamObject,
+        DictionaryObject,
+        NameObject,
+    )
+
+    writer = PdfWriter()
+    for text in page_texts:
+        page = writer.add_blank_page(width=612, height=792)
+        font = DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        })
+        font_ref = writer._add_object(font)
+        page[NameObject("/Resources")] = DictionaryObject({
+            NameObject("/Font"): DictionaryObject({NameObject("/F1"): font_ref})
+        })
+        escaped = text.replace("\\\\", "\\\\\\\\").replace("(", "\\\\(").replace(")", "\\\\)")
+        stream = DecodedStreamObject()
+        stream.set_data(
+            f"BT /F1 12 Tf 50 700 Td ({escaped}) Tj ET".encode("ascii")
+        )
+        page[NameObject("/Contents")] = writer._add_object(stream)
+    with path.open("wb") as output:
+        writer.write(output)
+
+
+def test_pdf_ingestion_preserves_page_citation_locator(local_index):
+    source = local_index / "field_reference.pdf"
+    _write_text_pdf(
+        source,
+        ["Groundwater aquifer observation wells", "Fracture mapping and structural geology"],
+    )
+    result = knowledge.ingest_document(
+        source,
+        metadata(source_id="pdf-reference-001", title="Field reference PDF"),
+    )
+    assert result["status"] == "indexed"
+    assert result["pages_extracted"] == 2
+    assert result["chunk_count"] == 2
+
+    found = knowledge.search("fracture mapping", limit=5)
+    hit = next(item for item in found["results"]
+                if item["source_id"] == "pdf-reference-001")
+    assert hit["citation_locator"] == "PDF page 2, text chunk 1"
+    assert "Fracture mapping" in hit["excerpt"]
+
+
+def test_pdf_rejects_scanned_images_without_ocr_claim(local_index):
+    source = local_index / "scanned.pdf"
+    _write_text_pdf(source, [""])
+    with pytest.raises(ValueError, match="no extractable text"):
+        knowledge.ingest_document(source, metadata(source_id="pdf-scan-001"))
+
+
+def test_source_locator_schema_migrates_existing_text_chunks(tmp_path, monkeypatch):
+    db_path = tmp_path / "legacy.sqlite3"
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(db_path))
+    monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("PRAGMA foreign_keys = OFF")
+        connection.execute(
+            "CREATE TABLE knowledge_chunks (chunk_id TEXT PRIMARY KEY, "
+            "document_id TEXT NOT NULL, chunk_index INTEGER NOT NULL, body TEXT NOT NULL, "
+            "UNIQUE(document_id, chunk_index))"
+        )
+        connection.execute(
+            "INSERT INTO knowledge_chunks(chunk_id,document_id,chunk_index,body) "
+            "VALUES('old-chunk','old-document',0,'old text')"
+        )
+
+    knowledge.initialize()
+    with closing(knowledge._connect()) as connection:
+        row = connection.execute(
+            "SELECT source_locator FROM knowledge_chunks WHERE chunk_id='old-chunk'"
+        ).fetchone()
+    assert row["source_locator"] == "local indexed text chunk 1"
+
