@@ -1,27 +1,40 @@
-# Local validation record
+# Validation and repository status
 
-Date: 2026-11-21
+Updated: 2026-11-21
 
-## Source package validation
+## Source on GitHub
 
-The source bundle was cleaned, rebuilt from scratch, extracted into a fresh directory, and tested from that extracted copy.
+The application source is now committed to the default branch `main`; it is no longer only a local bootstrap package.
 
-- `python -m pytest`: **11 passed**.
-- `python -m compileall -q apps/api/app tests`: **passed**.
-- `python -m pip wheel . --no-deps --no-build-isolation`: wheel build passed.
-- ZIP integrity: passed.
-- Packaging inspection: no duplicate nested project folder, pytest cache, Python bytecode, or egg-info in the verified archive.
-- Local archive SHA-256: `59febf459fb9a59a47262afb43fbef81cec579a21e3de35ac86384a53004c08e`.
+Latest verified source commit: `525c4c1334f954178ce989fb0b832cd4e85fdcb6`.
 
-Ruff was not available locally. Docker is not installed, so container build/runtime was not verified.
+## Automated validation
 
-## Repository transfer status
+GitHub Actions run #7 for commit `525c4c1334f954178ce989fb0b832cd4e85fdcb6` completed successfully:
 
-The default branch still contains bootstrap documentation and this validation record, not the application source tree. A separate `phase-0-1/source-transfer` branch now contains a guarded GitHub Actions workflow that will validate and unpack the verified bundle when the bundle is committed at `bootstrap/geologia-phase-0-1.zip`. The bundle has not yet been committed to that branch; the workflow has not run. The local ZIP is not a GitHub release.
+- Python 3.10: passed
+- Python 3.12: passed
+- Ruff: passed
+- `compileall`: passed
+- `pytest`: 9 passed in each matrix job
 
-## Known release blockers
+Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44912938806
 
-- `LICENSE` in the source bundle is a placeholder, not the complete AGPL-3.0 text.
-- The API is intended for local development and must not be exposed publicly without authentication, authorization, malware scanning, quotas, isolated workers, private storage, and monitoring.
-- GeoPackage and GeoTIFF are registered only; no GIS worker is integrated.
-- No scientific interpretation, resource probability, groundwater yield, or drilling recommendation is provided.
+Earlier runs failed during development due to Ruff findings and incomplete phase wiring. Those failures were corrected in later commits; the latest run above is green.
+
+## Implemented
+
+- Phase 1: FastAPI, SQLite projects/jobs, deterministic plan records.
+- Phase 2: bounded streaming dataset intake, safe generated storage path, SHA-256, structural GeoJSON validation.
+- Phase 3: named chief-agent plan, deterministic specialist role assignment, dataset-role readiness check.
+- 30 engine catalog cards, all `planned` and `license_status: unverified`.
+
+## Explicitly not verified or not implemented
+
+- The workflow runs on GitHub-hosted Ubuntu; **Termux/Android itself has not been tested in this session**.
+- No deployment or live production server.
+- No authentication/authorization yet; keep the API bound to localhost.
+- No scientific engine is integrated or certified; `engines_integrated` remains 0.
+- GeoPackage, GeoTIFF, CSV, and LAS are stored only; no spatial interpretation or raster/vector processing.
+- No frontend yet.
+- Engine license reviews are pending individually; the platform license does not relicense third-party engines.

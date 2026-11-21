@@ -50,3 +50,7 @@ The 30 registry entries are catalog references, not integrations. Health reports
 Do not expose this development API publicly without authentication, authorization, quotas, private storage, isolated workers, and monitoring. Spatial analysis, raster/vector processing, frontend, and engine adapters are not implemented yet.
 
 See [Phase 1](docs/PHASE1.md), [Phase 2](docs/PHASE2.md), and [Phase 3](docs/PHASE3.md).
+
+## License
+
+Original GEOLOGIA platform code is licensed under **AGPL-3.0-only**; see [LICENSE](LICENSE). Third-party engine licenses are separate and must be verified before each adapter is distributed. The registry's `license_status: unverified` is deliberate until that review is complete.
