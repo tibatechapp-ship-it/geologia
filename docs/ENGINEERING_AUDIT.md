@@ -1,14 +1,14 @@
 # GEOLOGIA Engineering Audit
 
 Audit date: 2026-11-21
-Audited branch: `main`
+Audited source: `main` plus phase 6–8 implementation branches (review PRs pending)
 Purpose: distinguish implemented behavior from claims, record defects found during the full-history review, and define safe next steps.
 
 ## Executive status
 
 GEOLOGIA is an early-stage local geoscience workspace and planning API. It is not yet a production platform, an AI reasoning system, or a scientific analysis suite. The current application can create projects, store bounded uploads, inspect a subset of vector/table structure, record deterministic plans, and perform GeoJSON coordinate reprojection when the optional GIS dependency is installed.
 
-The engine registry is a catalogue only. All 30 entries remain `planned` and `license_status: unverified`. The API reports zero integrated engines and keeps execution disabled.
+The engine registry is a catalogue only. All 30 entries remain `planned` and `license_status: unverified`. The API reports zero integrated engines and keeps execution disabled. New jobs are recorded as `planned`; the job state machine does not start a worker.
 
 ## Development history reviewed
 
@@ -61,6 +61,8 @@ This run includes the strict JSON handling, normalized-input validation, readine
    - Added versioned v1 profiles for groundwater-level CSV time series and AOI GeoJSON boundaries, persisted reports, and exposed validation through the API and bilingual UI. The profiles are intentionally narrow and do not claim scientific validity.
 10. Validation did not verify that the stored file still matched its upload-time metadata.
    - Validation now recomputes file size and SHA-256 before parsing; mismatches fail with an integrity report, and reports include source digest, source size, and validation timestamp.
+11. Job records had no legal transition model, retry bounds, cancellation semantics, or state-event history.
+   - Added a durable SQLite state machine, bounded attempts, append-only transition events, atomic cancellation requests, and an in-place migration that preserves legacy job records. No worker or engine execution was enabled.
 
 ## Known blockers — do not represent as production-ready
 
@@ -71,7 +73,7 @@ This run includes the strict JSON handling, normalized-input validation, readine
 - No malware scanning or sandbox for uploaded content. The current application does not execute uploaded code or scientific tools.
 - No production secret management, audit log, backup/restore procedure, retention policy, or deployment hardening.
 - SQLite is suitable for the local foundation, not yet a validated multi-user production database.
-- No formal schema migration framework; the current store contains an inline compatibility migration.
+- No general-purpose schema migration framework; the store contains narrowly scoped, tested compatibility migrations for dataset roles and the job lifecycle.
 
 ### Scientific and geospatial correctness
 - No scientific engine is integrated, certified, or executed.
@@ -101,7 +103,7 @@ This run includes the strict JSON handling, normalized-input validation, readine
 3. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
 4. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
 5. Expand versioned data profiles with explicit units, coordinate reference semantics, and known-answer fixtures; add real GeoPackage, GeoTIFF, and LAS parsers only with format-specific tests. Never infer scientific validity from filenames or role tags.
-6. Introduce a durable job queue and isolated workers only after job state transitions, cancellation, retries, timeouts, resource limits, and provenance are specified and tested.
+6. Design and test the durable queue/worker protocol: atomic claiming, leases, crash recovery, idempotency, cooperative cancellation, isolated workspaces, resource limits, artifact provenance, and worker authentication. The current job state machine is only the lifecycle foundation.
 7. Integrate scientific engines one at a time, with pinned versions, license review, published benchmark datasets, known-answer tests, uncertainty reporting, and independent scientific review.
 8. Verify Termux separately on the user's device; record exact commands, package versions, and outputs.
 
