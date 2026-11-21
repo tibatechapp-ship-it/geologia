@@ -2,7 +2,7 @@
 
 Updated: 2026-11-21
 
-Current implementation branches: `phase-6-browser-e2e`, `phase-7-data-validation`, and `phase-8-job-lifecycle`. Phase 7 review: [PR #4](https://github.com/tibatechapp-ship-it/geologia/pull/4).
+Current implementation branches: `phase-6-browser-e2e`, `phase-7-data-validation`, and `phase-8-job-lifecycle`. Reviews: [Phase 7 PR #4](https://github.com/tibatechapp-ship-it/geologia/pull/4) and [Phase 8 PR #5](https://github.com/tibatechapp-ship-it/geologia/pull/5).
 
 ## Source on GitHub
 
@@ -10,11 +10,11 @@ The phase 6 browser-test implementation is on branch `phase-6-browser-e2e`, pend
 
 ## Latest full validation
 
-GitHub Actions run #96 for commit `5051b2c49e8a525ae4c840ae471229c2b660924f` completed successfully:
+GitHub Actions run #122 for commit `2fa2b72dea6fc9d774942fdbc0a9c81788d97637` completed successfully:
 
-- Python 3.12: 44 passed, 1 optional browser-directory skip, 1 upstream warning
-- Python 3.14: 43 passed, 1 optional browser-directory skip, 1 upstream warning
-- Python 3.15: 43 passed, 1 optional browser-directory skip, 1 upstream warning
+- Python 3.12: 50 passed, 1 optional browser-directory skip, 1 upstream warning
+- Python 3.14: 50 passed, 1 optional browser-directory skip, 1 upstream warning
+- Python 3.15: 50 passed, 1 optional browser-directory skip, 1 upstream warning
 - JavaScript syntax check: passed
 - Ruff: passed
 - `compileall`: passed
@@ -30,11 +30,12 @@ The browser tests launch a real Uvicorn process with temporary SQLite and upload
 - Rejection of malformed CSV during inspection.
 - No uncaught browser JavaScript exceptions in the main user journey.
 
-Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918712001
+Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44920184570
 
 ## Implemented
 
 - Phase 7 foundation: versioned CSV/GeoJSON validation profiles, persisted reports, upload-time SHA-256 integrity verification, and a bilingual UI validation action. Details: [DATA_VALIDATION.md](DATA_VALIDATION.md).
+- Phase 8 foundation: durable job lifecycle, bounded retry attempts, atomic cancellation requests, transition event history, and tested legacy database migration. Details: [JOB_LIFECYCLE.md](JOB_LIFECYCLE.md).
 
 - Phase 1: FastAPI, SQLite projects/jobs, deterministic plan records.
 - Phase 2: bounded streaming dataset intake, generated storage paths, SHA-256, strict JSON and structural GeoJSON validation.
