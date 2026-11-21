@@ -1,7 +1,7 @@
 # GEOLOGIA Engineering Audit
 
 Audit date: 2026-11-21
-Audited branch: `main`
+Audited branch: `phase-6-browser-e2e-20261121` (draft PR #7)
 Purpose: distinguish implemented behavior from claims, record defects found during the full-history review, and define safe next steps.
 
 ## Executive status
@@ -74,10 +74,10 @@ This run validates the current main-branch code, including strict JSON handling,
 - A role tag is user-supplied metadata, not proof that the file contains the required scientific data.
 - GeoJSON validation is structural, not a complete OGC conformance suite, topology validator, or scientific-quality review.
 - GeoJSON upload now canonicalizes an explicitly declared horizontal CRS and checks that transformed coordinates fall within Earth longitude/latitude bounds; this is a plausibility check, not CRS inference or scientific validation. When no CRS header is supplied, GeoJSON is treated as WGS84 and checked against longitude/latitude bounds. Other formats still retain user-declared CRS metadata without content-level CRS verification.
-- Reprojection supports GeoJSON vector geometry only. Raster GeoTIFF and GeoPackage are accepted for storage but not processed.
+- GeoJSON reprojection remains the only coordinate transformation. Draft PR #7 adds optional parser-backed structural inspection for GeoPackage, GeoTIFF, and LAS, including bounded layer/raster/point samples; these changes are not merged to `main` and do not perform geological interpretation.
 - Z and additional ordinates are preserved, not transformed using a vertical CRS.
 - CSV upload now rejects invalid UTF-8 and malformed quoting, and records header/row structure plus ragged-row warnings. CSV checks do not validate domain-specific units, schema, or measurements.
-- No provenance model yet records software versions, exact transformation parameters, input snapshots, and reproducible run artifacts for scientific computations.
+- PR #7 now proposes an initial provenance ledger: dataset SHA-256/source metadata, parser and Python versions, inspection timestamp, transformation parameters, pyproj version, and a project-scoped SHA-256 event chain. This is tamper-evident within the database, not tamper-proof; external anchoring, full input snapshots, and scientific run artifacts remain future work.
 
 ### Frontend and test coverage
 - Main currently has API-level frontend checks and JavaScript syntax validation, but no merged browser-based end-to-end suite.
@@ -94,7 +94,7 @@ This run validates the current main-branch code, including strict JSON handling,
 1. Extend browser coverage to map rendering and reprojection interaction after the current API-level upload validation changes pass CI.
 2. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
 3. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
-4. Extend content validation to GeoPackage, GeoTIFF, and LAS using maintained parsers, format-specific resource limits, corruption fixtures, and independent reference datasets; never infer scientific validity from filenames or role tags.
+4. Complete review and CI for the optional GeoPackage/GeoTIFF/LAS inspectors in draft PR #7, add malformed internal-record fixtures and independent reference datasets, and verify resource limits against adversarial samples; never infer scientific validity from filenames or role tags.
 5. Introduce a durable job queue and isolated workers only after job state transitions, cancellation, retries, timeouts, resource limits, and provenance are specified and tested.
 6. Integrate scientific engines one at a time, with pinned versions, license review, published benchmark datasets, known-answer tests, uncertainty reporting, and independent scientific review.
 7. Verify Termux separately on the user's device; record exact commands, package versions, and outputs.
@@ -102,3 +102,11 @@ This run validates the current main-branch code, including strict JSON handling,
 ## Acceptance rule
 
 A phase is complete only when its implementation, regression tests, documentation, CI evidence, and explicitly stated limitations agree. A green syntax check or a passing unit-test suite alone does not certify scientific correctness or production readiness.
+
+## Draft PR #7 — format inspection and provenance
+
+The current PR branch adds optional parser-backed inspectors for GeoPackage (SQLite integrity, required metadata tables, layer metadata and bounded feature samples), GeoTIFF (dimensions, CRS, transform, units, nodata, metadata, block-size guard and bounded sample read), and uncompressed LAS (header/point-record extent checks, scales/offsets, CRS/VLR metadata and bounded point sample). Inspection reports explicitly set scientific validation to false and do not verify vertical datums.
+
+The branch also adds a known-answer EPSG:4326 ↔ EPSG:3857 transformation fixture with tolerances; records source SHA-256, declared CRS, parser/Python/GEOLOGIA versions and inspection time; records pyproj operation details for reprojection; and appends dataset ingestion/inspection/derivation events to a project-scoped SHA-256 chain. The chain detects accidental or unsophisticated modification but is not an external immutable audit system.
+
+This work remains in draft PR #7. Parser-backed test results and CI status must be checked before describing it as validated or merging.
