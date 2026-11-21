@@ -1,9 +1,11 @@
 """GEOLOGIA REST API: project workspace, safe dataset storage, and plan records."""
 import argparse
+import math
 import hashlib
 import json
 import os
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -12,7 +14,7 @@ import uvicorn
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from geologia import __version__
 from geologia import store
@@ -20,10 +22,17 @@ from geologia.planner import build_plan
 from geologia.registry import get_engine, list_engines
 from geologia.vector import inspect_csv, inspect_geojson
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    store.initialize()
+    yield
+
+
 app = FastAPI(
     title="GEOLOGIA API",
     version=__version__,
     description="Bilingual geoscience workspace. Plans and stored datasets; no engine execution.",
+    lifespan=lifespan,
 )
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 ALLOWED_FORMATS = {".geojson", ".json", ".gpkg", ".tif", ".tiff", ".csv", ".las"}
@@ -40,31 +49,68 @@ class ProjectInput(BaseModel):
     description: str = Field("", max_length=2000)
     language: Literal["ar", "en"] = "ar"
 
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 2:
+            raise ValueError("project name must contain at least two non-space characters")
+        return value
+
+    @field_validator("description")
+    @classmethod
+    def normalize_description(cls, value: str) -> str:
+        return value.strip()
+
 
 class JobInput(BaseModel):
     request: str = Field(..., min_length=3, max_length=2000)
     language: Literal["ar", "en"] = "ar"
+
+    @field_validator("request")
+    @classmethod
+    def normalize_request(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("request must contain at least three non-space characters")
+        return value
 
 
 class ReprojectInput(BaseModel):
     target_crs: str = Field(..., min_length=1, max_length=200)
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON numeric constant: {value}")
+
+
+def _finite_json_float(value: str) -> float:
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError("JSON numeric value must be finite")
+    return parsed
+
+
+def _read_json(path: Path) -> dict:
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        parse_constant=_reject_json_constant,
+        parse_float=_finite_json_float,
+    )
+
+
 def _geojson_summary(path: Path) -> dict:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
+        payload = _read_json(path)
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422, detail="GeoJSON must be valid UTF-8 JSON with finite numbers"
+        ) from exc
     try:
         metrics = inspect_geojson(payload)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"invalid GeoJSON: {exc}") from exc
     return {"validation": "structural_only", "feature_count": metrics["feature_count"]}
-
-
-@app.on_event("startup")
-def startup() -> None:
-    store.initialize()
 
 
 @app.get("/health")
@@ -117,6 +163,9 @@ async def dataset_upload(
 ) -> dict:
     if store.get_project(project_id) is None:
         raise HTTPException(status_code=404, detail="project not found")
+    dataset_name = dataset_name.strip()
+    if len(dataset_name) < 2:
+        raise HTTPException(status_code=422, detail="dataset name must contain at least two non-space characters")
     if data_role and data_role not in ALLOWED_DATA_ROLES:
         raise HTTPException(status_code=422, detail="unknown dataset data role")
     safe_name = Path(filename.replace("\\", "/")).name
@@ -160,7 +209,7 @@ async def dataset_upload(
         clean_filename = safe_name.replace("\\", "/").split("/")[-1]
         try:
             item = store.create_dataset(
-                project_id, name=dataset_name.strip(), file_format=suffix.lstrip("."),
+                project_id, name=dataset_name, file_format=suffix.lstrip("."),
                 original_filename=clean_filename, content_path=str(final_path),
                 sha256=digest.hexdigest(), size_bytes=size, crs=effective_crs,
                 data_role=data_role, summary=summary,
@@ -215,9 +264,11 @@ def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
     if content_path is None or not Path(content_path).is_file():
         raise HTTPException(status_code=410, detail="dataset file is missing")
     try:
-        payload = json.loads(Path(content_path).read_text(encoding="utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
+        payload = _read_json(Path(content_path))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422, detail="GeoJSON must be valid UTF-8 JSON with finite numbers"
+        ) from exc
     try:
         metrics = inspect_geojson(payload)
     except ValueError as exc:
@@ -298,9 +349,11 @@ def dataset_geojson(dataset_id: str) -> JSONResponse:
     if content_path is None or not Path(content_path).is_file():
         raise HTTPException(status_code=410, detail="dataset file is missing")
     try:
-        payload = json.loads(Path(content_path).read_text(encoding="utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
+        payload = _read_json(Path(content_path))
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422, detail="GeoJSON must be valid UTF-8 JSON with finite numbers"
+        ) from exc
     try:
         inspect_geojson(payload)
     except ValueError as exc:
@@ -337,9 +390,11 @@ def dataset_inspect(dataset_id: str) -> dict:
         operation = "csv_inspection"
     else:
         try:
-            payload = json.loads(Path(content_path).read_text(encoding="utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
+            payload = _read_json(Path(content_path))
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=422, detail="GeoJSON must be valid UTF-8 JSON with finite numbers"
+            ) from exc
         try:
             report = inspect_geojson(payload)
         except ValueError as exc:
