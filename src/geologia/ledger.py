@@ -133,7 +133,7 @@ class Ledger:
                         payload, ensure_ascii=False, sort_keys=True
                     ):
                         raise LedgerError("idempotency_conflict")
-                    return dict(existing)
+                    return self.get_job(existing["id"])
             encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True)
             db.execute(
                 "INSERT INTO jobs(id,project_id,kind,status,input_json,idempotency_key,"
