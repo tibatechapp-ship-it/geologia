@@ -43,7 +43,7 @@
       ]
     },
     {
-      "reference_id": "webmercator-north-limit",
+      "reference_id": "webmercator-square-tile-edge",
       "input_xy": [
         180,
         85.0511287798066
