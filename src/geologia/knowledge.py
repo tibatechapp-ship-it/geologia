@@ -955,7 +955,8 @@ def annotate_claim_evidence(
         try:
             connection.execute(
                 "INSERT INTO knowledge_claim_evidence "
-                "(annotation_id, claim_id, chunk_id, relation, rationale, recorded_by, recorded_at) "
+                "(annotation_id, claim_id, chunk_id, relation, rationale, "
+                "recorded_by, recorded_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     annotation_id, claim_id, chunk_id, relation, rationale,
