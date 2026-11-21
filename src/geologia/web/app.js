@@ -185,5 +185,6 @@ $("claimEvidenceSearch").addEventListener("submit",async e=>{e.preventDefault();
 $("reloadClaims").addEventListener("click",loadClaims);
 $("claimsPrev").addEventListener("click",()=>{claimPageOffset=Math.max(0,claimPageOffset-claimPageSize);loadClaims()});
 $("claimsNext").addEventListener("click",()=>{if(claimPageOffset+claimPageSize<claimTotal){claimPageOffset+=claimPageSize;loadClaims()}});
-\nasync function start(){setLang("ar");initMap();await loadHealth();await loadProjects();await loadClaims()}
+
+async function start(){setLang("ar");initMap();await loadHealth();await loadProjects();await loadClaims()}
 start();
