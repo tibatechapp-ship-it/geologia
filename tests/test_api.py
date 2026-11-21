@@ -409,3 +409,71 @@ def test_analysis_plan_retrieves_local_source_chunks_without_model(tmp_path, mon
     assert retrieval["model_used"] is False
     assert retrieval["scientific_conclusion"] is False
     assert retrieval["results"][0]["source_id"] == "plan-hydro-01"
+
+def test_local_knowledge_api_search_and_status(tmp_path, monkeypatch):
+    from geologia import knowledge
+
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    source = tmp_path / "open_hydro.txt"
+    source.write_text(
+        "Groundwater recharge is assessed from aquifer and water-level evidence.",
+        encoding="utf-8",
+    )
+    knowledge.ingest_document(
+        source,
+        {
+            "source_id": "api-hydro-01",
+            "title": "Open hydrogeology note",
+            "language": "en",
+            "license_name": "CC BY 4.0",
+            "license_status": "open_license",
+            "reviewed_by": "test reviewer",
+            "review_date": "2026-11-21",
+            "source_url": "https://example.org/hydro-note",
+        },
+    )
+
+    status = client.get("/api/v1/knowledge/status")
+    assert status.status_code == 200
+    assert status.json()["document_count"] == 1
+    assert status.json()["model_required"] is False
+
+    response = client.get(
+        "/api/v1/knowledge/search", params={"q": "aquifer recharge", "limit": 3}
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["count"] >= 1
+    assert result["model_used"] is False
+    assert result["results"][0]["source_id"] == "api-hydro-01"
+
+
+def test_analysis_plan_retrieves_local_source_chunks_without_model(tmp_path, monkeypatch):
+    from geologia import knowledge
+
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    source = tmp_path / "groundwater.txt"
+    source.write_text("Groundwater recharge and aquifer storage are related.", encoding="utf-8")
+    knowledge.ingest_document(
+        source,
+        {
+            "source_id": "plan-hydro-01",
+            "title": "Local groundwater note",
+            "language": "en",
+            "license_name": "Original work",
+            "license_status": "original_work",
+            "reviewed_by": "test author",
+            "review_date": "2026-11-21",
+        },
+    )
+    project = client.post("/api/v1/projects", json={"name": "Knowledge retrieval"}).json()
+    job = client.post(
+        f"/api/v1/projects/{project['id']}/jobs",
+        json={"request": "Groundwater recharge study", "language": "en"},
+    )
+    assert job.status_code == 201
+    retrieval = job.json()["plan"]["knowledge_retrieval"]
+    assert retrieval["status"] == "local_references_found"
+    assert retrieval["model_used"] is False
+    assert retrieval["scientific_conclusion"] is False
+    assert retrieval["results"][0]["source_id"] == "plan-hydro-01"
