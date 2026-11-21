@@ -16,6 +16,8 @@ from uuid import uuid4
 
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
 MAX_PDF_PAGES = 500
+MAX_PDF_PAGE_TEXT_CHARS = 200_000
+MAX_PDF_EXTRACTED_CHARS = 5_000_000
 MAX_CHUNK_CHARS = 1600
 CHUNK_OVERLAP_CHARS = 180
 MAX_QUERY_CHARS = 500
@@ -345,9 +347,20 @@ def _extract_pdf_pages(raw: bytes) -> list[tuple[int, str]]:
         if len(reader.pages) > MAX_PDF_PAGES:
             raise ValueError(f"PDF exceeds the {MAX_PDF_PAGES}-page indexing limit")
         pages = []
+        extracted_total = 0
         for page_number, page in enumerate(reader.pages, start=1):
             extracted = page.extract_text() or ""
+            if len(extracted) > MAX_PDF_PAGE_TEXT_CHARS:
+                raise ValueError(
+                    f"PDF page {page_number} exceeds the "
+                    f"{MAX_PDF_PAGE_TEXT_CHARS}-character extraction limit"
+                )
             extracted = extracted.replace("\r\n", "\n").replace("\r", "\n").strip()
+            extracted_total += len(extracted)
+            if extracted_total > MAX_PDF_EXTRACTED_CHARS:
+                raise ValueError(
+                    "PDF exceeds the total extracted-text character limit"
+                )
             if extracted:
                 pages.append((page_number, extracted))
     except ValueError:
