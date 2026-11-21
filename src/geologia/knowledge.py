@@ -384,8 +384,8 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
             )
             if has_fts:
                 connection.execute(
-                    "INSERT INTO knowledge_fts (chunk_id, title, body) VALUES (?, ?, ?)",
-                    (chunk_id, source["title"], body),
+                    "INSERT INTO knowledge_fts_v2 (chunk_id, title, body) VALUES (?, ?, ?)",
+                    (chunk_id, _fts_text(source["title"]), _fts_text(body))
                 )
         connection.commit()
 
@@ -464,8 +464,14 @@ def seed_core_knowledge() -> dict:
 
 
 def _query_tokens(query: str) -> list[str]:
-    tokens = re.findall(r"[\w]+", query, flags=re.UNICODE)
-    return [token for token in tokens if token != "_"][:MAX_QUERY_TOKENS]
+    tokens = []
+    for token in re.findall(r"[\w]+", query, flags=re.UNICODE):
+        if token == "_":
+            continue
+        tokens.append(token)
+        if CJK_PATTERN.search(token):
+            tokens.extend(_cjk_bigrams(token))
+    return list(dict.fromkeys(tokens))[:MAX_QUERY_TOKENS]
 
 
 def _excerpt(body: str, tokens: list[str], max_chars: int = 900) -> str:
@@ -510,11 +516,11 @@ def search(query: str, limit: int = 5) -> dict:
                            d.source_id, d.title, d.author, d.publisher, d.source_url,
                            d.doi, d.license_name, d.license_status, d.reviewed_by,
                            d.review_date, d.language, d.file_sha256,
-                           bm25(knowledge_fts) AS relevance
-                    FROM knowledge_fts
-                    JOIN knowledge_chunks c ON c.chunk_id = knowledge_fts.chunk_id
+                           bm25(knowledge_fts_v2) AS relevance
+                    FROM knowledge_fts_v2
+                    JOIN knowledge_chunks c ON c.chunk_id = knowledge_fts_v2.chunk_id
                     JOIN knowledge_documents d ON d.id = c.document_id
-                    WHERE knowledge_fts MATCH ?
+                    WHERE knowledge_fts_v2 MATCH ?
                     ORDER BY relevance
                     LIMIT ?
                     """,
