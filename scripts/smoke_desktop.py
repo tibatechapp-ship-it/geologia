@@ -1,4 +1,5 @@
 """Run a packaged GEOLOGIA executable and verify its local HTTP shell."""
+import json
 import os
 from pathlib import Path
 import socket
@@ -57,6 +58,12 @@ def main() -> None:
             with urlopen(f"{base_url}/manifest.webmanifest", timeout=3) as response:
                 manifest = response.read()
                 assert response.status == 200 and b"standalone" in manifest
+
+            with urlopen(f"{base_url}/api/v1/knowledge/status", timeout=15) as response:
+                knowledge_status = json.loads(response.read())
+                assert response.status == 200
+                assert knowledge_status["core_seeded_count"] == 12
+                assert knowledge_status["model_required"] is False
         finally:
             process.terminate()
             try:
