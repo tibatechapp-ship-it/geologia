@@ -357,7 +357,7 @@ def _extract_pdf_pages(raw: bytes) -> list[tuple[int, str]]:
 
     if not pages:
         raise ValueError(
-            "PDF contains no extractable text; scanned-image OCR is not included " 
+            "PDF contains no extractable text; scanned-image OCR is not included "
             "in the lightweight core"
         )
     return pages
