@@ -165,6 +165,18 @@ def knowledge_claim_create(body: ClaimInput) -> dict:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+@app.get("/api/v1/knowledge/claims")
+def knowledge_claims_list(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+) -> dict:
+    """List recorded claims and evidence counts, not scientific conclusions."""
+    try:
+        return knowledge.list_claims(limit=limit, offset=offset)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
 @app.get("/api/v1/knowledge/claims/{claim_id}")
 def knowledge_claim_get(claim_id: str) -> dict:
     item = knowledge.get_claim(claim_id)
