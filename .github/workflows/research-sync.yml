@@ -1,0 +1,53 @@
+name: Research Sync Inbox
+
+on:
+  schedule:
+    - cron: "25 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: "Research publication window (days)"
+        required: false
+        default: "180"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: research-sync-inbox
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Synchronize research metadata
+        env:
+          RESEARCH_WINDOW_DAYS: ${{ inputs.window_days || '180' }}
+          RESEARCH_MAX_PER_QUERY: "30"
+        run: python scripts/research_sync.py
+      - name: Create or update human-review pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: automation/research-sync-inbox
+          delete-branch: false
+          title: "chore(research): refresh geoscience review inbox"
+          commit-message: "chore(research): refresh metadata review inbox"
+          body: |
+            Automated metadata-only discovery of recent geoscience and geotechnology publications.
+
+            **Review required:** check source identity, methodology, evidence, licensing, and relevance. Comment on this PR to discuss candidates. Merge only references you approve.
+
+            This workflow does not download full papers, execute research code, approve scientific claims, or modify application logic. It creates a candidate inbox; human review is required before any candidate becomes an application reference or implementation.
+          add-paths: |
+            docs/research/research_candidates.json
