@@ -71,6 +71,12 @@ def _vertical_reference(
 ) -> dict[str, Any]:
     """Report declared vertical CRS/tags without asserting datum verification."""
     parsed = _parsed_crs(crs)
+    if crs is None:
+        parse_status = "no_crs_declared"
+    elif parsed is None:
+        parse_status = "crs_parse_failed"
+    else:
+        parse_status = "parsed"
     components = []
     if parsed is not None:
         try:
@@ -99,6 +105,10 @@ def _vertical_reference(
             vertical_values[str(key)[:256]] = str(value)[:MAX_METADATA_VALUE_LENGTH]
 
     return {
+        "vertical_crs_parse_status": (
+            "vertical_component_found" if components else
+            "no_vertical_component_in_crs" if parse_status == "parsed" else parse_status
+        ),
         "declared_vertical_crs": [item["crs"] for item in components] or None,
         "vertical_crs_components": components,
         "vertical_metadata_keys": sorted(vertical_values),
