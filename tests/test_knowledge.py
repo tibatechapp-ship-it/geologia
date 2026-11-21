@@ -33,6 +33,7 @@ def metadata(**overrides):
         "scientific_review_status": "not_assessed",
         "scientific_reviewed_by": "",
         "scientific_review_date": "",
+        "scientific_review_basis": "",
     }
     values.update(overrides)
     return values
@@ -504,10 +505,12 @@ def test_knowledge_cli_accepts_scientific_review_metadata(tmp_path, monkeypatch,
         "--scientific-review-status", "subject_matter_reviewed",
         "--scientific-reviewed-by", "Geoscience specialist",
         "--scientific-review-date", "2026-11-21",
+        "--scientific-review-basis", "https://example.org/review-record",
     ])
     result = json.loads(capsys.readouterr().out)
     assert result["source_kind"] == "research_article"
     assert result["scientific_review_status"] == "subject_matter_reviewed"
+    assert result["scientific_review_basis"] == "https://example.org/scientific-review"
 
 
 def test_scientific_review_metadata_is_separate_from_license_review(local_index):
@@ -522,6 +525,7 @@ def test_scientific_review_metadata_is_separate_from_license_review(local_index)
     assert hit["scientific_review_status"] == "not_assessed"
     assert hit["scientific_reviewed_by"] is None
     assert hit["scientific_review_date"] is None
+    assert hit["scientific_review_basis"] is None
 
 
 def test_scientific_review_requires_reviewer_and_valid_date(local_index):
@@ -538,6 +542,7 @@ def test_scientific_review_requires_reviewer_and_valid_date(local_index):
         scientific_review_status="subject_matter_reviewed",
         scientific_reviewed_by="Geoscience reviewer",
         scientific_review_date="2026-11-21",
+        scientific_review_basis="https://example.org/scientific-review",
     )
     result = knowledge.ingest_document(source, reviewed)
     assert result["scientific_review_status"] == "subject_matter_reviewed"
@@ -553,6 +558,7 @@ def test_scientific_review_date_rejects_invalid_calendar_date(local_index):
                 scientific_review_status="editorial_reviewed",
                 scientific_reviewed_by="Editorial reviewer",
                 scientific_review_date="2026-02-31",
+                scientific_review_basis="https://example.org/review-record",
             ),
         )
 
@@ -595,6 +601,7 @@ def test_knowledge_documents_migrate_scientific_review_columns(tmp_path, monkeyp
     assert row["scientific_review_status"] == "not_assessed"
     assert row["scientific_reviewed_by"] is None
     assert row["scientific_review_date"] is None
+    assert row["scientific_review_basis"] is None
 
 
 def test_claim_evidence_ledger_records_relations_without_scientific_validation(local_index):
@@ -728,3 +735,41 @@ def test_claim_register_validates_pagination(local_index):
         knowledge.list_claims(limit=101)
     with pytest.raises(ValueError, match="offset must be zero"):
         knowledge.list_claims(offset=-1)
+
+
+def test_expanded_source_taxonomy_and_peer_review_basis_are_traceable(local_index):
+    source = local_index / "peer-reviewed.txt"
+    source.write_text("Geological findings with a documented review record.", encoding="utf-8")
+    reviewed = metadata(
+        source_id="peer-review-basis-001",
+        source_kind="meta_analysis",
+        scientific_review_status="peer_reviewed",
+        scientific_reviewed_by="Bibliographic verification",
+        scientific_review_date="2026-11-21",
+        scientific_review_basis="10.1234/geo.review.2026",
+    )
+    result = knowledge.ingest_document(source, reviewed)
+    assert result["source_kind"] == "meta_analysis"
+    assert result["scientific_review_status"] == "peer_reviewed"
+    assert result["scientific_review_basis"] == "https://doi.org/10.1234/geo.review.2026"
+
+
+def test_completed_scientific_review_requires_traceable_basis(local_index):
+    source = local_index / "no-review-basis.txt"
+    source.write_text("A claimed reviewed geology source.", encoding="utf-8")
+    reviewed = metadata(
+        scientific_review_status="peer_reviewed",
+        scientific_reviewed_by="Reviewer",
+        scientific_review_date="2026-11-21",
+    )
+    with pytest.raises(ValueError, match="requires a source URL or DOI basis"):
+        knowledge.ingest_document(source, reviewed)
+
+
+def test_not_assessed_rejects_scientific_review_basis(local_index):
+    source = local_index / "unassessed-with-basis.txt"
+    source.write_text("An unassessed source with review basis metadata.", encoding="utf-8")
+    with pytest.raises(ValueError, match="reviewer and date require"):
+        knowledge.ingest_document(
+            source, metadata(scientific_review_basis="https://example.org/review")
+        )
