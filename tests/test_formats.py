@@ -256,3 +256,23 @@ def test_las_forged_point_count_rejected(tmp_path):
     path.write_bytes(content)
     with pytest.raises(FormatValidationError, match="extend beyond"):
         inspect_las(path)
+
+def test_geojson_reference_dataset_matches_known_projection_results():
+    pyproj = pytest.importorskip("pyproj")
+    from geologia.geospatial import reproject_geojson
+
+    source = json.loads((ROOT / "data" / "reference_points.geojson").read_text())
+    reference = json.loads((ROOT / "data" / "reference_projection.json").read_text())
+    transformed, info = reproject_geojson(
+        source, reference["source_crs"], reference["target_crs"]
+    )
+    expected = {
+        item["reference_id"]: item["expected_xy"] for item in reference["points"]
+    }
+    for feature in transformed["features"]:
+        reference_id = feature["properties"]["reference_id"]
+        assert feature["geometry"]["coordinates"] == pytest.approx(
+            expected[reference_id], abs=reference["absolute_tolerance_m"]
+        )
+    assert info["axis_order"] == "x,y (always_xy)"
+    assert info["tool_versions"]["pyproj"]
