@@ -151,8 +151,8 @@ class Ledger:
             raise LedgerError("job_not_found")
         item = dict(row)
         item["input"] = json.loads(item.pop("input_json"))
-        item["result"] = json.loads(item.pop("result_json")) if item["result_json"] else None
-        item.pop("result_json")
+        result_json = item.pop("result_json")
+        item["result"] = json.loads(result_json) if result_json else None
         return item
 
     def transition_job(self, job_id: str, status: str, actor: str = "system",
