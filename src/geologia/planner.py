@@ -23,8 +23,14 @@ AGENT_ROLES = {
     "hydrology": ("groundwater_specialist", "وكيل المياه الجوفية", "Groundwater specialist"),
     "geology3d": ("geology3d_specialist", "وكيل النمذجة ثلاثية الأبعاد", "3D geology specialist"),
     "seismology": ("seismology_specialist", "وكيل الزلازل", "Seismology specialist"),
-    "exploration": ("mineral_exploration_specialist", "وكيل استكشاف المعادن", "Mineral exploration specialist"),
-    "remote_sensing": ("remote_sensing_specialist", "وكيل الاستشعار عن بعد", "Remote sensing specialist"),
+    "exploration": (
+        "mineral_exploration_specialist", "وكيل استكشاف المعادن",
+        "Mineral exploration specialist",
+    ),
+    "remote_sensing": (
+        "remote_sensing_specialist", "وكيل الاستشعار عن بعد",
+        "Remote sensing specialist",
+    ),
     "gis": ("gis_specialist", "وكيل نظم المعلومات الجغرافية", "GIS specialist"),
 }
 GATES = [
