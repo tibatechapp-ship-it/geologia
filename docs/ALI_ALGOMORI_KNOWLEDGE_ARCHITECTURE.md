@@ -142,6 +142,6 @@ Analysis plans report retrieval status and source metadata, but do not convert r
 
 The package contains 24 original GEOLOGIA-authored checklists: six domains in Arabic, English, Russian, and Chinese (groundwater, GIS/CRS, 3D geology, seismology, remote sensing, and mineral exploration). The local index seeds them on first search/status and deduplicates by stable source ID. The notes are licensed as repository original content and link to authoritative source pages; they do not reproduce external publication text.
 
-This is **retrieval memory**, not neural training. The agent retrieves relevant local chunks and their source metadata; it does not infer a scientific result from a checklist. External documents remain subject to explicit license review and ingestion.
+This is **retrieval memory**, not neural training. The agent retrieves relevant local chunks and their source metadata; it does not infer a scientific result from a checklist. External documents remain subject to explicit license review and ingestion. The FTS index uses schema v2 with deterministic CJK bigram tokens; it rebuilds from preserved original chunks during migration, so Chinese queries can match without embeddings or model weights.
 
 See [ALI_SOURCE_LICENSE_MATRIX.md](ALI_SOURCE_LICENSE_MATRIX.md) for the reviewed international source families and ingestion restrictions.
