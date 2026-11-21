@@ -66,7 +66,7 @@ geologia-knowledge ./references/open_hydrogeology.md \
   --source-url https://example.org/reference
 ```
 
-The institution catalog and Crossref candidate inbox are discovery/metadata only. They are not automatically downloaded or indexed, and the approved bibliography does not itself contain full-text knowledge. The external research corpus remains empty until an operator reviews and explicitly ingests lawful source text.
+The institution catalog and Crossref candidate inbox are discovery/metadata only. They are not automatically downloaded or indexed, and the approved bibliography does not itself contain full-text knowledge. The external research corpus remains empty until an operator reviews and explicitly ingests lawful source text. The scheduled Crossref inbox now searches English, Arabic, Russian, and Chinese query groups and preserves the publication language when available; every candidate remains unapproved metadata.
 
 ## Developer quick start
 
