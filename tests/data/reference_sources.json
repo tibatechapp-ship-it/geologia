@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "references": [
+    {
+      "id": "epsg-3857",
+      "title": "WGS 84 / Pseudo-Mercator",
+      "authority": "EPSG",
+      "code": 3857,
+      "url": "https://epsg.io/3857",
+      "use": "CRS identifier, axes, units, area of use, and projection method EPSG:1024"
+    },
+    {
+      "id": "iogp-373-7-2",
+      "title": "Geomatics Guidance Note 7 Part 2",
+      "publisher": "IOGP",
+      "url": "https://www.iogp.org/wp-content/uploads/2019/09/373-07-02.pdf",
+      "use": "Published projection method parameters and forward calculation examples"
+    },
+    {
+      "id": "epsg-5773",
+      "title": "EGM96 height",
+      "authority": "EPSG",
+      "code": 5773,
+      "url": "https://epsg.io/5773",
+      "use": "Vertical CRS, geoid datum name, metre unit, up axis, scope, and area of use"
+    },
+    {
+      "id": "ogc-18-010r11",
+      "title": "OGC CRS WKT standard",
+      "publisher": "Open Geospatial Consortium",
+      "url": "https://docs.ogc.org/is/18-010r11/18-010r11.pdf",
+      "use": "Compound CRS definition and component CRS representation"
+    }
+  ],
+  "notes": [
+    "Reference points in reference_projection.json are synthetic mathematical controls, not observations.",
+    "The EGM96 fixture validates declared CRS metadata only. No geoid grid is sampled and no height conversion is computed.",
+    "Links are documentation/registry sources; no third-party measured geology dataset is bundled."
+  ]
+}
