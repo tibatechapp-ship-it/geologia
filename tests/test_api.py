@@ -4,14 +4,12 @@ from geologia.api import app
 
 client = TestClient(app)
 
-
 def test_health_is_honest():
     response = client.get("/health")
     assert response.status_code == 200
     body = response.json()
     assert body["engines_integrated"] == 0
     assert body["execution_enabled"] is False
-
 
 def test_registry_is_explicitly_planned():
     response = client.get("/api/v1/engines")
@@ -22,7 +20,6 @@ def test_registry_is_explicitly_planned():
     assert all(card["license_status"] == "unverified" for card in cards)
     assert client.get("/api/v1/engines/gempy").status_code == 200
     assert client.get("/api/v1/engines/unknown").status_code == 404
-
 
 def test_projects_and_durable_plan(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
@@ -42,7 +39,6 @@ def test_projects_and_durable_plan(tmp_path, monkeypatch):
     readback = client.get(f"/api/v1/jobs/{job['id']}")
     assert readback.status_code == 200
     assert readback.json()["plan"] == job["plan"]
-
 
 def test_safe_geojson_upload_and_metadata(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
@@ -68,7 +64,6 @@ def test_safe_geojson_upload_and_metadata(tmp_path, monkeypatch):
     assert "content_path" not in item
     assert client.get(f"/api/v1/datasets/{item['id']}").json()["id"] == item["id"]
 
-
 def test_upload_rejects_bad_geojson_and_unsupported_type(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
@@ -81,7 +76,6 @@ def test_upload_rejects_bad_geojson_and_unsupported_type(tmp_path, monkeypatch):
     assert client.post(
         f"/api/v1/projects/{project['id']}/datasets", content=b"x", headers=headers
     ).status_code == 415
-
 
 def test_upload_size_limit(tmp_path, monkeypatch):
     import geologia.api as api_module
@@ -97,7 +91,6 @@ def test_upload_size_limit(tmp_path, monkeypatch):
     )
     assert response.status_code == 413
 
-
 def test_missing_project_and_job_return_404(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     assert client.get("/api/v1/projects/missing").status_code == 404
@@ -105,7 +98,6 @@ def test_missing_project_and_job_return_404(tmp_path, monkeypatch):
     assert client.post(
         "/api/v1/projects/missing/jobs", json={"request": "study geology"}
     ).status_code == 404
-
 
 def test_input_validation(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
@@ -139,7 +131,6 @@ def test_data_role_drives_readiness_but_never_enables_execution(tmp_path, monkey
     assert readiness["content_validation"] == "not_performed"
     assert readiness["execution_allowed"] is False
 
-
 def test_bilingual_frontend_is_served():
     home = client.get("/")
     assert home.status_code == 200
@@ -151,7 +142,6 @@ def test_bilingual_frontend_is_served():
     script_text = script.text
     assert '/api/v1/datasets/"+encodeURIComponent(d.id)+"/inspect' in script_text
     assert "inspectDataset" in script_text
-
 
 def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
@@ -199,7 +189,6 @@ def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
     assert abs(display_coords[0] - 44.2) < 1e-6
     assert abs(display_coords[1] - 15.3) < 1e-6
 
-
 def test_upload_rejects_invalid_geojson_geometry(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
@@ -211,7 +200,6 @@ def test_upload_rejects_invalid_geojson_geometry(tmp_path, monkeypatch):
     )
     assert response.status_code == 422
     assert "invalid GeoJSON" in response.json()["detail"]
-
 
 def test_geojson_map_endpoint_returns_validated_data_and_hides_path(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
@@ -238,7 +226,6 @@ def test_geojson_map_endpoint_returns_validated_data_and_hides_path(tmp_path, mo
         headers={"X-Dataset-Name": "Table", "X-Filename": "table.csv"},
     )
     assert client.get(f"/api/v1/datasets/{csv_upload.json()['id']}/geojson").status_code == 415
-
 
 def test_geojson_inspection_computes_real_metrics_and_persists(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
@@ -273,7 +260,6 @@ def test_geojson_inspection_computes_real_metrics_and_persists(tmp_path, monkeyp
     assert stored["status"] == "inspected_structural_metrics"
     assert stored["summary"]["inspection"] == report
 
-
 def test_csv_inspection_streams_structure_and_persists(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
@@ -299,7 +285,6 @@ def test_csv_inspection_streams_structure_and_persists(tmp_path, monkeypatch):
     status = client.get(f"/api/v1/datasets/{dataset_id}").json()["status"]
     assert status == "inspected_structural_metrics"
 
-
 def test_geojson_inspection_rejects_non_finite_coordinates():
     from geologia.vector import inspect_geojson
 
@@ -324,7 +309,6 @@ def test_agent_status_endpoint_reports_model_independent_runtime():
     assert status["model_required"] is False
     assert status["network_required"] is False
     assert status["scientific_execution_enabled"] is False
-
 
 def test_unmatched_job_requests_clarification_without_false_readiness(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
@@ -379,7 +363,6 @@ def test_local_knowledge_api_search_and_status(tmp_path, monkeypatch):
     assert result["count"] >= 1
     assert result["model_used"] is False
     assert result["results"][0]["source_id"] == "api-hydro-01"
-
 
 def test_analysis_plan_retrieves_local_source_chunks_without_model(tmp_path, monkeypatch):
     from geologia import knowledge
