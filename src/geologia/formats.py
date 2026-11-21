@@ -89,7 +89,6 @@ def _vertical_reference(crs: Any, tags: dict[str, Any] | None = None) -> dict[st
 def inspect_geopackage(path: Path) -> dict[str, Any]:
     """Check SQLite/GPKG structure and inspect bounded layer metadata."""
     size = _check_file(Path(path))
-    pyogrio = _dependency("pyogrio")
     with Path(path).open("rb") as source:
         signature = source.read(16)
     if signature != b"SQLite format 3\x00":
@@ -118,6 +117,7 @@ def inspect_geopackage(path: Path) -> dict[str, Any]:
         if "connection" in locals():
             connection.close()
 
+    pyogrio = _dependency("pyogrio")
     try:
         raw_layers = pyogrio.list_layers(Path(path))
         if len(raw_layers) > MAX_GPKG_LAYERS:
@@ -205,8 +205,7 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
                 "band_units": units,
                 "nodata_values": list(dataset.nodatavals),
                 "block_shapes": [list(shape) for shape in block_shapes],
-                "compression": [str(value.value) if value else None
-                               for value in dataset.compressions],
+                "compression": [str(dataset.compression.value) if dataset.compression else None],
                 "metadata": {key: str(value) for key, value in tags.items()},
                 "vertical_reference": _vertical_reference(crs, tags),
                 "sample_window": {"width": sample_width, "height": sample_height},
@@ -238,8 +237,12 @@ def inspect_las(path: Path) -> dict[str, Any]:
                 raise FormatValidationError("LAS point count exceeds inspection limit")
             sampled = 0
             for points in reader.chunk_iterator(min(LAS_SAMPLE_POINTS, max(count, 1))):
-                xyz = points.xyz
-                if not all(math.isfinite(float(value)) for value in xyz.reshape(-1)):
+                axes = (points.x, points.y, points.z)
+                if not all(
+                    math.isfinite(float(value))
+                    for axis in axes
+                    for value in axis
+                ):
                     raise FormatValidationError("LAS sample contains non-finite coordinates")
                 sampled = len(points)
                 break
