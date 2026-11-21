@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "description": "References explicitly approved by a human reviewer. This registry contains bibliographic records only; it does not encode scientific claims as validated facts.",
+  "references": []
+}
