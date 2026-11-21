@@ -492,6 +492,7 @@ def test_external_source_metadata_rejects_unsafe_or_malformed_fields(tmp_path, m
         {"X-Source-URL": "https://user:pass@example.org/data"},
         {"X-Source-DOI": "not-a-doi"},
         {"X-Source-Accessed-At": "21-11-2026"},
+        {"X-Source-Accessed-At": "20261121"},
     ]
     for source_headers in invalid_headers:
         response = client.post(
