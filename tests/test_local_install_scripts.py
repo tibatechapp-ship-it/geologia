@@ -47,7 +47,8 @@ def test_windows_installer_and_launcher_bind_to_loopback():
 
 def test_local_install_document_does_not_claim_native_package():
     doc = (ROOT / "docs" / "LOCAL_INSTALL.md").read_text(encoding="utf-8")
-    assert "not a signed native APK" in doc
+    assert "no native APK is built" in doc
+    assert "unsigned portable binaries" in doc
     assert "Termux has not yet been validated" in doc
 
 
