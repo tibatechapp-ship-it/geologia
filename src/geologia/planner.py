@@ -103,6 +103,7 @@ def agent_status() -> dict:
         "scientific_execution_enabled": False,
         "capabilities": [
             "request_classification",
+            "multilingual_ar_en_ru_zh_keyword_routing",
             "routing_evidence",
             "domain_routing",
             "data_role_readiness",
