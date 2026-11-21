@@ -17,6 +17,7 @@ from geologia import __version__
 from geologia import store
 from geologia.planner import build_plan
 from geologia.registry import get_engine, list_engines
+from geologia.vector import inspect_geojson
 
 app = FastAPI(
     title="GEOLOGIA API",
@@ -194,6 +195,34 @@ def datasets_get(dataset_id: str) -> dict:
     if item is None:
         raise HTTPException(status_code=404, detail="dataset not found")
     return item
+
+
+@app.post("/api/v1/datasets/{dataset_id}/inspect", status_code=200)
+def dataset_inspect(dataset_id: str) -> dict:
+    """Compute deterministic structural GIS metrics for a stored GeoJSON dataset."""
+    item = store.get_dataset(dataset_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    if item["format"] not in {"geojson", "json"}:
+        raise HTTPException(status_code=415, detail="inspection currently supports GeoJSON only")
+    content_path = store.get_dataset_content_path(dataset_id)
+    if content_path is None or not Path(content_path).is_file():
+        raise HTTPException(status_code=410, detail="dataset file is missing")
+    try:
+        payload = json.loads(Path(content_path).read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
+    try:
+        report = inspect_geojson(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    report.update({
+        "dataset_id": dataset_id,
+        "operation": "geojson_inspection",
+        "scientific_interpretation": False,
+    })
+    store.save_dataset_inspection(dataset_id, report)
+    return report
 
 
 @app.post("/api/v1/projects/{project_id}/jobs", status_code=201)

@@ -147,3 +147,53 @@ def test_bilingual_frontend_is_served():
     assert script.status_code == 200
     assert "agentName" in script.text
     assert "المهندس الجمهوري" in home.text
+
+
+def test_geojson_inspection_computes_real_metrics_and_persists(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "GIS inspection"}).json()
+    data = {
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature", "properties": {"site": "A"},
+             "geometry": {"type": "Point", "coordinates": [44.2, 15.3]}},
+            {"type": "Feature", "properties": {"site": "B", "depth": 12},
+             "geometry": {"type": "Point", "coordinates": [44.5, 15.8]}},
+        ],
+    }
+    uploaded = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=__import__("json").dumps(data).encode(),
+        headers={"X-Dataset-Name": "Survey points", "X-Filename": "points.geojson"},
+    )
+    assert uploaded.status_code == 201
+    dataset_id = uploaded.json()["id"]
+    inspected = client.post(f"/api/v1/datasets/{dataset_id}/inspect")
+    assert inspected.status_code == 200
+    report = inspected.json()
+    assert report["feature_count"] == 2
+    assert report["geometry_counts"] == {"Point": 2}
+    assert report["coordinate_count"] == 2
+    assert report["bbox_xy"] == [44.2, 15.3, 44.5, 15.8]
+    assert report["property_keys"] == ["depth", "site"]
+    assert report["scientific_interpretation"] is False
+    stored = client.get(f"/api/v1/datasets/{dataset_id}").json()
+    assert stored["status"] == "inspected_structural_metrics"
+    assert stored["summary"]["inspection"] == report
+
+
+def test_geojson_inspection_rejects_non_finite_coordinates():
+    from geologia.vector import inspect_geojson
+
+    malformed = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {"type": "Point", "coordinates": [float("nan"), 1]},
+    }
+    try:
+        inspect_geojson(malformed)
+    except ValueError as exc:
+        assert "finite" in str(exc)
+    else:
+        raise AssertionError("non-finite coordinates must be rejected")

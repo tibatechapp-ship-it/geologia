@@ -183,3 +183,30 @@ def _dataset_row(row: sqlite3.Row) -> dict[str, Any]:
     item["summary"] = json.loads(item.pop("summary_json"))
     item.pop("content_path", None)
     return item
+
+
+def get_dataset_content_path(dataset_id: str) -> str | None:
+    """Internal-only lookup of the stored file path; never include it in API responses."""
+    initialize()
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT content_path FROM datasets WHERE id=?", (dataset_id,)
+        ).fetchone()
+    return row["content_path"] if row else None
+
+
+def save_dataset_inspection(dataset_id: str, report: dict[str, Any]) -> None:
+    """Persist a computed structural inspection report without changing file bytes."""
+    initialize()
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT summary_json FROM datasets WHERE id=?", (dataset_id,)
+        ).fetchone()
+        if row is None:
+            return
+        summary = json.loads(row["summary_json"])
+        summary["inspection"] = report
+        conn.execute(
+            "UPDATE datasets SET status=?, summary_json=? WHERE id=?",
+            ("inspected_structural_metrics", json.dumps(summary, ensure_ascii=False), dataset_id),
+        )
