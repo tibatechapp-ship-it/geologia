@@ -90,6 +90,33 @@ AGENT_NAME_AR = "علي الگوموري"
 AGENT_NAME_EN = "Ali Algomori"
 
 
+def agent_status() -> dict:
+    """Describe the built-in agent without implying model training or engine execution."""
+    return {
+        "agent_id": AGENT_ID,
+        "name_ar": AGENT_NAME_AR,
+        "name_en": AGENT_NAME_EN,
+        "architecture": "deterministic_rule_based",
+        "runtime": "local",
+        "model_required": False,
+        "network_required": False,
+        "scientific_execution_enabled": False,
+        "capabilities": [
+            "request_classification",
+            "routing_evidence",
+            "domain_routing",
+            "data_role_readiness",
+            "explainable_plan_generation",
+        ],
+        "limitations": [
+            "No neural model is trained or loaded.",
+            "No scientific engine is executed.",
+            "Routing confidence is heuristic and not calibrated.",
+            "A plan is not a scientific result or professional certification.",
+        ],
+    }
+
+
 def _normalize(text: str) -> str:
     text = unicodedata.normalize("NFKC", text).casefold()
     text = re.sub(r"[^\w]+", " ", text, flags=re.UNICODE)
