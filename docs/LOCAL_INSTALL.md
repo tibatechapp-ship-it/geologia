@@ -80,6 +80,14 @@ These are unsigned portable binaries, not signed native installers. Windows Smar
 
 The first knowledge search or status request indexes 24 original GEOLOGIA-authored checklists in Arabic, English, Russian, and Chinese across six geoscience domains. This is a lightweight local retrieval pack, not neural training and not copied full-text publications. Install scripts include the lightweight `pypdf` extra for local text-based PDF ingestion; files are limited to 20 MiB and 500 pages, and citations retain page numbers. Scanned PDFs require OCR elsewhere before ingestion; GEOLOGIA does not run OCR. External documents are indexed only after explicit source/license review. See [the source/license matrix](ALI_SOURCE_LICENSE_MATRIX.md).
 
+Search the index from the terminal without opening the browser:
+
+```bash
+geologia-knowledge --search "groundwater recharge" --limit 5
+```
+
+The command prints JSON with source metadata, citation locators, and lexical evidence coverage. It performs local retrieval only; coverage is not scientific confidence.
+
 ## Safety and current limitations
 
 - Launchers bind to `127.0.0.1`; they do not provide a public or LAN server.
