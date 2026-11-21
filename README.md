@@ -38,7 +38,7 @@ bash scripts/install-termux.sh
 bash scripts/start-local.sh
 ```
 
-The bootstrap may install Rust and native build tools because some Python dependencies need compilation on Android. No AI model weights are installed. For Windows, see [Local installation](docs/LOCAL_INSTALL.md).
+The bootstrap may install Rust and native build tools because some Python dependencies need compilation on Android. No AI model weights are installed. It also creates a `~/.shortcuts/GEOLOGIA` launcher for the Termux:Widget companion app; add that shortcut to your home screen for one-tap startup. Stop the background server with `bash scripts/termux-widget-stop.sh`. For Windows, see [Local installation](docs/LOCAL_INSTALL.md).
 
 Optional GIS dependencies are not installed by default:
 
