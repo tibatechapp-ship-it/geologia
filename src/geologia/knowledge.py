@@ -629,6 +629,8 @@ def seed_core_knowledge() -> dict:
                 "reviewed_by": "GEOLOGIA core knowledge editorial",
                 "review_date": "2026-11-21",
                 "language": language,
+                "source_kind": "core_note",
+                "scientific_review_status": "not_assessed",
             },
         )
         if result["status"] == "indexed":
