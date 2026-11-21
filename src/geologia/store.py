@@ -66,52 +66,66 @@ def initialize() -> None:
         if "data_role" not in columns:
             conn.execute("ALTER TABLE datasets ADD COLUMN data_role TEXT")
 
-        conn.execute("BEGIN IMMEDIATE")
         job_schema = conn.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='jobs'"
         ).fetchone()["sql"]
-        if "cancel_requested" not in job_schema:
-            conn.execute("DROP TABLE IF EXISTS jobs_new")
-            conn.execute("""
-                CREATE TABLE jobs_new (
-                    id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
-                    request TEXT NOT NULL, language TEXT NOT NULL CHECK(language IN ('ar','en')),
-                    status TEXT NOT NULL CHECK(status IN (
-                        'planned','queued','running','succeeded','failed',
-                        'cancel_requested','cancelled'
-                    )),
-                    plan_json TEXT NOT NULL, created_at TEXT NOT NULL,
-                    attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
-                    max_attempts INTEGER NOT NULL DEFAULT 3 CHECK(max_attempts >= 1),
-                    queued_at TEXT, started_at TEXT, finished_at TEXT, updated_at TEXT NOT NULL,
-                    error_code TEXT, error_message TEXT
-                )
-            """)
-            conn.execute("""
-                INSERT INTO jobs_new(
-                    id, project_id, request, language, status, plan_json, created_at, updated_at
-                )
-                SELECT id, project_id, request, language, status, plan_json, created_at, created_at
-                FROM jobs
-            """)
-            conn.execute("DROP TABLE jobs")
-            conn.execute("ALTER TABLE jobs_new RENAME TO jobs")
-        else:
-            job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
-            additions = {
-                "attempt_count": "INTEGER NOT NULL DEFAULT 0",
-                "max_attempts": "INTEGER NOT NULL DEFAULT 3",
-                "queued_at": "TEXT",
-                "started_at": "TEXT",
-                "finished_at": "TEXT",
-                "updated_at": "TEXT",
-                "error_code": "TEXT",
-                "error_message": "TEXT",
-            }
-            for name, definition in additions.items():
-                if name not in job_columns:
-                    conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} {definition}")
-            conn.execute("UPDATE jobs SET updated_at=created_at WHERE updated_at IS NULL")
+        job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
+        required_job_columns = {
+            "attempt_count", "max_attempts", "queued_at", "started_at",
+            "finished_at", "updated_at", "error_code", "error_message",
+        }
+        needs_migration = (
+            "cancel_requested" not in job_schema
+            or not required_job_columns.issubset(job_columns)
+        )
+        if needs_migration:
+            conn.execute("BEGIN IMMEDIATE")
+            job_schema = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='jobs'"
+            ).fetchone()["sql"]
+            if "cancel_requested" not in job_schema:
+                conn.execute("DROP TABLE IF EXISTS jobs_new")
+                conn.execute("""
+                    CREATE TABLE jobs_new (
+                        id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
+                        request TEXT NOT NULL, language TEXT NOT NULL CHECK(language IN ('ar','en')),
+                        status TEXT NOT NULL CHECK(status IN (
+                            'planned','queued','running','succeeded','failed',
+                            'cancel_requested','cancelled'
+                        )),
+                        plan_json TEXT NOT NULL, created_at TEXT NOT NULL,
+                        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+                        max_attempts INTEGER NOT NULL DEFAULT 3 CHECK(max_attempts >= 1),
+                        queued_at TEXT, started_at TEXT, finished_at TEXT, updated_at TEXT NOT NULL,
+                        error_code TEXT, error_message TEXT
+                    )
+                """)
+                conn.execute("""
+                    INSERT INTO jobs_new(
+                        id, project_id, request, language, status, plan_json, created_at, updated_at
+                    )
+                    SELECT id, project_id, request, language, status, plan_json, created_at, created_at
+                    FROM jobs
+                """)
+                conn.execute("DROP TABLE jobs")
+                conn.execute("ALTER TABLE jobs_new RENAME TO jobs")
+            else:
+                job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
+                additions = {
+                    "attempt_count": "INTEGER NOT NULL DEFAULT 0",
+                    "max_attempts": "INTEGER NOT NULL DEFAULT 3",
+                    "queued_at": "TEXT",
+                    "started_at": "TEXT",
+                    "finished_at": "TEXT",
+                    "updated_at": "TEXT",
+                    "error_code": "TEXT",
+                    "error_message": "TEXT",
+                }
+                for name, definition in additions.items():
+                    if name not in job_columns:
+                        conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} {definition}")
+                conn.execute("UPDATE jobs SET updated_at=created_at WHERE updated_at IS NULL")
+            conn.execute("PRAGMA user_version = 1")
 
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_jobs_project_created "
@@ -131,7 +145,6 @@ def initialize() -> None:
             "CREATE INDEX IF NOT EXISTS idx_job_events_job_created "
             "ON job_events(job_id, id)"
         )
-        conn.execute("PRAGMA user_version = 1")
 
 
 def create_project(name: str, description: str, language: str) -> dict[str, Any]:
