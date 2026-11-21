@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "purpose": "Known-answer projection regression points for EPSG:4326 to EPSG:3857. These test coordinate mathematics, not geological interpretation.",
+  "source_crs": "EPSG:4326",
+  "target_crs": "EPSG:3857",
+  "axis_order": "x,y",
+  "absolute_tolerance_m": 0.00001,
+  "points": [
+    {
+      "reference_id": "unit-degree",
+      "input_xy": [
+        1,
+        1
+      ],
+      "expected_xy": [
+        111319.49079327357,
+        111325.14286638486
+      ]
+    },
+    {
+      "reference_id": "yemen-control",
+      "input_xy": [
+        44.2,
+        15.3
+      ],
+      "expected_xy": [
+        4920321.493062693,
+        1723798.498982409
+      ]
+    },
+    {
+      "reference_id": "origin",
+      "input_xy": [
+        0,
+        0
+      ],
+      "expected_xy": [
+        0,
+        0
+      ]
+    }
+  ]
+}
