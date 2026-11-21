@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from geologia import __version__
 from geologia import store
-from geologia.planner import build_plan
+from geologia.planner import agent_status, build_plan
 from geologia.registry import get_engine, list_engines
 from geologia.vector import inspect_csv, inspect_geojson
 
@@ -117,6 +117,12 @@ def _geojson_summary(path: Path) -> dict:
 def health() -> dict:
     return {"status": "ok", "service": "geologia", "version": __version__,
             "engines_integrated": 0, "execution_enabled": False}
+
+@app.get("/api/v1/agent/status")
+def agent_status_endpoint() -> dict:
+    """Expose the model-independent local agent's declared capabilities."""
+    return agent_status()
+
 
 
 @app.get("/api/v1/engines")
@@ -418,16 +424,28 @@ def jobs_create(project_id: str, body: JobInput) -> dict:
         raise HTTPException(status_code=404, detail="project not found")
     plan = build_plan(body.request, body.language)
     available = store.list_dataset_roles(project_id)
-    required = plan["required_inputs"]
-    missing = sorted(set(required) - set(available))
-    plan["data_readiness"] = {
-        "available_inputs": available,
-        "missing_inputs": missing,
-        "required_roles_present": not missing,
-        "content_validation": "not_performed",
-        "execution_allowed": False,
-        "execution_blocked_reason": "No scientific engine is integrated or certified.",
-    }
+    if plan["needs_clarification"]:
+        plan["data_readiness"] = {
+            "available_inputs": available,
+            "missing_inputs": [],
+            "required_roles_present": None,
+            "readiness_status": "not_assessed",
+            "content_validation": "not_performed",
+            "execution_allowed": False,
+            "execution_blocked_reason": "Clarify the request before assessing required inputs.",
+        }
+    else:
+        required = plan["required_inputs"]
+        missing = sorted(set(required) - set(available))
+        plan["data_readiness"] = {
+            "available_inputs": available,
+            "missing_inputs": missing,
+            "required_roles_present": not missing,
+            "readiness_status": "assessed",
+            "content_validation": "not_performed",
+            "execution_allowed": False,
+            "execution_blocked_reason": "No scientific engine is integrated or certified.",
+        }
     return store.create_job(project_id, body.request, body.language, plan)
 
 
