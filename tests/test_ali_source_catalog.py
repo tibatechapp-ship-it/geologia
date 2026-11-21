@@ -21,7 +21,7 @@ def test_ali_source_catalog_has_unique_stable_ids_and_valid_https_urls():
     ids = [item["id"] for item in institutions]
 
     assert len(ids) == len(set(ids))
-    assert len(institutions) >= 19
+    assert len(institutions) >= 25
 
     for item in institutions:
         assert item["id"]
@@ -34,7 +34,7 @@ def test_ali_source_catalog_has_unique_stable_ids_and_valid_https_urls():
         assert item["source_priority"] == "primary"
 
 
-def test_catalog_covers_original_and_new_requested_countries():
+def test_catalog_covers_requested_countries_and_languages():
     catalog = load_catalog()
     countries = {item["country"] for item in catalog["institutions"]}
     languages = {
@@ -46,17 +46,36 @@ def test_catalog_covers_original_and_new_requested_countries():
     expected_countries = {
         "United States", "United Kingdom", "Russia", "China", "Yemen",
         "Türkiye", "Malaysia", "Indonesia", "Venezuela", "Pakistan",
-        "Afghanistan", "Algeria", "Morocco", "Mauritania", "Sudan",
+        "Afghanistan", "Algeria", "Morocco", "Mauritania", "Sudan", "Qatar",
     }
     assert expected_countries <= countries
-    assert {"en", "ru", "zh", "ar", "tr", "ms", "id", "es", "ur", "fa", "ps", "fr"} <= languages
+    assert {
+        "en", "ru", "zh", "ar", "tr", "ms", "id", "es", "ur", "fa", "ps", "fr"
+    } <= languages
+
+
+def test_qatar_catalog_includes_satellite_and_geoscience_research_sources():
+    catalog = load_catalog()
+    ids = {item["id"] for item in catalog["institutions"]}
+
+    assert {
+        "qa-qu-earth-sciences",
+        "qa-qu-rs-gis",
+        "qa-eshailsat",
+        "qa-qubesat",
+        "qa-bayanat-eo",
+        "qa-srmc",
+    } <= ids
 
 
 def test_catalog_does_not_claim_seeds_are_ingested_or_license_cleared():
     catalog = load_catalog()
 
     assert catalog["catalog_status"] == "discovery_seeds_not_ingested"
-    assert catalog["policy"]["default_access"] == "metadata_only_until_access_and_license_review"
+    assert (
+        catalog["policy"]["default_access"]
+        == "metadata_only_until_access_and_license_review"
+    )
     assert catalog["policy"]["never_execute_source_content"] is True
     assert catalog["policy"]["never_treat_source_homepage_as_verified_dataset"] is True
 
