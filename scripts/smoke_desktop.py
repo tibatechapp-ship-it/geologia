@@ -62,7 +62,7 @@ def main() -> None:
             with urlopen(f"{base_url}/api/v1/knowledge/status", timeout=15) as response:
                 knowledge_status = json.loads(response.read())
                 assert response.status == 200
-                assert knowledge_status["core_seeded_count"] == 12
+                assert knowledge_status["core_seeded_count"] == 24
                 assert knowledge_status["model_required"] is False
         finally:
             process.terminate()
