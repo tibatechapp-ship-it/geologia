@@ -97,6 +97,14 @@ def test_ingestion_rejects_invalid_utf8_and_unsupported_extension(local_index):
         knowledge.ingest_document(unsupported, metadata())
 
 
+def test_ingestion_rejects_oversized_file_before_parsing(local_index):
+    source = local_index / "oversized.pdf"
+    with source.open("wb") as output:
+        output.truncate(knowledge.MAX_SOURCE_BYTES + 1)
+    with pytest.raises(ValueError, match="20 MiB"):
+        knowledge.ingest_document(source, metadata(source_id="oversized-pdf-001"))
+
+
 def test_search_rejects_empty_and_overlong_queries(local_index):
     with pytest.raises(ValueError, match="searchable text"):
         knowledge.search("   ")
