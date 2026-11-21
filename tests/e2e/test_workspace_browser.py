@@ -46,6 +46,14 @@ def test_workspace_create_upload_inspect_plan_and_language(app_url, browser_page
     assert '"column_count": 3' in report_text
     assert '"scientific_interpretation": false' in report_text
 
+    dataset.locator(".validate-button").click()
+    validation_report = dataset.locator(".validation-report")
+    expect(validation_report).to_be_visible()
+    validation_text = validation_report.inner_text()
+    assert '"validation_status": "passed"' in validation_text
+    assert '"groundwater-level-timeseries"' in validation_text
+    assert '"scientific_interpretation": false' in validation_text
+
     request_text = "Assess groundwater level trends in the Sanaa basin"
     page.locator("#analysisRequest").fill(request_text)
     page.locator("#jobForm button[type=submit]").click()
@@ -86,7 +94,9 @@ def test_malformed_csv_is_rejected_during_inspection(app_url, browser_page):
     dataset = page.locator(".dataset-item").filter(has_text="Malformed CSV")
     expect(dataset).to_be_visible()
 
-    dataset.locator(".inspect-button").click()
+    dataset.locator(".validate-button").click()
+    validation_report = dataset.locator(".validation-report")
+    expect(validation_report).to_be_visible()
+    expect(validation_report).to_contain_text('"validation_status": "failed"')
+    expect(validation_report).to_contain_text("profile.timestamp.invalid")
     expect(page.locator("#uploadStatus")).to_have_class("feedback error")
-    expect(page.locator("#uploadStatus")).to_contain_text("CSV must be valid UTF-8")
-    expect(dataset.locator(".inspection-report")).to_have_count(0)
