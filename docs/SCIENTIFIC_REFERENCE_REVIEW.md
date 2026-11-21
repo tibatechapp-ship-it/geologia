@@ -7,7 +7,8 @@ Review scope: horizontal projection control values, declared vertical CRS metada
 | Reference | Source | Used for |
 |---|---|---|
 | EPSG:3857 — WGS 84 / Pseudo-Mercator | [EPSG registry](https://epsg.io/3857) | CRS identifier, axis order, metre units, area of use, and operation method EPSG:1024 |
-| IOGP Guidance Note 7-2 | [IOGP PDF](https://www.iogp.org/wp-content/uploads/2019/09/373-07-02.pdf) | Published pseudo-Mercator parameters and forward calculation equations |
+| IOGP Guidance Note 7-2 | [IOGP PDF](https://www.iogp.org/wp-content/uploads/2019/09/373-07-02.pdf) | Published pseudo-Mercator parameters and forward/reverse calculation equations |
+| IOGP Web Mercator Guidance Note 23 | [IOGP PDF](https://www.iogp.org/bookstore/wp-content/uploads/sites/2/woocommerce_uploads/2017/01/373-23.pdf) | Distinguishes EPSG:3857 method 1024 and the conventional square-tile cutoff |
 | EPSG:5773 — EGM96 height | [EPSG registry](https://epsg.io/5773) | Vertical CRS name, EGM96 geoid datum, metre unit, upward axis, and world area |
 | EPSG:9707 — WGS 84 + EGM96 height | [EPSG registry](https://epsg.io/9707) | Compound CRS example connecting EPSG:4326 with vertical EPSG:5773 |
 | OGC CRS WKT standard 18-010r11 | [OGC PDF](https://docs.ogc.org/is/18-010r11/18-010r11.pdf) | Compound CRS representation as independent horizontal and vertical components |
@@ -21,7 +22,7 @@ Source identifiers, URLs, purpose, and access date are captured in `tests/data/r
 - `x = a × longitude_radians`
 - `y = a × ln(tan(π/4 + latitude_radians/2))`
 
-The new test calculates these equations directly with Python's `math` module and compares both the checked-in expected values and pyproj output against that independent calculation. It includes a Yemen-area control, the origin, a one-degree control, and the documented northern Web Mercator limit. This avoids using pyproj as the sole oracle.
+The new test calculates these equations directly with Python's `math` module and compares both the checked-in expected values and pyproj output against that independent calculation. It includes a Yemen-area control, the origin, a one-degree control, and the conventional square-tile northern edge at approximately 85.05112878°. This is the square-tile cutoff, not the formal EPSG area-of-use boundary (which is commonly listed as approximately ±85.06°). This avoids using pyproj as the sole oracle.
 
 Tolerance is `0.00002 m`. The tolerance is a regression tolerance for the formula implementation, not a claim of real-world positional accuracy.
 
