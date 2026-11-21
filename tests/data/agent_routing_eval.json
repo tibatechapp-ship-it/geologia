@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "description": "Curated deterministic routing regression suite; not an independent scientific or language benchmark.",
+  "cases": [
+    {
+      "id": "ar-hydro",
+      "language": "ar",
+      "request": "تحليل المياه الجوفية ومنسوب الماء",
+      "expected_domains": [
+        "hydrology"
+      ]
+    },
+    {
+      "id": "ar-geology3d",
+      "language": "ar",
+      "request": "بناء نموذج جيولوجي ثلاثي الأبعاد مع الفوالق",
+      "expected_domains": [
+        "geology3d"
+      ]
+    },
+    {
+      "id": "ar-seismology",
+      "language": "ar",
+      "request": "دراسة الزلازل والموجات الزلزالية",
+      "expected_domains": [
+        "seismology"
+      ]
+    },
+    {
+      "id": "ar-exploration",
+      "language": "ar",
+      "request": "استكشاف الذهب والمعادن",
+      "expected_domains": [
+        "exploration"
+      ]
+    },
+    {
+      "id": "ar-remote",
+      "language": "ar",
+      "request": "تحليل صور الأقمار الصناعية والاستشعار عن بعد",
+      "expected_domains": [
+        "remote_sensing"
+      ]
+    },
+    {
+      "id": "ar-gis",
+      "language": "ar",
+      "request": "نظم المعلومات الجغرافية والطبقات",
+      "expected_domains": [
+        "gis"
+      ]
+    },
+    {
+      "id": "en-hydro",
+      "language": "en",
+      "request": "Groundwater aquifer and water table assessment",
+      "expected_domains": [
+        "hydrology"
+      ]
+    },
+    {
+      "id": "en-geology3d",
+      "language": "en",
+      "request": "Create a 3D geological model using structural geology",
+      "expected_domains": [
+        "geology3d"
+      ]
+    },
+    {
+      "id": "en-seismology",
+      "language": "en",
+      "request": "Analyze seismic waveforms and earthquake ground motion",
+      "expected_domains": [
+        "seismology"
+      ]
+    },
+    {
+      "id": "en-exploration",
+      "language": "en",
+      "request": "Mineral exploration for gold and minerals",
+      "expected_domains": [
+        "exploration"
+      ]
+    },
+    {
+      "id": "en-remote",
+      "language": "en",
+      "request": "Remote sensing of satellite imagery with photogrammetry",
+      "expected_domains": [
+        "remote_sensing"
+      ]
+    },
+    {
+      "id": "en-gis",
+      "language": "en",
+      "request": "GIS map layers for a geographic information system",
+      "expected_domains": [
+        "gis"
+      ]
+    },
+    {
+      "id": "ru-hydro",
+      "language": "ru",
+      "request": "Гидрогеология и подземные воды",
+      "expected_domains": [
+        "hydrology"
+      ]
+    },
+    {
+      "id": "ru-geology3d",
+      "language": "ru",
+      "request": "Трехмерная геологическая модель и разломы",
+      "expected_domains": [
+        "geology3d"
+      ]
+    },
+    {
+      "id": "ru-seismology",
+      "language": "ru",
+      "request": "Сейсмология и землетрясение",
+      "expected_domains": [
+        "seismology"
+      ]
+    },
+    {
+      "id": "ru-exploration",
+      "language": "ru",
+      "request": "Разведка золота и полезных ископаемых",
+      "expected_domains": [
+        "exploration"
+      ]
+    },
+    {
+      "id": "ru-remote",
+      "language": "ru",
+      "request": "Дистанционное зондирование спутниковые снимки",
+      "expected_domains": [
+        "remote_sensing"
+      ]
+    },
+    {
+      "id": "ru-gis",
+      "language": "ru",
+      "request": "Геоинформационная система и карта",
+      "expected_domains": [
+        "gis"
+      ]
+    },
+    {
+      "id": "zh-hydro",
+      "language": "zh",
+      "request": "地下水与含水层评价",
+      "expected_domains": [
+        "hydrology"
+      ]
+    },
+    {
+      "id": "zh-geology3d",
+      "language": "zh",
+      "request": "三维地质建模和断层",
+      "expected_domains": [
+        "geology3d"
+      ]
+    },
+    {
+      "id": "zh-seismology",
+      "language": "zh",
+      "request": "地震波与地震目录",
+      "expected_domains": [
+        "seismology"
+      ]
+    },
+    {
+      "id": "zh-exploration",
+      "language": "zh",
+      "request": "矿物勘查与地球化学",
+      "expected_domains": [
+        "exploration"
+      ]
+    },
+    {
+      "id": "zh-remote",
+      "language": "zh",
+      "request": "遥感卫星影像与摄影测量",
+      "expected_domains": [
+        "remote_sensing"
+      ]
+    },
+    {
+      "id": "zh-gis",
+      "language": "zh",
+      "request": "地理信息系统与坐标参考系",
+      "expected_domains": [
+        "gis"
+      ]
+    },
+    {
+      "id": "abstain-en",
+      "language": "en",
+      "request": "Please summarize these meeting notes",
+      "expected_domains": []
+    },
+    {
+      "id": "abstain-ar",
+      "language": "ar",
+      "request": "لخص محضر الاجتماع دون بيانات جيولوجية",
+      "expected_domains": []
+    },
+    {
+      "id": "abstain-ru",
+      "language": "ru",
+      "request": "Обычный текст без геологических терминов",
+      "expected_domains": []
+    },
+    {
+      "id": "abstain-zh",
+      "language": "zh",
+      "request": "请总结普通会议记录",
+      "expected_domains": []
+    }
+  ]
+}
