@@ -47,16 +47,31 @@ def _dependency(name: str):
         ) from exc
 
 
+def _parsed_crs(crs: Any) -> Any:
+    if crs is None:
+        return None
+    try:
+        from pyproj import CRS
+        return CRS.from_user_input(crs)
+    except (ImportError, TypeError, ValueError):
+        return None
+
+
+def _crs_axis_units(crs: Any) -> list[str]:
+    parsed = _parsed_crs(crs)
+    return [axis.unit_name for axis in parsed.axis_info] if parsed is not None else []
+
+
 def _vertical_reference(crs: Any, tags: dict[str, Any] | None = None) -> dict[str, Any]:
+    parsed = _parsed_crs(crs)
     vertical_crs = None
-    if crs is not None:
+    if parsed is not None:
         try:
-            sub_crs = crs.sub_crs_list
-            vertical = [item for item in sub_crs if item.is_vertical]
+            vertical = [item for item in parsed.sub_crs_list if item.is_vertical]
             if vertical:
                 vertical_crs = [item.to_string() for item in vertical]
-            elif getattr(crs, "is_vertical", False):
-                vertical_crs = [crs.to_string()]
+            elif parsed.is_vertical:
+                vertical_crs = [parsed.to_string()]
         except (AttributeError, TypeError, ValueError):
             vertical_crs = None
     tag_names = []
@@ -70,7 +85,6 @@ def _vertical_reference(crs: Any, tags: dict[str, Any] | None = None) -> dict[st
         "vertical_datum_verified": False,
         "vertical_transformation_performed": False,
     }
-
 
 def inspect_geopackage(path: Path) -> dict[str, Any]:
     """Check SQLite/GPKG structure and inspect bounded layer metadata."""
@@ -122,6 +136,7 @@ def inspect_geopackage(path: Path) -> dict[str, Any]:
                 "feature_count": info.get("features"),
                 "fields": list(info.get("fields", [])),
                 "crs": crs,
+                "coordinate_units": _crs_axis_units(crs),
                 "srs_id": next((row[2] for row in contents if row[0] == name), None),
                 "vertical_reference": _vertical_reference(None),
             })
@@ -183,6 +198,7 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
                 "band_count": bands,
                 "pixel_count": width * height,
                 "crs": crs.to_string() if crs else None,
+                "coordinate_units": _crs_axis_units(crs),
                 "transform": [float(value) for value in dataset.transform],
                 "bounds": bounds,
                 "band_dtypes": list(dataset.dtypes),
@@ -246,6 +262,7 @@ def inspect_las(path: Path) -> dict[str, Any]:
                 "scale": [float(value) for value in header.scales],
                 "offset": [float(value) for value in header.offsets],
                 "crs": crs.to_string() if crs else None,
+                "coordinate_units": _crs_axis_units(crs),
                 "vlr_count": len(vlrs),
                 "vlrs": vlrs,
                 "vertical_reference": _vertical_reference(crs),
