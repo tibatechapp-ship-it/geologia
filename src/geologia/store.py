@@ -278,6 +278,44 @@ def transition_job(
     return _job_row(updated)
 
 
+def request_job_cancellation(
+    job_id: str, *, actor: str = "human"
+) -> dict[str, Any] | None:
+    """Atomically cancel a not-yet-running job or request cooperative worker cancellation."""
+    if actor not in {"human", "worker", "system"}:
+        raise ValueError("actor must be human, worker, or system")
+    initialize()
+    now = utc_now()
+    with connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+        if row is None:
+            return None
+        current = row["status"]
+        if current in {"cancel_requested", "cancelled"}:
+            return _job_row(row)
+        if current == "running":
+            target = "cancel_requested"
+        elif current in {"planned", "queued"}:
+            target = "cancelled"
+        else:
+            raise ValueError(f"cannot cancel job in {current} state")
+        updates = {"status": target, "updated_at": now}
+        if target == "cancelled":
+            updates["finished_at"] = now
+        assignments = ", ".join(f"{column}=?" for column in updates)
+        conn.execute(
+            f"UPDATE jobs SET {assignments} WHERE id=?",
+            (*updates.values(), job_id),
+        )
+        _insert_job_event(
+            conn, job_id, current, target, actor,
+            {"reason": "user_requested_cancellation"},
+        )
+        updated = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+    return _job_row(updated)
+
+
 def list_job_events(job_id: str) -> list[dict[str, Any]]:
     initialize()
     with connect() as conn:
