@@ -1,0 +1,40 @@
+name: Promote Human-Approved Research References
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  propose-reference-promotion:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'chore(research):')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout merged base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Promote approved bibliographic records
+        run: python scripts/promote_approved_references.py
+      - name: Open reference-registry pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.RESEARCH_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
+          branch: automation/approved-research-references
+          delete-branch: false
+          draft: true
+          title: "chore(research): add human-approved references"
+          commit-message: "chore(research): promote approved bibliographic references"
+          body: |
+            This PR contains bibliographic records explicitly marked `approved_for_reference` in a merged research-inbox PR.
+
+            Please verify the references and merge this PR to add them to GEOLOGIA's approved reference registry. This promotion does not validate or implement scientific claims from the papers.
+          add-paths: |
+            src/geologia/data/approved_research_references.json
