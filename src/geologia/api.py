@@ -420,7 +420,8 @@ def jobs_create(project_id: str, body: JobInput) -> dict:
     plan["data_readiness"] = {
         "available_inputs": available,
         "missing_inputs": missing,
-        "data_complete": not missing,
+        "required_roles_present": not missing,
+        "content_validation": "not_performed",
         "execution_allowed": False,
         "execution_blocked_reason": "No scientific engine is integrated or certified.",
     }
