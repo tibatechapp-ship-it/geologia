@@ -30,6 +30,14 @@
       "publisher": "Open Geospatial Consortium",
       "url": "https://docs.ogc.org/is/18-010r11/18-010r11.pdf",
       "use": "Compound CRS definition and component CRS representation"
+    },
+    {
+      "id": "epsg-9707",
+      "title": "WGS 84 + EGM96 height",
+      "authority": "EPSG",
+      "code": 9707,
+      "url": "https://epsg.io/9707",
+      "use": "Compound CRS example linking horizontal EPSG:4326 with vertical EPSG:5773"
     }
   ],
   "notes": [
