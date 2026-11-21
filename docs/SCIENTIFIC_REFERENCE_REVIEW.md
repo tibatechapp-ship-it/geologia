@@ -40,8 +40,9 @@ A CRS identifier is not proof that a dataset's height values actually use that d
 ## Scientific acceptance status
 
 - Reference CRS metadata: reviewed against the cited registry/standards.
-- Horizontal EPSG:3857 formula regression: implemented; CI result must be checked for the current commit.
-- EGM96 declared metadata recognition: implemented; CI result must be checked for the current commit.
+- Horizontal EPSG:3857 independent forward and inverse formula regression: passed in [CI run #44932691048](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44932691048), commit `f39fafb`.
+- EGM96 declared metadata recognition and vertical CRS status distinction: passed in the same run.
+- Source citation form/API capture and browser display regression: passed in the same run.
 - Measured geological control dataset: not bundled.
 - Vertical geoid grid application and known-answer height conversion: not implemented.
 - Geological interpretation, measurement quality, and uncertainty propagation: not implemented.
