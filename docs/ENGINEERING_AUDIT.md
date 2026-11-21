@@ -22,6 +22,10 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 
 ## Defects found and addressed in this review
 
+9. GeoJSON upload accepted CRS header text without validating the CRS or checking coordinate plausibility. Explicit horizontal CRS declarations are now canonicalized through pyproj and transformed to WGS84 for Earth-bound checks; default GeoJSON WGS84 coordinates are range-checked. This does not infer CRS or prove scientific correctness.
+10. CSV upload stored malformed quoting and invalid UTF-8 until a later inspection request. Upload now performs a streaming structural parse, rejects malformed CSV, and records ragged-row warnings without pretending to validate scientific schema or units.
+11. JSON ingestion accepted duplicate object keys and deeply nested input could raise an unhandled recursion error. The parser now rejects duplicate keys and converts excessive nesting into a validation error. GeoJSON coordinate bounds are accumulated incrementally, and oversized integer ordinates are rejected safely.
+
 1. GeoJSON coordinate validation accepted malformed geometry nesting, short LineStrings, unclosed polygon rings, and non-finite or non-numeric extra ordinates.
    - Fixed with geometry-specific structure checks and full-dimensional finite position validation.
    - Added regression tests for malformed points, multipoints, lines, polygons, Z values, and ring closure.
@@ -65,6 +69,7 @@ This run validates the current main-branch code, including strict JSON handling,
 - No formal schema migration framework; the current store contains an inline compatibility migration.
 
 ### Scientific and geospatial correctness
+- CRS plausibility checks only detect some obvious coordinate/CRS mismatches. They cannot reliably infer a missing CRS or detect every wrong but numerically plausible declaration; non-GeoJSON formats still do not receive content-level CRS checks.
 - No scientific engine is integrated, certified, or executed.
 - A role tag is user-supplied metadata, not proof that the file contains the required scientific data.
 - GeoJSON validation is structural, not a complete OGC conformance suite, topology validator, or scientific-quality review.
@@ -76,7 +81,7 @@ This run validates the current main-branch code, including strict JSON handling,
 
 ### Frontend and test coverage
 - Main currently has API-level frontend checks and JavaScript syntax validation, but no merged browser-based end-to-end suite.
-- Draft PR #7 adds Playwright coverage for project creation, language switching, GeoJSON upload/inspection, and plan-only behavior. Its latest CI run #44925167509 passed all four jobs, including the Chromium browser suite.
+- Draft PR #7 adds Playwright coverage for project creation, language switching, GeoJSON upload/inspection, and plan-only behavior. The browser suite previously passed in run #44925167509. The upload/CRS hardening and regression tests passed all four jobs in run #44926170500.
 - The map view depends on externally hosted map assets/tiles; local data storage does not imply a fully offline map experience.
 - No accessibility audit, cross-browser/mobile interaction suite, or performance budget has been completed.
 
@@ -89,7 +94,7 @@ This run validates the current main-branch code, including strict JSON handling,
 1. Extend browser coverage to map rendering and reprojection interaction after the current API-level upload validation changes pass CI.
 2. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
 3. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
-4. Build a typed data-validation layer for GeoJSON, CSV, GeoPackage, GeoTIFF, and LAS; never infer scientific validity from filenames or role tags.
+4. Extend content validation to GeoPackage, GeoTIFF, and LAS using maintained parsers, format-specific resource limits, corruption fixtures, and independent reference datasets; never infer scientific validity from filenames or role tags.
 5. Introduce a durable job queue and isolated workers only after job state transitions, cancellation, retries, timeouts, resource limits, and provenance are specified and tested.
 6. Integrate scientific engines one at a time, with pinned versions, license review, published benchmark datasets, known-answer tests, uncertainty reporting, and independent scientific review.
 7. Verify Termux separately on the user's device; record exact commands, package versions, and outputs.
