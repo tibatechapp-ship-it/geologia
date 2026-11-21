@@ -21,7 +21,7 @@ if (-not (Test-Path ".venv")) {
 }
 $VenvPython = Join-Path $Root ".venv\Scripts\python.exe"
 & $VenvPython -m pip install --upgrade pip
-$PackageSpec = if ($GIS) { ".[pdf,gis]" } else { "." }
+$PackageSpec = if ($GIS) { ".[pdf,gis]" } else { ".[pdf]" }
 & $VenvPython -m pip install -e $PackageSpec
 
 Write-Host ""
