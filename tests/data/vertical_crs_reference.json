@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "purpose": "CRS metadata recognition controls; not measured elevation data and not a vertical transformation test.",
+  "compound_crs": "EPSG:9707",
+  "expected_horizontal_crs": "EPSG:4326",
+  "expected_vertical_crs": "EPSG:5773",
+  "expected_vertical_name": "EGM96 height",
+  "expected_vertical_datum": "EGM96 geoid",
+  "expected_vertical_unit": "metre",
+  "expected_vertical_axis_direction": "up",
+  "expected_verified": false,
+  "sources": [
+    {
+      "authority": "EPSG",
+      "code": 5773,
+      "url": "https://epsg.io/5773",
+      "accessed": "2026-11-21"
+    },
+    {
+      "authority": "OGC",
+      "document": "18-010r11",
+      "url": "https://docs.ogc.org/is/18-010r11/18-010r11.pdf"
+    }
+  ]
+}
