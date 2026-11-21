@@ -87,4 +87,4 @@ See [SCIENTIFIC_REFERENCE_REVIEW.md](SCIENTIFIC_REFERENCE_REVIEW.md). Added test
 
 ## Source citation UI — pending current-head validation
 
-The workspace now has an expandable bilingual source citation form for dataset uploads, displays source citation status in the dataset list, and sends the optional source metadata headers to the API. The Playwright upload scenario supplies a source URL, citation, and access date and asserts the citation/status are visible. Current-head CI must pass before treating this UI addition as verified.
+The workspace has an expandable bilingual source citation form for dataset uploads, displays source citation status in the dataset list, and sends optional source metadata headers to the API. Playwright supplies a source URL, citation, and access date and asserts the citation/status are visible. [CI run #44932691048](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44932691048) passed all five jobs on commit `f39fafb`: Python 3.12/3.14/3.15, parser-backed format tests (16 passed), and browser E2E (3 passed). Two upstream warnings were reported; no test failures.
