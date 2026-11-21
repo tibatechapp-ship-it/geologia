@@ -314,3 +314,95 @@ def test_geojson_inspection_rejects_non_finite_coordinates():
         assert "finite" in str(exc)
     else:
         raise AssertionError("non-finite coordinates must be rejected")
+
+
+
+def test_upload_rejects_default_wgs84_coordinates_outside_earth_bounds(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "CRS bounds"}).json()
+    payload = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {"type": "Point", "coordinates": [500000, 4000000]},
+    }
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=__import__("json").dumps(payload).encode(),
+        headers={"X-Dataset-Name": "Mismatched coordinates", "X-Filename": "wrong.geojson"},
+    )
+    assert response.status_code == 422
+    assert "WGS84" in response.json()["detail"]
+
+
+def test_upload_validates_declared_crs_and_canonicalizes_it(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Declared CRS"}).json()
+    payload = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {"type": "Point", "coordinates": [4920321.493, 1723798.499]},
+    }
+    headers = {
+        "X-Dataset-Name": "Projected point",
+        "X-Filename": "projected.geojson",
+        "X-CRS": "epsg:3857",
+    }
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=__import__("json").dumps(payload).encode(),
+        headers=headers,
+    )
+    assert response.status_code == 201
+    item = response.json()
+    assert item["crs"] == "EPSG:3857"
+    assert item["summary"]["crs_validation"]["coordinate_count_checked"] == 1
+    assert item["summary"]["crs_validation"]["scientific_validation"] is False
+
+
+def test_upload_rejects_unknown_and_incompatible_declared_crs(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Invalid CRS"}).json()
+    payload = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {"type": "Point", "coordinates": [500000, 4000000]},
+    }
+    body = __import__("json").dumps(payload).encode()
+    base_headers = {"X-Dataset-Name": "Bad CRS", "X-Filename": "bad.geojson"}
+    unknown = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=body,
+        headers={**base_headers, "X-CRS": "not-a-real-crs"},
+    )
+    assert unknown.status_code == 422
+
+    incompatible = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=body,
+        headers={**base_headers, "X-CRS": "EPSG:4326"},
+    )
+    assert incompatible.status_code == 422
+
+
+def test_upload_rejects_malformed_csv_and_reports_ragged_rows(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "CSV integrity"}).json()
+    malformed = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=b'col1,col2\n"unterminated,2\n',
+        headers={"X-Dataset-Name": "Malformed CSV", "X-Filename": "malformed.csv"},
+    )
+    assert malformed.status_code == 422
+
+    ragged = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=b"station,depth\nA,12\nB\n",
+        headers={"X-Dataset-Name": "Ragged CSV", "X-Filename": "ragged.csv"},
+    )
+    assert ragged.status_code == 201
+    assert ragged.json()["summary"]["ragged_row_count"] == 1
+    assert "rows_have_inconsistent_column_counts" in ragged.json()["summary"]["warnings"]
