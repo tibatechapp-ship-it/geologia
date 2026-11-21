@@ -11,8 +11,8 @@ GEOMETRY_TYPES = {
 }
 
 
-def _position(value: Any) -> tuple[float, float]:
-    """Validate a GeoJSON position, including optional Z/extra ordinates."""
+def _position(value: Any) -> tuple[float, ...]:
+    """Validate every ordinate in a GeoJSON position, including optional Z values."""
     if not isinstance(value, list) or len(value) < 2:
         raise ValueError("coordinate positions require at least x and y")
     ordinates = []
@@ -21,7 +21,7 @@ def _position(value: Any) -> tuple[float, float]:
                 or not math.isfinite(ordinate)):
             raise ValueError("all coordinate ordinates must be finite numbers")
         ordinates.append(float(ordinate))
-    return ordinates[0], ordinates[1]
+    return tuple(ordinates)
 
 
 def inspect_geojson(payload: Any) -> dict[str, Any]:
@@ -46,9 +46,9 @@ def inspect_geojson(payload: Any) -> dict[str, Any]:
 
     def add_position(position: Any) -> None:
         nonlocal coordinate_count
-        x, y = _position(position)
-        xs.append(x)
-        ys.append(y)
+        ordinates = _position(position)
+        xs.append(ordinates[0])
+        ys.append(ordinates[1])
         coordinate_count += 1
 
     def line(value: Any) -> None:
@@ -62,7 +62,7 @@ def inspect_geojson(payload: Any) -> dict[str, Any]:
             raise ValueError("Polygon linear rings require at least four positions")
         positions = [_position(position) for position in value]
         if positions[0] != positions[-1]:
-            raise ValueError("Polygon linear rings must be closed")
+            raise ValueError("Polygon linear rings must be closed in every ordinate")
         for position in value:
             add_position(position)
 
@@ -159,7 +159,8 @@ def inspect_csv(path: Path) -> dict[str, Any]:
         raise ValueError("CSV must be valid UTF-8 with well-formed quoting") from exc
     if headers is None:
         raise ValueError("CSV has no non-empty header row")
-    duplicates = sorted({name for name in headers if headers.count(name) > 1})
+    counts = Counter(headers)
+    duplicates = sorted(name for name, count in counts.items() if count > 1)
     return {
         "validation": "structural_metrics",
         "row_count": row_count,
