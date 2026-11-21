@@ -148,3 +148,15 @@ def test_doi_deduplication_prevents_duplicate_bibliographic_work(local_index):
     assert second["status"] == "already_indexed"
     assert second["duplicate_reason"] == "doi"
     assert knowledge.status()["document_count"] == 1
+
+def test_knowledge_cli_can_seed_core_pack(tmp_path, monkeypatch, capsys):
+    from geologia.knowledge_cli import main
+
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "cli.sqlite3"))
+    monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
+    monkeypatch.delenv("GEOLOGIA_DISABLE_CORE_SEED", raising=False)
+    main(["--seed-core"])
+    output = capsys.readouterr().out
+    assert '"source_count": 12' in output
+    assert '"external_downloads": 0' in output
+    assert knowledge.status()["document_count"] == 12
