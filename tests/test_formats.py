@@ -258,7 +258,7 @@ def test_las_forged_point_count_rejected(tmp_path):
         inspect_las(path)
 
 def test_geojson_reference_dataset_matches_known_projection_results():
-    pyproj = pytest.importorskip("pyproj")
+    pytest.importorskip("pyproj")
     from geologia.geospatial import reproject_geojson
 
     source = json.loads((ROOT / "data" / "reference_points.geojson").read_text())
