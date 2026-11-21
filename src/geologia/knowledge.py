@@ -639,26 +639,34 @@ def search(query: str, limit: int = 5) -> dict:
         if not rows:
             backend = "sqlite_token_scan"
             conditions = []
-            parameters = []
+            filter_parameters = []
+            score_terms = []
+            score_parameters = []
             for token in tokens:
                 conditions.append(
                     "(instr(lower(c.body), lower(?)) > 0 OR "
                     "instr(lower(d.title), lower(?)) > 0)"
                 )
-                parameters.extend([token, token])
+                filter_parameters.extend([token, token])
+                score_terms.append(
+                    "(CASE WHEN instr(lower(c.body), lower(?)) > 0 THEN 1 ELSE 0 END "
+                    "+ CASE WHEN instr(lower(d.title), lower(?)) > 0 THEN 1 ELSE 0 END)"
+                )
+                score_parameters.extend([token, token])
             rows = connection.execute(
                 f"""
                 SELECT c.chunk_id, c.document_id, c.chunk_index, c.body, c.source_locator,
                        d.source_id, d.title, d.author, d.publisher, d.source_url,
                        d.doi, d.license_name, d.license_status, d.reviewed_by,
-                       d.review_date, d.language, d.file_sha256
+                       d.review_date, d.language, d.file_sha256,
+                       {" + ".join(score_terms)} AS relevance_score
                 FROM knowledge_chunks c
                 JOIN knowledge_documents d ON d.id = c.document_id
                 WHERE {" OR ".join(conditions)}
-                ORDER BY d.title, c.chunk_index
+                ORDER BY relevance_score DESC, d.title, c.chunk_index
                 LIMIT ?
                 """,
-                (*parameters, limit),
+                (*score_parameters, *filter_parameters, limit),
             ).fetchall()
 
     results = []
