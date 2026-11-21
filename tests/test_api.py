@@ -440,3 +440,48 @@ def test_upload_rejects_duplicate_json_keys_and_excessive_numeric_values(tmp_pat
         headers={**headers, "X-Filename": "huge.geojson"},
     )
     assert oversized.status_code == 422
+
+
+def test_external_source_citation_is_recorded_and_marked_unverified(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Source provenance"}).json()
+    headers = {
+        "X-Dataset-Name": "EPSG control",
+        "X-Filename": "control.geojson",
+        "X-Source-URL": "https://epsg.io/3857",
+        "X-Source-Title": "WGS 84 / Pseudo-Mercator",
+        "X-Source-Publisher": "EPSG",
+        "X-Source-License": "EPSG terms; check source conditions",
+        "X-Source-Citation": "EPSG registry entry 3857",
+        "X-Source-Version": "registry snapshot",
+        "X-Source-Accessed-At": "2026-11-21",
+    }
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=b'{"type":"FeatureCollection","features":[]}',
+        headers=headers,
+    )
+    assert response.status_code == 201
+    dataset = response.json()
+    external = dataset["summary"]["external_source"]
+    assert external["status"] == "user_supplied_not_verified"
+    assert external["url"] == "https://epsg.io/3857"
+    assert external["citation"] == "EPSG registry entry 3857"
+    audit = client.get(f"/api/v1/datasets/{dataset['id']}/provenance").json()
+    event = audit["events"][0]["payload"]
+    assert event["external_source"] == external
+    assert audit["chain_integrity"] == "verified"
+
+
+def test_external_source_metadata_rejects_unsafe_or_malformed_fields(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Source validation"}).json()
+    base = {"X-Dataset-Name": "Source check", "X-Filename": "source.geojson"}
+    payload = b'{"type":"FeatureCollection","features":[]}'
+    endpoint = f"/api/v1/projects/{project['id']}/datasets"
+    assert client.post(endpoint, content=payload, headers={**base, "X-Source-URL": "javascript:alert(1)"}).status_code == 422
+    assert client.post(endpoint, content=payload, headers={**base, "X-Source-URL": "https://user:pass@example.org/data"}).status_code == 422
+    assert client.post(endpoint, content=payload, headers={**base, "X-Source-DOI": "not-a-doi"}).status_code == 422
+    assert client.post(endpoint, content=payload, headers={**base, "X-Source-Accessed-At": "21-11-2026"}).status_code == 422
