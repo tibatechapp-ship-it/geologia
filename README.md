@@ -75,7 +75,7 @@ The institution catalog and Crossref candidate inbox are discovery/metadata only
 python3.14 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev,gis]"
+python -m pip install -e ".[dev,gis,pdf]"
 python -m ruff check src tests
 python -m compileall -q src tests
 python -m pytest
