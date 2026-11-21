@@ -33,6 +33,7 @@ def metadata(**overrides):
         "scientific_review_status": "not_assessed",
         "scientific_reviewed_by": "",
         "scientific_review_date": "",
+        "scientific_review_basis": "",
     }
     values.update(overrides)
     return values
@@ -504,10 +505,12 @@ def test_knowledge_cli_accepts_scientific_review_metadata(tmp_path, monkeypatch,
         "--scientific-review-status", "subject_matter_reviewed",
         "--scientific-reviewed-by", "Geoscience specialist",
         "--scientific-review-date", "2026-11-21",
+        "--scientific-review-basis", "https://example.org/review-record",
     ])
     result = json.loads(capsys.readouterr().out)
     assert result["source_kind"] == "research_article"
     assert result["scientific_review_status"] == "subject_matter_reviewed"
+    assert result["scientific_review_basis"] == "https://example.org/review-record"
 
 
 def test_scientific_review_metadata_is_separate_from_license_review(local_index):
@@ -522,6 +525,7 @@ def test_scientific_review_metadata_is_separate_from_license_review(local_index)
     assert hit["scientific_review_status"] == "not_assessed"
     assert hit["scientific_reviewed_by"] is None
     assert hit["scientific_review_date"] is None
+    assert hit["scientific_review_basis"] is None
 
 
 def test_scientific_review_requires_reviewer_and_valid_date(local_index):
@@ -538,6 +542,7 @@ def test_scientific_review_requires_reviewer_and_valid_date(local_index):
         scientific_review_status="subject_matter_reviewed",
         scientific_reviewed_by="Geoscience reviewer",
         scientific_review_date="2026-11-21",
+        scientific_review_basis="https://example.org/scientific-review",
     )
     result = knowledge.ingest_document(source, reviewed)
     assert result["scientific_review_status"] == "subject_matter_reviewed"
@@ -553,6 +558,7 @@ def test_scientific_review_date_rejects_invalid_calendar_date(local_index):
                 scientific_review_status="editorial_reviewed",
                 scientific_reviewed_by="Editorial reviewer",
                 scientific_review_date="2026-02-31",
+                scientific_review_basis="https://example.org/review-record",
             ),
         )
 
@@ -588,13 +594,15 @@ def test_knowledge_documents_migrate_scientific_review_columns(tmp_path, monkeyp
     with closing(knowledge._connect()) as connection:
         row = connection.execute(
             "SELECT source_kind, scientific_review_status, "
-            "scientific_reviewed_by, scientific_review_date "
+            "scientific_reviewed_by, scientific_review_date, "
+            "scientific_review_basis "
             "FROM knowledge_documents WHERE id='legacy-doc'"
         ).fetchone()
     assert row["source_kind"] == "other"
     assert row["scientific_review_status"] == "not_assessed"
     assert row["scientific_reviewed_by"] is None
     assert row["scientific_review_date"] is None
+    assert row["scientific_review_basis"] is None
 
 
 def test_claim_evidence_ledger_records_relations_without_scientific_validation(local_index):
@@ -728,3 +736,131 @@ def test_claim_register_validates_pagination(local_index):
         knowledge.list_claims(limit=101)
     with pytest.raises(ValueError, match="offset must be zero"):
         knowledge.list_claims(offset=-1)
+
+
+def test_expanded_source_taxonomy_and_peer_review_basis_are_traceable(local_index):
+    source = local_index / "peer-reviewed.txt"
+    source.write_text("Geological findings with a documented review record.", encoding="utf-8")
+    reviewed = metadata(
+        source_id="peer-review-basis-001",
+        source_kind="meta_analysis",
+        scientific_review_status="peer_reviewed",
+        scientific_reviewed_by="Bibliographic verification",
+        scientific_review_date="2026-11-21",
+        scientific_review_basis="10.1234/geo.review.2026",
+    )
+    result = knowledge.ingest_document(source, reviewed)
+    assert result["source_kind"] == "meta_analysis"
+    assert result["scientific_review_status"] == "peer_reviewed"
+    assert result["scientific_review_basis"] == "https://doi.org/10.1234/geo.review.2026"
+
+
+def test_completed_scientific_review_requires_traceable_basis(local_index):
+    source = local_index / "no-review-basis.txt"
+    source.write_text("A claimed reviewed geology source.", encoding="utf-8")
+    reviewed = metadata(
+        scientific_review_status="peer_reviewed",
+        scientific_reviewed_by="Reviewer",
+        scientific_review_date="2026-11-21",
+    )
+    with pytest.raises(ValueError, match="requires a source URL or DOI basis"):
+        knowledge.ingest_document(source, reviewed)
+
+
+def test_not_assessed_rejects_scientific_review_basis(local_index):
+    source = local_index / "unassessed-with-basis.txt"
+    source.write_text("An unassessed source with review basis metadata.", encoding="utf-8")
+    with pytest.raises(ValueError, match="reviewer and date require"):
+        knowledge.ingest_document(
+            source, metadata(scientific_review_basis="https://example.org/review")
+        )
+
+
+def test_legacy_review_check_migrates_without_losing_document_chunk(tmp_path, monkeypatch):
+    db_path = tmp_path / "old-review-check.sqlite3"
+    monkeypatch.setenv("GEOLOGIA_KNOWLEDGE_DB_PATH", str(db_path))
+    monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE knowledge_documents (
+                id TEXT PRIMARY KEY, source_id TEXT NOT NULL, title TEXT NOT NULL,
+                author TEXT, publisher TEXT, source_url TEXT, doi TEXT,
+                license_name TEXT NOT NULL, source_kind TEXT NOT NULL DEFAULT 'other',
+                scientific_review_status TEXT NOT NULL DEFAULT 'not_assessed' CHECK (
+                    scientific_review_status IN (
+                        'not_assessed', 'editorial_reviewed', 'subject_matter_reviewed'
+                    )
+                ),
+                scientific_reviewed_by TEXT, scientific_review_date TEXT,
+                scientific_review_basis TEXT,
+                license_status TEXT NOT NULL CHECK (
+                    license_status IN (
+                        'public_domain', 'open_license', 'permission', 'original_work'
+                    )
+                ),
+                reviewed_by TEXT NOT NULL, review_date TEXT NOT NULL,
+                language TEXT NOT NULL, filename TEXT NOT NULL,
+                file_sha256 TEXT NOT NULL, indexed_at TEXT NOT NULL,
+                UNIQUE(source_id, file_sha256)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO knowledge_documents VALUES (
+                'old-doc', 'old-source', 'Old source', NULL, NULL, NULL, NULL,
+                'CC BY 4.0', 'textbook', 'not_assessed', NULL, NULL, NULL,
+                'open_license', 'rights reviewer', '2026-11-21', 'en',
+                'old.txt', 'oldsha', '2026-11-21T00:00:00Z'
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE knowledge_chunks (
+                chunk_id TEXT PRIMARY KEY,
+                document_id TEXT NOT NULL REFERENCES knowledge_documents(id),
+                chunk_index INTEGER NOT NULL, body TEXT NOT NULL,
+                source_locator TEXT NOT NULL DEFAULT '',
+                UNIQUE(document_id, chunk_index)
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO knowledge_chunks VALUES "
+            "('old-chunk','old-doc',0,'preserved evidence','')"
+        )
+
+    knowledge.initialize()
+    with closing(knowledge._connect()) as connection:
+        document = connection.execute(
+            "SELECT source_id, scientific_review_status FROM knowledge_documents "
+            "WHERE id='old-doc'"
+        ).fetchone()
+        chunk = connection.execute(
+            "SELECT document_id, body FROM knowledge_chunks WHERE chunk_id='old-chunk'"
+        ).fetchone()
+        schema = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' "
+            "AND name='knowledge_documents'"
+        ).fetchone()["sql"]
+    assert document["source_id"] == "old-source"
+    assert document["scientific_review_status"] == "not_assessed"
+    assert chunk["document_id"] == "old-doc"
+    assert chunk["body"] == "preserved evidence"
+    assert "'peer_reviewed'" in schema
+
+    source = tmp_path / "new-peer-reviewed.txt"
+    source.write_text("New peer reviewed source with citation.", encoding="utf-8")
+    result = knowledge.ingest_document(
+        source,
+        metadata(
+            source_id="new-peer-review-001",
+            scientific_review_status="peer_reviewed",
+            scientific_reviewed_by="Bibliographic reviewer",
+            scientific_review_date="2026-11-21",
+            scientific_review_basis="https://example.org/review-record",
+        ),
+    )
+    assert result["scientific_review_status"] == "peer_reviewed"

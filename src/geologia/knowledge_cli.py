@@ -51,18 +51,27 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--source-kind",
         choices=[
-            "research_article", "review_article", "official_dataset",
-            "technical_report", "textbook", "field_observation", "core_note",
-            "preprint", "other",
+            "research_article", "review_article", "meta_analysis", "preprint",
+            "thesis", "textbook", "official_dataset", "geologic_map",
+            "technical_report", "institutional_report", "field_observation",
+            "core_note", "catalog_metadata", "software_documentation", "other",
         ],
         default="other",
         help="Evidence source type; does not imply scientific validation",
     )
     parser.add_argument(
         "--scientific-review-status",
-        choices=["not_assessed", "editorial_reviewed", "subject_matter_reviewed"],
+        choices=[
+            "not_assessed", "peer_reviewed", "editorial_reviewed",
+            "institutional_reviewed", "subject_matter_reviewed", "expert_reviewed",
+        ],
         default="not_assessed",
         help="Separate from license review; defaults to not_assessed",
+    )
+    parser.add_argument(
+        "--scientific-review-basis",
+        default="",
+        help="HTTPS URL or DOI documenting the scientific review status",
     )
     parser.add_argument("--scientific-reviewed-by", default="")
     parser.add_argument("--scientific-review-date", default="")
@@ -96,6 +105,7 @@ def main(argv: list[str] | None = None) -> None:
             "publisher": args.publisher,
             "source_kind": args.source_kind,
             "scientific_review_status": args.scientific_review_status,
+            "scientific_review_basis": args.scientific_review_basis,
             "scientific_reviewed_by": args.scientific_reviewed_by,
             "scientific_review_date": args.scientific_review_date,
         }

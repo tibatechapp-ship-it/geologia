@@ -26,6 +26,16 @@ ALLOWED_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".pdf"}
 LICENSE_STATUSES = {
     "public_domain", "open_license", "permission", "original_work"
 }
+SOURCE_KINDS = {
+    "research_article", "review_article", "meta_analysis", "preprint",
+    "thesis", "textbook", "official_dataset", "geologic_map",
+    "technical_report", "institutional_report", "field_observation",
+    "core_note", "catalog_metadata", "software_documentation", "other",
+}
+SCIENTIFIC_REVIEW_STATUSES = {
+    "not_assessed", "peer_reviewed", "editorial_reviewed",
+    "institutional_reviewed", "subject_matter_reviewed", "expert_reviewed",
+}
 
 CORE_SEEDS = [
     ("hydrology_en.md", "geologia-core-hydrology-en-v1", "Groundwater data readiness", "en"),
@@ -128,11 +138,13 @@ def initialize() -> None:
                 source_kind TEXT NOT NULL DEFAULT 'other',
                 scientific_review_status TEXT NOT NULL DEFAULT 'not_assessed' CHECK (
                     scientific_review_status IN (
-                        'not_assessed', 'editorial_reviewed', 'subject_matter_reviewed'
+                        'not_assessed', 'peer_reviewed', 'editorial_reviewed',
+                        'institutional_reviewed', 'subject_matter_reviewed', 'expert_reviewed'
                     )
                 ),
                 scientific_reviewed_by TEXT,
                 scientific_review_date TEXT,
+                scientific_review_basis TEXT,
                 license_status TEXT NOT NULL CHECK (
                     license_status IN (
                         'public_domain', 'open_license', 'permission', 'original_work'
@@ -197,11 +209,108 @@ def initialize() -> None:
             ("scientific_review_status", "TEXT NOT NULL DEFAULT 'not_assessed'"),
             ("scientific_reviewed_by", "TEXT"),
             ("scientific_review_date", "TEXT"),
+            ("scientific_review_basis", "TEXT"),
         ):
             if column not in document_columns:
                 connection.execute(
                     f"ALTER TABLE knowledge_documents ADD COLUMN {column} {declaration}"
                 )
+        document_schema = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' "
+            "AND name='knowledge_documents'"
+        ).fetchone()["sql"]
+        if "'peer_reviewed'" not in document_schema:
+            # The original table CHECK constraint only allowed two completed
+            # review labels. Rebuild it with foreign keys temporarily disabled;
+            # preserve document IDs so chunk/evidence references remain valid.
+            connection.commit()
+            connection.execute("PRAGMA foreign_keys = OFF")
+            connection.execute(
+                """
+                CREATE TABLE knowledge_documents_migrated (
+                    id TEXT PRIMARY KEY,
+                    source_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    author TEXT,
+                    publisher TEXT,
+                    source_url TEXT,
+                    doi TEXT,
+                    license_name TEXT NOT NULL,
+                    source_kind TEXT NOT NULL DEFAULT 'other',
+                    scientific_review_status TEXT NOT NULL DEFAULT 'not_assessed' CHECK (
+                        scientific_review_status IN (
+                            'not_assessed', 'peer_reviewed', 'editorial_reviewed',
+                            'institutional_reviewed', 'subject_matter_reviewed', 'expert_reviewed'
+                        )
+                    ),
+                    scientific_reviewed_by TEXT,
+                    scientific_review_date TEXT,
+                    scientific_review_basis TEXT,
+                    license_status TEXT NOT NULL CHECK (
+                        license_status IN (
+                            'public_domain', 'open_license', 'permission', 'original_work'
+                        )
+                    ),
+                    reviewed_by TEXT NOT NULL,
+                    review_date TEXT NOT NULL,
+                    language TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    file_sha256 TEXT NOT NULL,
+                    indexed_at TEXT NOT NULL,
+                    UNIQUE(source_id, file_sha256)
+                )
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO knowledge_documents_migrated (
+                    id, source_id, title, author, publisher, source_url, doi,
+                    license_name, source_kind, scientific_review_status,
+                    scientific_reviewed_by, scientific_review_date,
+                    scientific_review_basis, license_status, reviewed_by,
+                    review_date, language, filename, file_sha256, indexed_at
+                )
+                SELECT
+                    id, source_id, title, author, publisher, source_url, doi,
+                    license_name,
+                    CASE WHEN source_kind IN (
+                        'research_article', 'review_article', 'meta_analysis',
+                        'preprint', 'thesis', 'textbook', 'official_dataset',
+                        'geologic_map', 'technical_report', 'institutional_report',
+                        'field_observation', 'core_note', 'catalog_metadata',
+                        'software_documentation', 'other'
+                    ) THEN source_kind ELSE 'other' END,
+                    CASE WHEN scientific_review_status IN (
+                        'not_assessed', 'peer_reviewed', 'editorial_reviewed',
+                        'institutional_reviewed', 'subject_matter_reviewed', 'expert_reviewed'
+                    ) THEN scientific_review_status ELSE 'not_assessed' END,
+                    CASE WHEN scientific_review_status IN (
+                        'peer_reviewed', 'editorial_reviewed', 'institutional_reviewed',
+                        'subject_matter_reviewed', 'expert_reviewed'
+                    ) THEN scientific_reviewed_by ELSE NULL END,
+                    CASE WHEN scientific_review_status IN (
+                        'peer_reviewed', 'editorial_reviewed', 'institutional_reviewed',
+                        'subject_matter_reviewed', 'expert_reviewed'
+                    ) THEN scientific_review_date ELSE NULL END,
+                    CASE WHEN scientific_review_status IN (
+                        'peer_reviewed', 'editorial_reviewed', 'institutional_reviewed',
+                        'subject_matter_reviewed', 'expert_reviewed'
+                    ) THEN scientific_review_basis ELSE NULL END,
+                    license_status, reviewed_by, review_date, language, filename,
+                    file_sha256, indexed_at
+                FROM knowledge_documents
+                """
+            )
+            connection.execute("DROP TABLE knowledge_documents")
+            connection.execute(
+                "ALTER TABLE knowledge_documents_migrated RENAME TO knowledge_documents"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_documents_doi "
+                "ON knowledge_documents(doi)"
+            )
+            connection.commit()
+            connection.execute("PRAGMA foreign_keys = ON")
         chunk_columns = {
             row["name"] for row in connection.execute("PRAGMA table_info(knowledge_chunks)")
         }
@@ -298,19 +407,12 @@ def _validate_metadata(metadata: dict) -> dict:
         raise ValueError("review_date must be a real calendar date") from exc
 
     source_kind = (metadata.get("source_kind") or "other").strip().lower()
-    allowed_source_kinds = {
-        "research_article", "review_article", "official_dataset",
-        "technical_report", "textbook", "field_observation", "core_note",
-        "preprint", "other",
-    }
-    if source_kind not in allowed_source_kinds:
+    if source_kind not in SOURCE_KINDS:
         raise ValueError("source_kind must be a recognized evidence source type")
     scientific_review_status = (
         metadata.get("scientific_review_status") or "not_assessed"
     ).strip().lower()
-    if scientific_review_status not in {
-        "not_assessed", "editorial_reviewed", "subject_matter_reviewed"
-    }:
+    if scientific_review_status not in SCIENTIFIC_REVIEW_STATUSES:
         raise ValueError("scientific_review_status is not a supported review state")
     scientific_reviewed_by = (
         metadata.get("scientific_reviewed_by") or ""
@@ -318,14 +420,28 @@ def _validate_metadata(metadata: dict) -> dict:
     scientific_review_date = (
         metadata.get("scientific_review_date") or ""
     ).strip() or None
+    scientific_review_basis = (
+        metadata.get("scientific_review_basis") or ""
+    ).strip() or None
     if scientific_review_status == "not_assessed":
-        if scientific_reviewed_by or scientific_review_date:
+        if scientific_reviewed_by or scientific_review_date or scientific_review_basis:
             raise ValueError(
                 "scientific reviewer and date require a completed scientific review status"
             )
     else:
         if not scientific_reviewed_by or not scientific_review_date:
             raise ValueError("completed scientific review requires reviewer and date")
+        if not scientific_review_basis:
+            raise ValueError(
+                "completed scientific review requires a source URL or DOI basis"
+            )
+        if scientific_review_basis.startswith("10."):
+            if not re.fullmatch(r"10\.\d{4,9}/\S+", scientific_review_basis):
+                raise ValueError("scientific_review_basis must be an HTTPS URL or DOI")
+            scientific_review_basis = "https://doi.org/" + scientific_review_basis
+        parsed_basis = urlparse(scientific_review_basis)
+        if parsed_basis.scheme != "https" or not parsed_basis.netloc:
+            raise ValueError("scientific_review_basis must be an HTTPS URL or DOI")
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", scientific_review_date):
             raise ValueError("scientific_review_date must use YYYY-MM-DD")
         try:
@@ -363,6 +479,7 @@ def _validate_metadata(metadata: dict) -> dict:
         "scientific_review_status": scientific_review_status,
         "scientific_reviewed_by": scientific_reviewed_by,
         "scientific_review_date": scientific_review_date,
+        "scientific_review_basis": scientific_review_basis,
         "reviewed_by": reviewed_by,
         "review_date": review_date,
         "language": language,
@@ -551,8 +668,8 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
                 license_name, license_status, reviewed_by, review_date,
                 language, filename, file_sha256, indexed_at, source_kind,
                 scientific_review_status, scientific_reviewed_by,
-                scientific_review_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                scientific_review_date, scientific_review_basis
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 document_id, source["source_id"], source["title"], source["author"],
@@ -563,6 +680,7 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
                 source["scientific_review_status"],
                 source["scientific_reviewed_by"],
                 source["scientific_review_date"],
+                source["scientific_review_basis"],
             ),
         )
         has_fts = _fts_available(connection)
@@ -597,6 +715,7 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
         "scientific_review_status": source["scientific_review_status"],
         "scientific_reviewed_by": source["scientific_reviewed_by"],
         "scientific_review_date": source["scientific_review_date"],
+        "scientific_review_basis": source["scientific_review_basis"],
         "language": source["language"],
     }
     if pages_extracted is not None:
@@ -733,7 +852,7 @@ def search(query: str, limit: int = 5) -> dict:
                            d.doi, d.license_name, d.license_status, d.reviewed_by,
                            d.review_date, d.source_kind, d.scientific_review_status,
                            d.scientific_reviewed_by, d.scientific_review_date,
-                           d.language, d.file_sha256,
+                           d.scientific_review_basis, d.language, d.file_sha256,
                            bm25(knowledge_fts_v2) AS relevance
                     FROM knowledge_fts_v2
                     JOIN knowledge_chunks c ON c.chunk_id = knowledge_fts_v2.chunk_id
@@ -771,7 +890,7 @@ def search(query: str, limit: int = 5) -> dict:
                        d.doi, d.license_name, d.license_status, d.reviewed_by,
                        d.review_date, d.source_kind, d.scientific_review_status,
                        d.scientific_reviewed_by, d.scientific_review_date,
-                       d.language, d.file_sha256,
+                       d.scientific_review_basis, d.language, d.file_sha256,
                        {" + ".join(score_terms)} AS relevance_score
                 FROM knowledge_chunks c
                 JOIN knowledge_documents d ON d.id = c.document_id
@@ -817,6 +936,7 @@ def search(query: str, limit: int = 5) -> dict:
             "scientific_review_status": row["scientific_review_status"],
             "scientific_reviewed_by": row["scientific_reviewed_by"],
             "scientific_review_date": row["scientific_review_date"],
+            "scientific_review_basis": row["scientific_review_basis"],
             "reviewed_by": row["reviewed_by"],
             "review_date": row["review_date"],
             "language": row["language"],
@@ -1000,7 +1120,8 @@ def get_claim(claim_id: str) -> dict | None:
             SELECT e.annotation_id, e.chunk_id, e.relation, e.rationale,
                    e.recorded_by, e.recorded_at, c.body, c.source_locator,
                    d.source_id, d.title, d.source_url, d.doi, d.source_kind,
-                   d.scientific_review_status, d.license_status, d.file_sha256
+                   d.scientific_review_status, d.scientific_review_basis,
+                   d.license_status, d.file_sha256
             FROM knowledge_claim_evidence e
             JOIN knowledge_chunks c ON c.chunk_id = e.chunk_id
             JOIN knowledge_documents d ON d.id = c.document_id
