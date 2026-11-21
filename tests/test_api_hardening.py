@@ -46,3 +46,29 @@ def test_upload_rejects_non_finite_json_numbers(tmp_path, monkeypatch, payload):
         headers={"X-Dataset-Name": "Strict", "X-Filename": "strict.geojson"},
     )
     assert response.status_code == 422
+
+
+def test_role_coverage_never_claims_dataset_content_is_validated(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Readiness honesty"}).json()
+    roles = ["well_logs", "water_levels_timeseries", "recharge_estimate", "dem", "geology_map"]
+    for index, role in enumerate(roles):
+        uploaded = client.post(
+            f"/api/v1/projects/{project['id']}/datasets",
+            content=f"unverified placeholder {index}".encode(),
+            headers={
+                "X-Dataset-Name": f"Placeholder {index}",
+                "X-Filename": f"placeholder-{index}.tif",
+                "X-Data-Role": role,
+            },
+        )
+        assert uploaded.status_code == 201
+    job = client.post(
+        f"/api/v1/projects/{project['id']}/jobs",
+        json={"request": "Groundwater assessment", "language": "en"},
+    ).json()
+    readiness = job["plan"]["data_readiness"]
+    assert readiness["required_roles_present"] is True
+    assert readiness["content_validation"] == "not_performed"
+    assert readiness["execution_allowed"] is False
