@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from geologia import store
 from geologia.api import app
 
 client = TestClient(app)
@@ -88,3 +89,22 @@ def test_validation_endpoint_rejects_unsupported_format_and_unknown_dataset(tmp_
     assert client.post(f"/api/v1/datasets/{dataset_id}/validate").status_code == 415
     assert client.post("/api/v1/datasets/missing/validate").status_code == 404
     assert client.get("/api/v1/datasets/missing/validation").status_code == 404
+
+
+def test_validation_detects_dataset_bytes_changed_after_upload(tmp_path, monkeypatch):
+    project = _project(tmp_path, monkeypatch)
+    uploaded = _upload(
+        project["id"],
+        "water-levels.csv",
+        b"timestamp,water_level_m\\n2026-01-01,125.4\\n",
+        "water_levels_timeseries",
+    )
+    dataset_id = uploaded.json()["id"]
+    stored_path = store.get_dataset_content_path(dataset_id)
+    with open(stored_path, "ab") as target:
+        target.write(b"tampered")
+    report = client.post(f"/api/v1/datasets/{dataset_id}/validate").json()
+    assert report["validation_level"] == "integrity"
+    assert report["validation_status"] == "failed"
+    assert report["errors"][0]["code"] == "dataset.integrity.sha256_mismatch"
+    assert report["source_sha256"] == uploaded.json()["sha256"]
