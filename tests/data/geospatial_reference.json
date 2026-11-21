@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "description": "Known-answer horizontal CRS transformation. This is a software regression reference, not a geological truth dataset.",
+  "transform": {
+    "source_crs": "EPSG:4326",
+    "target_crs": "EPSG:3857",
+    "input_xy": [
+      1,
+      1
+    ],
+    "expected_xy": [
+      111319.49079327357,
+      111325.1428663851
+    ],
+    "absolute_tolerance_m": 0.00001
+  },
+  "inverse": {
+    "source_crs": "EPSG:3857",
+    "target_crs": "EPSG:4326",
+    "input_xy": [
+      111319.49079327357,
+      111325.1428663851
+    ],
+    "expected_xy": [
+      1,
+      1
+    ],
+    "absolute_tolerance_degrees": 1e-9
+  }
+}
