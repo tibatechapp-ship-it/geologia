@@ -723,12 +723,32 @@ def search(query: str, limit: int = 5) -> dict:
             "retrieval_evidence": "exact_lexical_tokens",
             "excerpt": _excerpt(row["body"], tokens),
         })
+    matched_terms = [
+        token for token in tokens
+        if any(token in result["matched_query_terms"] for result in results)
+    ]
+    evidence_summary = {
+        "query_token_count": len(tokens),
+        "matched_query_terms": matched_terms,
+        "maximum_query_term_coverage": max(
+            (result["query_term_coverage"] for result in results),
+            default=0.0,
+        ),
+        "coverage_scope": "returned_results",
+        "coverage_interpretation": (
+            "lexical_match_only_not_scientific_confidence"
+        ),
+        "citable_result_count": sum(
+            1 for result in results if result["source_url"]
+        ),
+    }
     return {
         "query": query.strip(),
         "count": len(results),
         "retrieval_method": backend,
         "model_used": False,
         "scientific_conclusion": False,
+        "evidence_summary": evidence_summary,
         "results": results,
     }
 

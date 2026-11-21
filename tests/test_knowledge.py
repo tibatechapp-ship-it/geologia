@@ -392,3 +392,35 @@ def test_token_fallback_does_not_accept_substring_only_matches(local_index, monk
 
     found = knowledge.search("ore", limit=5)
     assert all(item["source_id"] != "substring-001" for item in found["results"])
+
+
+def test_search_summary_aggregates_returned_evidence_without_confidence_claim(local_index):
+    source = local_index / "summary.txt"
+    source.write_text(
+        "Aquifer recharge and groundwater replenishment are studied.",
+        encoding="utf-8",
+    )
+    knowledge.ingest_document(
+        source, metadata(source_id="summary-001", title="Aquifer recharge")
+    )
+
+    found = knowledge.search("aquifer recharge absent", limit=3)
+    summary = found["evidence_summary"]
+    assert summary["query_token_count"] == 3
+    assert summary["matched_query_terms"] == ["aquifer", "recharge"]
+    assert summary["maximum_query_term_coverage"] == pytest.approx(2 / 3, abs=0.0001)
+    assert summary["coverage_scope"] == "returned_results"
+    assert summary["coverage_interpretation"] == (
+        "lexical_match_only_not_scientific_confidence"
+    )
+    assert summary["citable_result_count"] >= 1
+    assert found["scientific_conclusion"] is False
+
+
+def test_empty_search_results_have_zero_evidence_summary(local_index):
+    found = knowledge.search("unmatched volcanology phrase", limit=3)
+    summary = found["evidence_summary"]
+    assert found["count"] == 0
+    assert summary["matched_query_terms"] == []
+    assert summary["maximum_query_term_coverage"] == 0.0
+    assert summary["citable_result_count"] == 0

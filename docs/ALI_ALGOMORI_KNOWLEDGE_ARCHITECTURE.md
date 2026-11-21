@@ -123,7 +123,7 @@ The application now has a small SQLite knowledge index:
 - Stores reviewed source metadata, file SHA-256, original language, license basis, reviewer, and review date.
 - Splits local UTF-8 text into bounded chunks with overlap.
 - Deduplicates by stable source ID and exact file digest.
-- Uses SQLite FTS5 when available and a parameterized token-scan fallback on SQLite builds without FTS5. Each hit reports exact matched query tokens, lexical coverage, and an explicit lexical-only evidence label; substring-only fallback matches are discarded.
+- Uses SQLite FTS5 when available and a parameterized token-scan fallback on SQLite builds without FTS5. Each hit reports exact matched query tokens, lexical coverage, and an explicit lexical-only evidence label; substring-only fallback matches are discarded. The response also aggregates matched terms, maximum coverage across the returned top results, and citable-hit count. The summary is explicitly scoped to returned results and never represents scientific confidence.
 - Provides local status and search endpoints and attaches up to three retrieved source chunks to an identified analysis plan.
 - Does not use embedding vectors, model weights, remote inference, or automatic downloads.
 
