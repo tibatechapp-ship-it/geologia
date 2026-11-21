@@ -130,6 +130,7 @@ def test_core_seed_pack_is_bilingual_local_and_idempotent(tmp_path, monkeypatch)
     first_status = knowledge.status()
     assert first_status["document_count"] == len(knowledge.CORE_SEEDS)
     assert first_status["core_seed_count"] == len(knowledge.CORE_SEEDS)
+    assert first_status["core_seeded_count"] == len(knowledge.CORE_SEEDS)
     assert first_status["core_seeded_automatically"] is True
 
     found = knowledge.search("المياه الجوفية", limit=10)
