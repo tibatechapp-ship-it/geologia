@@ -203,9 +203,9 @@ def crs_inspection(crs: str) -> dict:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.post("/api/v1/datasets/{dataset_id}/reproject")
+@app.post("/api/v1/datasets/{dataset_id}/reproject", status_code=201)
 def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
-    """Return a reprojected GeoJSON response without overwriting the source dataset."""
+    """Create a new reprojected GeoJSON dataset; never overwrite the source."""
     item = store.get_dataset(dataset_id)
     if item is None:
         raise HTTPException(status_code=404, detail="dataset not found")
@@ -219,7 +219,7 @@ def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
     try:
-        inspect_geojson(payload)
+        metrics = inspect_geojson(payload)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"invalid GeoJSON: {exc}") from exc
     source_crs = item["crs"] or "EPSG:4326"
@@ -231,12 +231,57 @@ def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return {
-        "dataset_id": dataset_id,
-        "operation": "geojson_reprojection",
-        **info,
-        "geojson": transformed,
-    }
+    output_bytes = json.dumps(
+        transformed, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+    ).encode("utf-8")
+    if len(output_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="reprojected dataset exceeds storage limit")
+    storage = store.storage_path()
+    temporary_path = None
+    final_path = storage / f"{uuid4().hex}.blob"
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=storage, prefix=".reproject-", delete=False
+        ) as tmp:
+            temporary_path = Path(tmp.name)
+            tmp.write(output_bytes)
+        os.replace(temporary_path, final_path)
+        derived_name = f"{item['name']} [{info['target_crs']}]"
+        derived_name = derived_name[:120]
+        original_filename = Path(item["original_filename"]).stem[:180]
+        original_filename += ".reprojected.geojson"
+        summary = {
+            "validation": "structural_only",
+            "feature_count": metrics["feature_count"],
+            "derived_from_dataset_id": dataset_id,
+            "operation": "geojson_reprojection",
+            "coordinate_count": metrics["coordinate_count"],
+            "source_crs": info["source_crs"],
+            "target_crs": info["target_crs"],
+            "scientific_interpretation": False,
+        }
+        try:
+            dataset = store.create_dataset(
+                item["project_id"], name=derived_name, file_format="geojson",
+                original_filename=original_filename, content_path=str(final_path),
+                sha256=hashlib.sha256(output_bytes).hexdigest(),
+                size_bytes=len(output_bytes), crs=info["target_crs"],
+                data_role=item["data_role"], summary=summary,
+            )
+        except Exception:
+            final_path.unlink(missing_ok=True)
+            raise
+        return {
+            "dataset": dataset,
+            "operation": "geojson_reprojection",
+            **info,
+            "coordinate_count": metrics["coordinate_count"],
+            "source_dataset_id": dataset_id,
+            "source_dataset_modified": False,
+        }
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 @app.get("/api/v1/datasets/{dataset_id}/geojson")
@@ -258,6 +303,16 @@ def dataset_geojson(dataset_id: str) -> JSONResponse:
         inspect_geojson(payload)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    declared_crs = item["crs"] or "EPSG:4326"
+    if declared_crs.upper() not in {"EPSG:4326", "OGC:CRS84"}:
+        from geologia.geospatial import reproject_geojson
+
+        try:
+            payload, _ = reproject_geojson(payload, declared_crs, "EPSG:4326")
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     return JSONResponse(content=payload)
 
 

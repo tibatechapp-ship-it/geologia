@@ -185,8 +185,17 @@ def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
     assert abs(coords[1] - 1723798.499) < 1
     assert result["source_crs"] == "EPSG:4326"
     assert result["target_crs"] == "EPSG:3857"
-    assert result["stored_source_modified"] is False
+    assert result["source_dataset_modified"] is False
+    derived = result["dataset"]
+    assert derived["crs"] == "EPSG:3857"
+    assert derived["format"] == "geojson"
+    assert derived["summary"]["derived_from_dataset_id"] == dataset_id
     assert client.get(f"/api/v1/datasets/{dataset_id}/geojson").json() == payload
+    stored_derived = client.get(f"/api/v1/datasets/{derived['id']}/geojson")
+    assert stored_derived.status_code == 200
+    display_coords = stored_derived.json()["features"][0]["geometry"]["coordinates"]
+    assert abs(display_coords[0] - 44.2) < 1e-6
+    assert abs(display_coords[1] - 15.3) < 1e-6
 
 
 def test_upload_rejects_invalid_geojson_geometry(tmp_path, monkeypatch):
