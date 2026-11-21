@@ -186,6 +186,31 @@ def test_geojson_inspection_computes_real_metrics_and_persists(tmp_path, monkeyp
     assert stored["summary"]["inspection"] == report
 
 
+def test_csv_inspection_streams_structure_and_persists(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "CSV inspection"}).json()
+    csv_data = b"station,depth\nA,12.5\nB,\"14,2\"\nC\n\n"
+    uploaded = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=csv_data,
+        headers={"X-Dataset-Name": "Samples", "X-Filename": "samples.csv"},
+    )
+    assert uploaded.status_code == 201
+    dataset_id = uploaded.json()["id"]
+    response = client.post(f"/api/v1/datasets/{dataset_id}/inspect")
+    assert response.status_code == 200
+    report = response.json()
+    assert report["operation"] == "csv_inspection"
+    assert report["row_count"] == 3
+    assert report["column_count"] == 2
+    assert report["headers"] == ["station", "depth"]
+    assert report["ragged_row_count"] == 1
+    assert report["blank_row_count"] == 1
+    assert report["scientific_interpretation"] is False
+    assert client.get(f"/api/v1/datasets/{dataset_id}").json()["status"] == "inspected_structural_metrics"
+
+
 def test_geojson_inspection_rejects_non_finite_coordinates():
     from geologia.vector import inspect_geojson
 

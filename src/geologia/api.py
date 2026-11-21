@@ -17,7 +17,7 @@ from geologia import __version__
 from geologia import store
 from geologia.planner import build_plan
 from geologia.registry import get_engine, list_engines
-from geologia.vector import inspect_geojson
+from geologia.vector import inspect_csv, inspect_geojson
 
 app = FastAPI(
     title="GEOLOGIA API",
@@ -203,22 +203,30 @@ def dataset_inspect(dataset_id: str) -> dict:
     item = store.get_dataset(dataset_id)
     if item is None:
         raise HTTPException(status_code=404, detail="dataset not found")
-    if item["format"] not in {"geojson", "json"}:
-        raise HTTPException(status_code=415, detail="inspection currently supports GeoJSON only")
+    if item["format"] not in {"geojson", "json", "csv"}:
+        raise HTTPException(status_code=415, detail="inspection supports GeoJSON and CSV only")
     content_path = store.get_dataset_content_path(dataset_id)
     if content_path is None or not Path(content_path).is_file():
         raise HTTPException(status_code=410, detail="dataset file is missing")
-    try:
-        payload = json.loads(Path(content_path).read_text(encoding="utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
-    try:
-        report = inspect_geojson(payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if item["format"] == "csv":
+        try:
+            report = inspect_csv(Path(content_path))
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        operation = "csv_inspection"
+    else:
+        try:
+            payload = json.loads(Path(content_path).read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
+        try:
+            report = inspect_geojson(payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        operation = "geojson_inspection"
     report.update({
         "dataset_id": dataset_id,
-        "operation": "geojson_inspection",
+        "operation": operation,
         "scientific_interpretation": False,
     })
     store.save_dataset_inspection(dataset_id, report)

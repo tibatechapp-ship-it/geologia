@@ -1,5 +1,7 @@
 """Deterministic GeoJSON structural inspection; no scientific interpretation."""
+import csv
 import math
+from pathlib import Path
 from collections import Counter
 from typing import Any
 
@@ -89,4 +91,41 @@ def inspect_geojson(payload: Any) -> dict[str, Any]:
         "coordinate_count": coordinate_count,
         "bbox_xy": bbox,
         "property_keys": sorted(property_keys),
+    }
+
+
+def inspect_csv(path: Path) -> dict[str, Any]:
+    """Stream CSV structure metrics without retaining row values or interpreting science."""
+    headers: list[str] | None = None
+    row_count = 0
+    blank_rows = 0
+    ragged_rows = 0
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as source:
+            reader = csv.reader(source, strict=True)
+            for row in reader:
+                if headers is None:
+                    if not row or all(not cell.strip() for cell in row):
+                        continue
+                    headers = [cell.strip() for cell in row]
+                    continue
+                if not row or all(not cell.strip() for cell in row):
+                    blank_rows += 1
+                    continue
+                row_count += 1
+                if len(row) != len(headers):
+                    ragged_rows += 1
+    except (UnicodeDecodeError, csv.Error) as exc:
+        raise ValueError("CSV must be valid UTF-8 with well-formed quoting") from exc
+    if headers is None:
+        raise ValueError("CSV has no non-empty header row")
+    duplicates = sorted({name for name in headers if headers.count(name) > 1})
+    return {
+        "validation": "structural_metrics",
+        "row_count": row_count,
+        "column_count": len(headers),
+        "headers": headers,
+        "duplicate_headers": duplicates,
+        "blank_row_count": blank_rows,
+        "ragged_row_count": ragged_rows,
     }
