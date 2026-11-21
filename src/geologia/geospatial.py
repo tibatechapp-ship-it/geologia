@@ -190,11 +190,18 @@ def reproject_geojson(
         return output
 
     transformed = transform_object(payload)
+    import pyproj
+
     info = {
         "source_crs": source_crs.to_string(),
         "target_crs": target_crs.to_string(),
         "axis_order": "x,y (always_xy)",
         "bbox_policy": "existing bbox values removed because they are not transformed",
         "stored_source_modified": False,
+        "operation_description": transformer.description,
+        "operation_accuracy_m": (
+            float(transformer.accuracy) if transformer.accuracy >= 0 else None
+        ),
+        "tool_versions": {"pyproj": pyproj.__version__},
     }
     return transformed, info
