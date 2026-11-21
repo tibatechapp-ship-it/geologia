@@ -2,15 +2,14 @@ import pytest
 
 from geologia import knowledge
 
-
 @pytest.fixture
+
 def local_index(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "application.sqlite3"))
     monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
     monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
     knowledge.initialize()
     return tmp_path
-
 
 def metadata(**overrides):
     values = {
@@ -29,14 +28,12 @@ def metadata(**overrides):
     values.update(overrides)
     return values
 
-
 def test_chunking_is_bounded_and_overlaps_long_text():
     paragraph = "groundwater recharge aquifer stratigraphy " * 150
     chunks = knowledge.chunk_text(paragraph)
     assert len(chunks) > 1
     assert all(0 < len(chunk) <= knowledge.MAX_CHUNK_CHARS for chunk in chunks)
     assert chunks[0][-80:] in chunks[1]
-
 
 def test_ingest_and_search_return_reviewed_citation_metadata(local_index):
     source = local_index / "source.md"
@@ -61,7 +58,6 @@ def test_ingest_and_search_return_reviewed_citation_metadata(local_index):
     assert hit["chunk_number"] >= 1
     assert "local indexed text chunk" in hit["citation_locator"]
 
-
 def test_duplicate_source_and_file_are_idempotent(local_index):
     source = local_index / "same.txt"
     source.write_text("Groundwater data and aquifer recharge.", encoding="utf-8")
@@ -72,14 +68,12 @@ def test_duplicate_source_and_file_are_idempotent(local_index):
     assert second["document_id"] == first["document_id"]
     assert knowledge.status()["document_count"] == 1
 
-
 def test_ingestion_rejects_unreviewed_license_status(local_index):
     source = local_index / "unreviewed.txt"
     source.write_text("Geology reference text.", encoding="utf-8")
     with pytest.raises(ValueError, match="license_status"):
         knowledge.ingest_document(source, metadata(license_status="unverified"))
     assert knowledge.status()["document_count"] == 0
-
 
 def test_ingestion_rejects_invalid_utf8_and_unsupported_extension(local_index):
     invalid = local_index / "invalid.txt"
@@ -92,13 +86,11 @@ def test_ingestion_rejects_invalid_utf8_and_unsupported_extension(local_index):
     with pytest.raises(ValueError, match="only UTF-8"):
         knowledge.ingest_document(unsupported, metadata())
 
-
 def test_search_rejects_empty_and_overlong_queries(local_index):
     with pytest.raises(ValueError, match="searchable text"):
         knowledge.search("   ")
     with pytest.raises(ValueError, match="500 character"):
         knowledge.search("x" * 501)
-
 
 def test_status_reports_local_model_free_storage(local_index):
     status = knowledge.status()
@@ -107,9 +99,6 @@ def test_status_reports_local_model_free_storage(local_index):
     assert status["model_required"] is False
     assert status["network_required"] is False
     assert status["automatic_downloads_enabled"] is False
-
-
-
 
 def test_open_license_ingestion_rejects_noncommercial_and_no_derivatives_terms(
     local_index,
@@ -121,7 +110,6 @@ def test_open_license_ingestion_rejects_noncommercial_and_no_derivatives_terms(
             source,
             metadata(license_name="CC BY-NC-ND 4.0", license_status="open_license"),
         )
-
 
 def test_core_seed_pack_is_bilingual_local_and_idempotent(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "core.sqlite3"))
