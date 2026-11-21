@@ -9,6 +9,7 @@ Review scope: horizontal projection control values, declared vertical CRS metada
 | EPSG:3857 — WGS 84 / Pseudo-Mercator | [EPSG registry](https://epsg.io/3857) | CRS identifier, axis order, metre units, area of use, and operation method EPSG:1024 |
 | IOGP Guidance Note 7-2 | [IOGP PDF](https://www.iogp.org/wp-content/uploads/2019/09/373-07-02.pdf) | Published pseudo-Mercator parameters and forward calculation equations |
 | EPSG:5773 — EGM96 height | [EPSG registry](https://epsg.io/5773) | Vertical CRS name, EGM96 geoid datum, metre unit, upward axis, and world area |
+| EPSG:9707 — WGS 84 + EGM96 height | [EPSG registry](https://epsg.io/9707) | Compound CRS example connecting EPSG:4326 with vertical EPSG:5773 |
 | OGC CRS WKT standard 18-010r11 | [OGC PDF](https://docs.ogc.org/is/18-010r11/18-010r11.pdf) | Compound CRS representation as independent horizontal and vertical components |
 
 Source identifiers, URLs, purpose, and access date are captured in `tests/data/reference_sources.json`.
