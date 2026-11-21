@@ -18,6 +18,7 @@ Terminal states are `succeeded` and `cancelled`. A failed job may be queued agai
 ## Persistence and audit
 
 - Existing SQLite job tables are migrated in place by rebuilding the constrained table while preserving existing job records.
+- SQLite `PRAGMA user_version` is set to schema version `1` for both fresh and migrated databases.
 - Each job stores attempt count, retry limit, queue/start/finish/update timestamps, and bounded error code/message fields.
 - Every state transition is appended to `job_events` with actor, source state, destination state, structured detail, and timestamp.
 - State changes and event insertion happen in one SQLite transaction using `BEGIN IMMEDIATE`.
