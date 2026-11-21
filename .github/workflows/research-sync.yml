@@ -41,6 +41,7 @@ jobs:
           token: ${{ secrets.RESEARCH_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
           branch: automation/research-sync-inbox
           delete-branch: false
+          draft: true
           title: "chore(research): refresh geoscience review inbox"
           commit-message: "chore(research): refresh metadata review inbox"
           body: |
