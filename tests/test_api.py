@@ -406,3 +406,28 @@ def test_upload_rejects_malformed_csv_and_reports_ragged_rows(tmp_path, monkeypa
     assert ragged.status_code == 201
     assert ragged.json()["summary"]["ragged_row_count"] == 1
     assert "rows_have_inconsistent_column_counts" in ragged.json()["summary"]["warnings"]
+
+
+
+def test_upload_rejects_duplicate_json_keys_and_excessive_numeric_values(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Strict JSON"}).json()
+    headers = {"X-Dataset-Name": "Ambiguous JSON", "X-Filename": "ambiguous.geojson"}
+    duplicate = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=b'{"type":"Feature","type":"FeatureCollection","features":[]}',
+        headers=headers,
+    )
+    assert duplicate.status_code == 422
+
+    huge_number = (
+        b'{"type":"Feature","properties":{},'
+        b'"geometry":{"type":"Point","coordinates":[' + b"9" * 5000 + b",1]}}"
+    )
+    oversized = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=huge_number,
+        headers={**headers, "X-Filename": "huge.geojson"},
+    )
+    assert oversized.status_code == 422
