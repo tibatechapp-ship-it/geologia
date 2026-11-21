@@ -20,7 +20,13 @@ def _position(value: Any) -> tuple[float, ...]:
         if (not isinstance(ordinate, (int, float)) or isinstance(ordinate, bool)
                 or not math.isfinite(ordinate)):
             raise ValueError("all coordinate ordinates must be finite numbers")
-        ordinates.append(float(ordinate))
+        try:
+            numeric = float(ordinate)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("coordinate ordinates must be representable finite numbers") from exc
+        if not math.isfinite(numeric):
+            raise ValueError("all coordinate ordinates must be finite numbers")
+        ordinates.append(numeric)
     return tuple(ordinates)
 
 
@@ -40,15 +46,17 @@ def inspect_geojson(payload: Any) -> dict[str, Any]:
     geometry_counts: Counter[str] = Counter()
     property_keys: set[str] = set()
     coordinate_count = 0
-    xs: list[float] = []
-    ys: list[float] = []
+    min_x = min_y = float("inf")
+    max_x = max_y = float("-inf")
     null_geometry_count = 0
 
     def add_position(position: Any) -> None:
-        nonlocal coordinate_count
+        nonlocal coordinate_count, min_x, min_y, max_x, max_y
         ordinates = _position(position)
-        xs.append(ordinates[0])
-        ys.append(ordinates[1])
+        min_x = min(min_x, ordinates[0])
+        min_y = min(min_y, ordinates[1])
+        max_x = max(max_x, ordinates[0])
+        max_y = max(max_y, ordinates[1])
         coordinate_count += 1
 
     def line(value: Any) -> None:
@@ -121,8 +129,8 @@ def inspect_geojson(payload: Any) -> dict[str, Any]:
         walk_geometry(feature.get("geometry"))
 
     bbox = None
-    if xs:
-        bbox = [min(xs), min(ys), max(xs), max(ys)]
+    if coordinate_count:
+        bbox = [min_x, min_y, max_x, max_y]
     return {
         "validation": "structural_metrics",
         "feature_count": len(features),
