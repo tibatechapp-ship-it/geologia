@@ -9,12 +9,6 @@ on:
       - "scripts/smoke_desktop.py"
       - "pyproject.toml"
       - ".github/workflows/desktop-build.yml"
-  pull_request:
-    paths:
-      - "src/geologia/desktop.py"
-      - "scripts/geologia_desktop.py"
-      - "pyproject.toml"
-      - ".github/workflows/desktop-build.yml"
   workflow_dispatch:
 
 permissions:
