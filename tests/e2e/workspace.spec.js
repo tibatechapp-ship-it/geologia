@@ -11,6 +11,7 @@ async function createProject(page, name) {
 
 test("creates a project and switches the workspace language", async ({ page }) => {
   await createProject(page, `Browser project ${Date.now()}`);
+  await expect(page.locator("footer a[href=\"mailto:aigeologia@gmail.com\"]")).toBeVisible();
 
   await page.locator("#langToggle").click();
 
