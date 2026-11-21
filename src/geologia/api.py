@@ -240,7 +240,7 @@ async def dataset_upload(
             detail="source DOI must use the standard 10.xxxx/... form",
         )
     if external_source["accessed_at"]:
-        if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", external_source["accessed_at"]):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", external_source["accessed_at"]):
             raise HTTPException(
                 status_code=422, detail="source accessed-at must be YYYY-MM-DD"
             )
