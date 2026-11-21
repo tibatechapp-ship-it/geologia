@@ -229,7 +229,8 @@ async def dataset_upload(
                              or bbox[1] < -90 or bbox[3] > 90):
                     raise HTTPException(
                         status_code=422,
-                        detail="default GeoJSON CRS is WGS84; coordinates exceed longitude/latitude bounds",
+                        detail=(\n                            "default GeoJSON CRS is WGS84; coordinates exceed "
+                            "longitude/latitude bounds"\n                        ),
                     )
                 summary["crs_validation"] = {
                     "canonical": effective_crs,
