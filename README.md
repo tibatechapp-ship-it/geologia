@@ -50,6 +50,10 @@ Default SQLite path: `.geologia/geologia.sqlite3`. Set `GEOLOGIA_DB_PATH` to mov
 - `GET /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/jobs/{job_id}`
 
+## Engineering audit
+
+See [the full-history engineering audit](docs/ENGINEERING_AUDIT.md) for verified fixes, known blockers, and the ordered remediation roadmap.
+
 ## Scientific and security honesty
 
 The 30 registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. Jobs remain `planned`; no geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
