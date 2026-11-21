@@ -40,6 +40,17 @@ bash scripts/start-local.sh
 
 The bootstrap installs Python and a native build toolchain because some Python dependencies may need to compile on Android. This is a one-time installation cost; no model weights are installed. Compilation duration and memory use vary by device. The GIS extra is intentionally not installed by default.
 
+The installer creates `~/.shortcuts/GEOLOGIA`. Install the **Termux:Widget** companion from the same trusted distribution source, then add the GEOLOGIA shortcut widget to the home screen. Tapping it starts the API in the background and opens the local workspace. The PID and log are stored under `~/.geologia`.
+
+To stop or inspect the server:
+
+```bash
+bash scripts/termux-widget-stop.sh
+bash scripts/termux-widget-status.sh
+```
+
+The launcher checks the local health endpoint, binds only to `127.0.0.1`, and refuses to terminate a process whose command line cannot be identified as GEOLOGIA. Android battery management may still stop background processes; disable battery optimization for Termux only if needed and understood.
+
 Open `http://127.0.0.1:8000` in the Android browser. The PWA can then be added to the home screen when supported.
 
 ## Windows
