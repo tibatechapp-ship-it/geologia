@@ -103,6 +103,15 @@
       "publisher": "IOGP",
       "url": "https://www.iogp.org/bookstore/wp-content/uploads/sites/2/woocommerce_uploads/2017/01/373-07-02.pdf",
       "use": "Vertical offset by interpolation of gridded data; operation method and grid are required"
+    },
+    {
+      "id": "geographiclib-geoid-500k-testdata",
+      "title": "GeoidHeights.dat.gz — 500,000 geoid-height reference points",
+      "publisher": "GeographicLib project",
+      "url": "https://sourceforge.net/projects/geographiclib/files/testdata/GeoidHeights.dat.gz/download",
+      "disambig": "Published numerical test dataset for geoid-height calculations",
+      "use": "Cross-implementation regression oracle for EGM84/EGM96/EGM2008 after artifact SHA-256 verification; not field-survey validation",
+      "sha256": "e0b9804694b3eac78ffd0b3df9cffd30a134d72007276e732ff72f9651bc9995"
     }
   ],
   "notes": [
