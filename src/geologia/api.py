@@ -531,14 +531,12 @@ def jobs_events(job_id: str) -> dict:
 @app.post("/api/v1/jobs/{job_id}/cancel")
 def jobs_cancel(job_id: str) -> dict:
     """Cancel a job or request cooperative cancellation from a running worker."""
-    current = store.get_job(job_id)
-    if current is None:
-        raise HTTPException(status_code=404, detail="job not found")
-    target = "cancel_requested" if current["status"] == "running" else "cancelled"
     try:
-        item = store.transition_job(job_id, target, actor="human")
+        item = store.request_job_cancellation(job_id, actor="human")
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if item is None:
+        raise HTTPException(status_code=404, detail="job not found")
     return {
         "job": item,
         "cancellation": (
