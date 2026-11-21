@@ -164,7 +164,9 @@ def classify_request(request: str) -> dict:
             "needs_clarification": False,
             "matched_domains": [item["domain"] for item in matches],
             "routing_evidence": matches,
-            "confidence_basis": "distinct keyword evidence; confidence is heuristic, not calibrated",
+            "confidence_basis": (
+                "distinct keyword evidence; confidence is heuristic, not calibrated"
+            ),
         }
     return {
         "classification_status": "needs_clarification",
