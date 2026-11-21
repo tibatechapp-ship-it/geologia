@@ -116,7 +116,18 @@ Before enabling Ali against production user datasets:
 
 The accompanying `ali_geoscience_source_catalog.json` is a small discovery seed. It contains institution homepages, not harvested papers or validated datasets. Entries marked `seed_homepage_unverified` require manual domain verification. No crawler, vector database, knowledge graph, Ali agent runtime, or fine-tuning pipeline is enabled by this commit.
 
-## 10. Local retrieval foundation implemented
+## 10. Source review states and evidence types
+
+License review and scientific review are separate fields. A source may be legally eligible for local indexing while its scientific content remains unassessed.
+
+Each indexed document records:
+- source_kind: research article, review article, official dataset, technical report, textbook, field observation, core note, preprint, or other;
+- scientific_review_status: not_assessed (default), editorial_reviewed, or subject_matter_reviewed;
+- scientific reviewer and review date when a review status is claimed.
+
+A completed scientific review status requires a reviewer identity and a real calendar date. The metadata records that a review was declared; it does not independently prove peer review, source authority, correctness, or claim-level validation. Search results expose these fields so Ali can avoid treating all retrieved sources as equivalent. Existing local databases migrate with the conservative default not_assessed.
+
+## 11. Local retrieval foundation implemented
 
 The application now has a small SQLite knowledge index:
 

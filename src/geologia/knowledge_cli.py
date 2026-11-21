@@ -48,6 +48,24 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--doi", default="")
     parser.add_argument("--author", default="")
     parser.add_argument("--publisher", default="")
+    parser.add_argument(
+        "--source-kind",
+        choices=[
+            "research_article", "review_article", "official_dataset",
+            "technical_report", "textbook", "field_observation", "core_note",
+            "preprint", "other",
+        ],
+        default="other",
+        help="Evidence source type; does not imply scientific validation",
+    )
+    parser.add_argument(
+        "--scientific-review-status",
+        choices=["not_assessed", "editorial_reviewed", "subject_matter_reviewed"],
+        default="not_assessed",
+        help="Separate from license review; defaults to not_assessed",
+    )
+    parser.add_argument("--scientific-reviewed-by", default="")
+    parser.add_argument("--scientific-review-date", default="")
     args = parser.parse_args(argv)
 
     if args.search is not None:
@@ -76,6 +94,10 @@ def main(argv: list[str] | None = None) -> None:
             "doi": args.doi,
             "author": args.author,
             "publisher": args.publisher,
+            "source_kind": args.source_kind,
+            "scientific_review_status": args.scientific_review_status,
+            "scientific_reviewed_by": args.scientific_reviewed_by,
+            "scientific_review_date": args.scientific_review_date,
         }
         try:
             result = ingest_document(args.path, metadata)

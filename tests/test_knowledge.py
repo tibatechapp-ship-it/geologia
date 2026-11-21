@@ -29,6 +29,10 @@ def metadata(**overrides):
         "reviewed_by": "local reviewer",
         "review_date": "2026-11-21",
         "language": "en",
+        "source_kind": "textbook",
+        "scientific_review_status": "not_assessed",
+        "scientific_reviewed_by": "",
+        "scientific_review_date": "",
     }
     values.update(overrides)
     return values
@@ -477,3 +481,117 @@ def test_knowledge_cli_search_returns_local_evidence_summary(local_index, capsys
         "aquifer", "recharge"
     ]
     assert result["results"][0]["source_id"] == "cli-search-001"
+
+
+def test_knowledge_cli_accepts_scientific_review_metadata(tmp_path, monkeypatch, capsys):
+    from geologia.knowledge_cli import main
+    import json
+
+    monkeypatch.setenv("GEOLOGIA_KNOWLEDGE_DB_PATH", str(tmp_path / "cli-review.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
+    source = tmp_path / "cli-reviewed.md"
+    source.write_text("Geological evidence from a reviewed source.", encoding="utf-8")
+    main([
+        str(source),
+        "--source-id", "cli-review-001",
+        "--title", "Reviewed geology source",
+        "--language", "en",
+        "--license-name", "CC BY 4.0",
+        "--license-status", "open_license",
+        "--reviewed-by", "rights reviewer",
+        "--review-date", "2026-11-21",
+        "--source-kind", "research_article",
+        "--scientific-review-status", "subject_matter_reviewed",
+        "--scientific-reviewed-by", "Geoscience specialist",
+        "--scientific-review-date", "2026-11-21",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["source_kind"] == "research_article"
+    assert result["scientific_review_status"] == "subject_matter_reviewed"
+
+
+def test_scientific_review_metadata_is_separate_from_license_review(local_index):
+    source = local_index / "review-status.txt"
+    source.write_text("A locally indexed geology source.", encoding="utf-8")
+    result = knowledge.ingest_document(source, metadata())
+    found = knowledge.search("geology source", limit=3)
+    hit = next(item for item in found["results"]
+                if item["source_id"] == "hydro-textbook-001")
+    assert result["license_status"] == "open_license"
+    assert hit["source_kind"] == "textbook"
+    assert hit["scientific_review_status"] == "not_assessed"
+    assert hit["scientific_reviewed_by"] is None
+    assert hit["scientific_review_date"] is None
+
+
+def test_scientific_review_requires_reviewer_and_valid_date(local_index):
+    source = local_index / "reviewed-source.txt"
+    source.write_text("A geology source reviewed by a specialist.", encoding="utf-8")
+    incomplete = metadata(
+        scientific_review_status="subject_matter_reviewed",
+        scientific_reviewed_by="",
+        scientific_review_date="",
+    )
+    with pytest.raises(ValueError, match="requires reviewer and date"):
+        knowledge.ingest_document(source, incomplete)
+    reviewed = metadata(
+        scientific_review_status="subject_matter_reviewed",
+        scientific_reviewed_by="Geoscience reviewer",
+        scientific_review_date="2026-11-21",
+    )
+    result = knowledge.ingest_document(source, reviewed)
+    assert result["scientific_review_status"] == "subject_matter_reviewed"
+
+
+def test_scientific_review_date_rejects_invalid_calendar_date(local_index):
+    source = local_index / "invalid-review-date.txt"
+    source.write_text("Source with invalid review date.", encoding="utf-8")
+    with pytest.raises(ValueError, match="real calendar date"):
+        knowledge.ingest_document(
+            source,
+            metadata(
+                scientific_review_status="editorial_reviewed",
+                scientific_reviewed_by="Editorial reviewer",
+                scientific_review_date="2026-02-31",
+            ),
+        )
+
+
+
+def test_knowledge_documents_migrate_scientific_review_columns(tmp_path, monkeypatch):
+    db_path = tmp_path / "old-knowledge.sqlite3"
+    monkeypatch.setenv("GEOLOGIA_KNOWLEDGE_DB_PATH", str(db_path))
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE knowledge_documents (
+                id TEXT PRIMARY KEY, source_id TEXT NOT NULL, title TEXT NOT NULL,
+                author TEXT, publisher TEXT, source_url TEXT, doi TEXT,
+                license_name TEXT NOT NULL, license_status TEXT NOT NULL,
+                reviewed_by TEXT NOT NULL, review_date TEXT NOT NULL,
+                language TEXT NOT NULL, filename TEXT NOT NULL,
+                file_sha256 TEXT NOT NULL, indexed_at TEXT NOT NULL,
+                UNIQUE(source_id, file_sha256)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO knowledge_documents VALUES (
+                'legacy-doc', 'legacy-source', 'Legacy source', NULL, NULL, NULL,
+                NULL, 'CC BY 4.0', 'open_license', 'license reviewer',
+                '2026-11-21', 'en', 'legacy.txt', 'abc123', '2026-11-21T00:00:00Z'
+            )
+            """
+        )
+    knowledge.initialize()
+    with closing(knowledge._connect()) as connection:
+        row = connection.execute(
+            "SELECT source_kind, scientific_review_status, "
+            "scientific_reviewed_by, scientific_review_date "
+            "FROM knowledge_documents WHERE id='legacy-doc'"
+        ).fetchone()
+    assert row["source_kind"] == "other"
+    assert row["scientific_review_status"] == "not_assessed"
+    assert row["scientific_reviewed_by"] is None
+    assert row["scientific_review_date"] is None
