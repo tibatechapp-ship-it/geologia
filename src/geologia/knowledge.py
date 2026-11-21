@@ -544,7 +544,8 @@ def search(query: str, limit: int = 5) -> dict:
             except sqlite3.OperationalError:
                 rows = []
         backend = "sqlite_fts5" if has_fts else "sqlite_token_scan"
-        if not rows and not has_fts:
+        if not rows:
+            backend = "sqlite_token_scan"
             conditions = []
             parameters = []
             for token in tokens:
