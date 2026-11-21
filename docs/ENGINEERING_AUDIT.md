@@ -44,8 +44,8 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 
 ## Verified by GitHub Actions
 
-The latest full validation is [Run #96](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918712001), on commit `5051b2c49e8a525ae4c840ae471229c2b660924f`:
-- Python 3.12, 3.14, and 3.15 all passed: 43 tests passed in each matrix job (one optional browser-directory skip and one upstream deprecation warning).
+The latest full validation is [Run #122](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44920184570), on commit `2fa2b72dea6fc9d774942fdbc0a9c81788d97637`:
+- Python 3.12, 3.14, and 3.15 all passed: 50 tests passed in each matrix job (one optional browser-directory skip and one upstream deprecation warning).
 - The dedicated Chromium/Playwright browser job passed: 2 end-to-end tests.
 - Browser tests start a real Uvicorn process with isolated SQLite and upload directories; the API is not mocked.
 - Ruff, compileall, and JavaScript syntax checks passed.
@@ -55,7 +55,7 @@ The latest full validation is [Run #96](https://github.com/tibatechapp-ship-it/g
 - The core run reported 32 passing tests per Python version.
 - One upstream deprecation warning remains in Starlette's TestClient use of AnyIO's deprecated `BlockingPortal` alias. No application startup deprecation or Node 20 action warning remains.
 
-This run includes the strict JSON handling, normalized-input validation, readiness semantics, lifespan modernization, current GitHub Actions, and engineering-audit documentation.
+This run includes the strict JSON handling, normalized-input validation, readiness semantics, lifespan modernization, role-aware data validation and integrity checks, durable job lifecycle transitions, cancellation semantics, migration tests, and engineering documentation.
 
 9. The platform had no explicit role-aware data validation report beyond generic structural inspection.
    - Added versioned v1 profiles for groundwater-level CSV time series and AOI GeoJSON boundaries, persisted reports, and exposed validation through the API and bilingual UI. The profiles are intentionally narrow and do not claim scientific validity.
