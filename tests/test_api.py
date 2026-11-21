@@ -192,6 +192,15 @@ def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
     assert derived["crs"] == "EPSG:3857"
     assert derived["format"] == "geojson"
     assert derived["summary"]["derived_from_dataset_id"] == dataset_id
+    assert derived["summary"]["source_dataset_sha256"] == upload.json()["sha256"]
+    assert derived["summary"]["tool_versions"]["pyproj"]
+    assert derived["summary"]["operation_definition"]
+    provenance = client.get(
+        f"/api/v1/datasets/{derived['id']}/provenance"
+    ).json()
+    assert provenance["chain_integrity"] == "verified"
+    assert provenance["events"][0]["event_type"] == "dataset_derived"
+    assert provenance["events"][0]["payload"]["source_dataset_id"] == dataset_id
     assert client.get(f"/api/v1/datasets/{dataset_id}/geojson").json() == payload
     stored_derived = client.get(f"/api/v1/datasets/{derived['id']}/geojson")
     assert stored_derived.status_code == 200
