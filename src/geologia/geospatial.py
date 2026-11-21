@@ -34,6 +34,86 @@ def inspect_crs(value: str) -> dict[str, Any]:
     }
 
 
+
+def validate_geojson_crs(payload: dict[str, Any], value: str) -> dict[str, Any]:
+    """Validate a declared horizontal CRS and check that coordinates map to Earth bounds.
+
+    This is a plausibility check, not CRS inference or scientific validation.
+    """
+    CRS, Transformer, ProjError = _pyproj()
+    try:
+        crs = CRS.from_user_input(value)
+        if not (crs.is_geographic or crs.is_projected):
+            raise ValueError("GeoJSON requires a geographic or projected horizontal CRS")
+        to_geographic = Transformer.from_crs(crs, CRS.from_epsg(4326), always_xy=True)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("unrecognized or unsupported horizontal CRS") from exc
+
+    checked = 0
+
+    def visit_geometry(geometry: Any) -> None:
+        if geometry is None:
+            return
+        if not isinstance(geometry, dict):
+            raise ValueError("invalid geometry while validating CRS")
+        if geometry.get("type") == "GeometryCollection":
+            geometries = geometry.get("geometries")
+            if not isinstance(geometries, list):
+                raise ValueError("GeometryCollection.geometries must be an array")
+            for child in geometries:
+                visit_geometry(child)
+        else:
+            visit_coordinates(geometry.get("coordinates"))
+
+    def visit_coordinates(value_: Any) -> None:
+        nonlocal checked
+        if not isinstance(value_, list) or not value_:
+            raise ValueError("coordinate arrays must be non-empty")
+        if len(value_) >= 2 and all(
+            isinstance(item, (int, float)) and not isinstance(item, bool)
+            for item in value_[:2]
+        ):
+            x, y = value_[0], value_[1]
+            if not math.isfinite(x) or not math.isfinite(y):
+                raise ValueError("CRS coordinates must be finite")
+            try:
+                longitude, latitude = to_geographic.transform(
+                    float(x), float(y), errcheck=True
+                )
+            except ProjError as exc:
+                raise ValueError("coordinates are incompatible with the declared CRS") from exc
+            if (not math.isfinite(longitude) or not math.isfinite(latitude)
+                    or longitude < -180.000001 or longitude > 180.000001
+                    or latitude < -90.000001 or latitude > 90.000001):
+                raise ValueError("coordinates fall outside valid Earth bounds for the declared CRS")
+            checked += 1
+            return
+        for child in value_:
+            visit_coordinates(child)
+
+    kind = payload.get("type")
+    if kind == "FeatureCollection":
+        for feature in payload.get("features", []):
+            visit_geometry(feature.get("geometry"))
+    elif kind == "Feature":
+        visit_geometry(payload.get("geometry"))
+    else:
+        visit_geometry(payload)
+
+    authority = crs.to_authority()
+    return {
+        "canonical": crs.to_string(),
+        "authority": authority[0] if authority else None,
+        "code": authority[1] if authority else None,
+        "coordinate_count_checked": checked,
+        "coordinate_bounds_check": "passed",
+        "crs_inference_performed": False,
+        "scientific_validation": False,
+    }
+
+
 def reproject_geojson(
     payload: dict[str, Any], source: str, target: str
 ) -> tuple[dict[str, Any], dict[str, Any]]:
