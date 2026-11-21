@@ -83,6 +83,8 @@ def test_real_geopackage_layer_metadata(tmp_path):
     assert layer["name"] == "samples"
     assert layer["feature_count"] == 2
     assert layer["crs"] == "EPSG:4326"
+    assert layer["coordinate_units"] == ["degree", "degree"]
+    assert layer["vertical_reference"]["vertical_datum_verified"] is False
     assert report["scientific_validation"] is False
 
 
@@ -105,6 +107,7 @@ def test_real_geotiff_metadata_and_bounded_sample(tmp_path):
     assert (report["width"], report["height"], report["band_count"]) == (64, 64, 1)
     assert report["crs"] == "EPSG:32637"
     assert report["band_units"] == ["m"]
+    assert report["coordinate_units"] == ["metre", "metre"]
     assert report["sample_window"] == {"width": 32, "height": 32}
     assert report["vertical_reference"]["vertical_datum_verified"] is False
 
