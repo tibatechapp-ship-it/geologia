@@ -29,6 +29,10 @@ def metadata(**overrides):
         "reviewed_by": "local reviewer",
         "review_date": "2026-11-21",
         "language": "en",
+        "source_kind": "textbook",
+        "scientific_review_status": "not_assessed",
+        "scientific_reviewed_by": "",
+        "scientific_review_date": "",
     }
     values.update(overrides)
     return values
@@ -477,3 +481,51 @@ def test_knowledge_cli_search_returns_local_evidence_summary(local_index, capsys
         "aquifer", "recharge"
     ]
     assert result["results"][0]["source_id"] == "cli-search-001"
+
+
+def test_scientific_review_metadata_is_separate_from_license_review(local_index):
+    source = local_index / "review-status.txt"
+    source.write_text("A locally indexed geology source.", encoding="utf-8")
+    result = knowledge.ingest_document(source, metadata())
+    found = knowledge.search("geology source", limit=3)
+    hit = next(item for item in found["results"]
+                if item["source_id"] == "hydro-textbook-001")
+    assert result["license_status"] == "open_license"
+    assert hit["source_kind"] == "textbook"
+    assert hit["scientific_review_status"] == "not_assessed"
+    assert hit["scientific_reviewed_by"] is None
+    assert hit["scientific_review_date"] is None
+
+
+def test_scientific_review_requires_reviewer_and_valid_date(local_index):
+    source = local_index / "reviewed-source.txt"
+    source.write_text("A geology source reviewed by a specialist.", encoding="utf-8")
+    incomplete = metadata(
+        scientific_review_status="subject_matter_reviewed",
+        scientific_reviewed_by="",
+        scientific_review_date="",
+    )
+    with pytest.raises(ValueError, match="requires reviewer and date"):
+        knowledge.ingest_document(source, incomplete)
+    reviewed = metadata(
+        scientific_review_status="subject_matter_reviewed",
+        scientific_reviewed_by="Geoscience reviewer",
+        scientific_review_date="2026-11-21",
+    )
+    result = knowledge.ingest_document(source, reviewed)
+    assert result["scientific_review_status"] == "subject_matter_reviewed"
+
+
+def test_scientific_review_date_rejects_invalid_calendar_date(local_index):
+    source = local_index / "invalid-review-date.txt"
+    source.write_text("Source with invalid review date.", encoding="utf-8")
+    with pytest.raises(ValueError, match="real calendar date"):
+        knowledge.ingest_document(
+            source,
+            metadata(
+                scientific_review_status="editorial_reviewed",
+                scientific_reviewed_by="Editorial reviewer",
+                scientific_review_date="2026-02-31",
+            ),
+        )
+
