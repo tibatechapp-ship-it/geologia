@@ -481,12 +481,47 @@ def dataset_inspect(dataset_id: str) -> dict:
     else:
         raise HTTPException(status_code=415, detail="inspection is not supported for this format")
 
+    import importlib.metadata
+    import sys
+
+    parser_packages = {
+        "gpkg": "pyogrio", "tif": "rasterio", "tiff": "rasterio",
+        "las": "laspy", "geojson": "json", "json": "json", "csv": "csv",
+    }
+    package = parser_packages[file_format]
+    try:
+        parser_version = importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        parser_version = "stdlib"
+    report["provenance"] = {
+        "dataset_id": dataset_id,
+        "source_sha256": item["sha256"],
+        "original_filename": item["original_filename"],
+        "format": file_format,
+        "declared_crs": item["crs"],
+        "inspected_at_utc": store.utc_now(),
+        "geologia_version": __version__,
+        "python_version": sys.version.split()[0],
+        "parser": package,
+        "parser_version": parser_version,
+        "scientific_validation": False,
+    }
+
     report.update({
         "dataset_id": dataset_id,
         "operation": operation,
         "scientific_interpretation": False,
     })
     store.save_dataset_inspection(dataset_id, report)
+    return report
+
+
+@app.get("/api/v1/datasets/{dataset_id}/provenance")
+def dataset_provenance(dataset_id: str) -> dict:
+    """Return the dataset's provenance events and project-wide hash-chain status."""
+    report = store.get_dataset_provenance(dataset_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
     return report
 
 
