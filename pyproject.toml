@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geologia"
+version = "0.1.0"
+description = "GEOLOGIA geoscience platform - Phase 1 project and job ledger"
+requires-python = ">=3.10"
+dependencies = ["fastapi>=0.110", "pydantic>=1.10.17"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "httpx>=0.24"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
