@@ -1,4 +1,5 @@
 """SQLite metadata store for projects, datasets, and analysis plans."""
+import hashlib
 import json
 import os
 import sqlite3
@@ -59,6 +60,19 @@ def initialize() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_datasets_project_created
             ON datasets(project_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS provenance_events (
+            sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id TEXT NOT NULL UNIQUE,
+            project_id TEXT NOT NULL REFERENCES projects(id),
+            dataset_id TEXT NOT NULL REFERENCES datasets(id),
+            event_type TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            previous_hash TEXT,
+            event_hash TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_provenance_project_sequence
+            ON provenance_events(project_id, sequence);
         """)
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(datasets)")}
         if "data_role" not in columns:
@@ -149,6 +163,22 @@ def create_dataset(project_id: str, *, name: str, file_format: str,
              sha256, size_bytes, crs, data_role, item["status"],
              json.dumps(summary, ensure_ascii=False), item["created_at"]),
         )
+        event_type = "dataset_derived" if summary.get("operation") else "dataset_ingested"
+        _append_provenance_event(
+            conn, project_id, item["id"], event_type,
+            {
+                "sha256": sha256,
+                "format": file_format,
+                "original_filename": original_filename,
+                "size_bytes": size_bytes,
+                "declared_crs": crs,
+                "data_role": data_role,
+                "source_dataset_id": summary.get("derived_from_dataset_id"),
+                "operation": summary.get("operation"),
+                "tool_versions": summary.get("tool_versions", {}),
+            },
+            item["created_at"],
+        )
     return item
 
 
@@ -196,11 +226,11 @@ def get_dataset_content_path(dataset_id: str) -> str | None:
 
 
 def save_dataset_inspection(dataset_id: str, report: dict[str, Any]) -> None:
-    """Persist a computed structural inspection report without changing file bytes."""
+    """Persist an inspection report and append its provenance event."""
     initialize()
     with connect() as conn:
         row = conn.execute(
-            "SELECT summary_json FROM datasets WHERE id=?", (dataset_id,)
+            "SELECT project_id, summary_json FROM datasets WHERE id=?", (dataset_id,)
         ).fetchone()
         if row is None:
             return
@@ -210,3 +240,94 @@ def save_dataset_inspection(dataset_id: str, report: dict[str, Any]) -> None:
             "UPDATE datasets SET status=?, summary_json=? WHERE id=?",
             ("inspected_structural_metrics", json.dumps(summary, ensure_ascii=False), dataset_id),
         )
+        _append_provenance_event(
+            conn, row["project_id"], dataset_id, "dataset_inspected",
+            report, utc_now(),
+        )
+
+
+def _append_provenance_event(
+    conn: sqlite3.Connection,
+    project_id: str,
+    dataset_id: str,
+    event_type: str,
+    payload: dict[str, Any],
+    created_at: str,
+) -> dict[str, Any]:
+    """Append a canonical SHA-256 chained event within the current SQLite transaction."""
+    previous = conn.execute(
+        "SELECT event_hash FROM provenance_events WHERE project_id=? "
+        "ORDER BY sequence DESC LIMIT 1",
+        (project_id,),
+    ).fetchone()
+    previous_hash = previous["event_hash"] if previous else None
+    event_id = str(uuid4())
+    payload_json = json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    envelope = {
+        "event_id": event_id,
+        "project_id": project_id,
+        "dataset_id": dataset_id,
+        "event_type": event_type,
+        "payload": json.loads(payload_json),
+        "previous_hash": previous_hash,
+        "created_at": created_at,
+    }
+    canonical = json.dumps(
+        envelope, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    event_hash = hashlib.sha256(canonical).hexdigest()
+    conn.execute(
+        "INSERT INTO provenance_events(event_id,project_id,dataset_id,event_type,"
+        "payload_json,previous_hash,event_hash,created_at) VALUES(?,?,?,?,?,?,?,?)",
+        (event_id, project_id, dataset_id, event_type, payload_json,
+         previous_hash, event_hash, created_at),
+    )
+    return {**envelope, "event_hash": event_hash}
+
+
+def get_dataset_provenance(dataset_id: str) -> dict[str, Any] | None:
+    """Return dataset events and verify the entire project event hash chain."""
+    initialize()
+    with connect() as conn:
+        dataset = conn.execute(
+            "SELECT project_id FROM datasets WHERE id=?", (dataset_id,)
+        ).fetchone()
+        if dataset is None:
+            return None
+        rows = conn.execute(
+            "SELECT * FROM provenance_events WHERE project_id=? ORDER BY sequence",
+            (dataset["project_id"],),
+        ).fetchall()
+
+    expected_previous = None
+    chain_valid = True
+    selected = []
+    for row in rows:
+        payload = json.loads(row["payload_json"])
+        envelope = {
+            "event_id": row["event_id"],
+            "project_id": row["project_id"],
+            "dataset_id": row["dataset_id"],
+            "event_type": row["event_type"],
+            "payload": payload,
+            "previous_hash": row["previous_hash"],
+            "created_at": row["created_at"],
+        }
+        canonical = json.dumps(
+            envelope, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        actual_hash = hashlib.sha256(canonical).hexdigest()
+        if row["previous_hash"] != expected_previous or row["event_hash"] != actual_hash:
+            chain_valid = False
+        expected_previous = row["event_hash"]
+        if row["dataset_id"] == dataset_id:
+            selected.append({**envelope, "event_hash": row["event_hash"]})
+    return {
+        "dataset_id": dataset_id,
+        "project_event_count": len(rows),
+        "chain_integrity": "verified" if chain_valid else "failed",
+        "events": selected,
+        "tamper_evident_not_tamper_proof": True,
+    }
