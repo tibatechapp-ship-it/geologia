@@ -76,7 +76,9 @@ def inspect_geopackage(path: Path) -> dict[str, Any]:
     """Check SQLite/GPKG structure and inspect bounded layer metadata."""
     size = _check_file(Path(path))
     pyogrio = _dependency("pyogrio")
-    if Path(path).read_bytes()[:16] != b"SQLite format 3\x00":
+    with Path(path).open("rb") as source:
+        signature = source.read(16)
+    if signature != b"SQLite format 3\\x00":
         raise FormatValidationError("GeoPackage must be a SQLite database")
     try:
         connection = sqlite3.connect(f"file:{Path(path).resolve()}?mode=ro", uri=True)
