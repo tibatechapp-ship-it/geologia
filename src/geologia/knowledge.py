@@ -138,7 +138,8 @@ def initialize() -> None:
                 source_kind TEXT NOT NULL DEFAULT 'other',
                 scientific_review_status TEXT NOT NULL DEFAULT 'not_assessed' CHECK (
                     scientific_review_status IN (
-                        'not_assessed', 'editorial_reviewed', 'subject_matter_reviewed'
+                        'not_assessed', 'peer_reviewed', 'editorial_reviewed',
+                        'institutional_reviewed', 'subject_matter_reviewed', 'expert_reviewed'
                     )
                 ),
                 scientific_reviewed_by TEXT,
@@ -214,6 +215,102 @@ def initialize() -> None:
                 connection.execute(
                     f"ALTER TABLE knowledge_documents ADD COLUMN {column} {declaration}"
                 )
+        document_schema = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' "
+            "AND name='knowledge_documents'"
+        ).fetchone()["sql"]
+        if "'peer_reviewed'" not in document_schema:
+            # The original table CHECK constraint only allowed two completed
+            # review labels. Rebuild it with foreign keys temporarily disabled;
+            # preserve document IDs so chunk/evidence references remain valid.
+            connection.commit()
+            connection.execute("PRAGMA foreign_keys = OFF")
+            connection.execute(
+                """
+                CREATE TABLE knowledge_documents_migrated (
+                    id TEXT PRIMARY KEY,
+                    source_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    author TEXT,
+                    publisher TEXT,
+                    source_url TEXT,
+                    doi TEXT,
+                    license_name TEXT NOT NULL,
+                    source_kind TEXT NOT NULL DEFAULT 'other',
+                    scientific_review_status TEXT NOT NULL DEFAULT 'not_assessed' CHECK (
+                        scientific_review_status IN (
+                            'not_assessed', 'peer_reviewed', 'editorial_reviewed',
+                            'institutional_reviewed', 'subject_matter_reviewed', 'expert_reviewed'
+                        )
+                    ),
+                    scientific_reviewed_by TEXT,
+                    scientific_review_date TEXT,
+                    scientific_review_basis TEXT,
+                    license_status TEXT NOT NULL CHECK (
+                        license_status IN (
+                            'public_domain', 'open_license', 'permission', 'original_work'
+                        )
+                    ),
+                    reviewed_by TEXT NOT NULL,
+                    review_date TEXT NOT NULL,
+                    language TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    file_sha256 TEXT NOT NULL,
+                    indexed_at TEXT NOT NULL,
+                    UNIQUE(source_id, file_sha256)
+                )
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO knowledge_documents_migrated (
+                    id, source_id, title, author, publisher, source_url, doi,
+                    license_name, source_kind, scientific_review_status,
+                    scientific_reviewed_by, scientific_review_date,
+                    scientific_review_basis, license_status, reviewed_by,
+                    review_date, language, filename, file_sha256, indexed_at
+                )
+                SELECT
+                    id, source_id, title, author, publisher, source_url, doi,
+                    license_name,
+                    CASE WHEN source_kind IN (
+                        'research_article', 'review_article', 'meta_analysis',
+                        'preprint', 'thesis', 'textbook', 'official_dataset',
+                        'geologic_map', 'technical_report', 'institutional_report',
+                        'field_observation', 'core_note', 'catalog_metadata',
+                        'software_documentation', 'other'
+                    ) THEN source_kind ELSE 'other' END,
+                    CASE WHEN scientific_review_status IN (
+                        'not_assessed', 'peer_reviewed', 'editorial_reviewed',
+                        'institutional_reviewed', 'subject_matter_reviewed', 'expert_reviewed'
+                    ) THEN scientific_review_status ELSE 'not_assessed' END,
+                    CASE WHEN scientific_review_status IN (
+                        'peer_reviewed', 'editorial_reviewed', 'institutional_reviewed',
+                        'subject_matter_reviewed', 'expert_reviewed'
+                    ) THEN scientific_reviewed_by ELSE NULL END,
+                    CASE WHEN scientific_review_status IN (
+                        'peer_reviewed', 'editorial_reviewed', 'institutional_reviewed',
+                        'subject_matter_reviewed', 'expert_reviewed'
+                    ) THEN scientific_review_date ELSE NULL END,
+                    CASE WHEN scientific_review_status IN (
+                        'peer_reviewed', 'editorial_reviewed', 'institutional_reviewed',
+                        'subject_matter_reviewed', 'expert_reviewed'
+                    ) THEN scientific_review_basis ELSE NULL END,
+                    license_status, reviewed_by, review_date, language, filename,
+                    file_sha256, indexed_at
+                FROM knowledge_documents
+                """
+            )
+            connection.execute("DROP TABLE knowledge_documents")
+            connection.execute(
+                "ALTER TABLE knowledge_documents_migrated RENAME TO knowledge_documents"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_documents_doi "
+                "ON knowledge_documents(doi)"
+            )
+            connection.commit()
+            connection.execute("PRAGMA foreign_keys = ON")
         chunk_columns = {
             row["name"] for row in connection.execute("PRAGMA table_info(knowledge_chunks)")
         }
