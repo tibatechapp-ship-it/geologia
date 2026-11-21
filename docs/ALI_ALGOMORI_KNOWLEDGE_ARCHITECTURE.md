@@ -127,7 +127,7 @@ Each indexed document records:
 
 A completed scientific review status requires a reviewer identity and a real calendar date. The metadata records that a review was declared; it does not independently prove peer review, source authority, correctness, or claim-level validation. Search results expose these fields so Ali can avoid treating all retrieved sources as equivalent. Existing local databases migrate with the conservative default not_assessed.
 
-## 10. Local retrieval foundation implemented
+## 11. Local retrieval foundation implemented
 
 The application now has a small SQLite knowledge index:
 
