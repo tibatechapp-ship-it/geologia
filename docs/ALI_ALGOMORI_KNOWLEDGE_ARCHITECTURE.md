@@ -145,3 +145,16 @@ The package contains 24 original GEOLOGIA-authored checklists: six domains in Ar
 This is **retrieval memory**, not neural training. The agent retrieves relevant local chunks and their source metadata; it does not infer a scientific result from a checklist. External documents remain subject to explicit license review and ingestion. The FTS index uses schema v2 with deterministic CJK bigram tokens; it rebuilds from preserved original chunks during migration, so Chinese queries can match without embeddings or model weights.
 
 See [ALI_SOURCE_LICENSE_MATRIX.md](ALI_SOURCE_LICENSE_MATRIX.md) for the reviewed international source families and ingestion restrictions.
+
+## 9. Local PDF text-ingestion resource limits
+
+The optional PDF text extractor applies these independent bounds before chunking and indexing:
+
+- source file size: 20 MiB;
+- PDF page count: 500 pages;
+- extracted text per page: 100,000 characters;
+- total extracted text per PDF: 2,000,000 characters.
+
+Exceeding a text limit rejects the document with a page-specific or document-level error; it does not silently truncate the source and present it as complete. The limits protect downstream indexing and storage, but they are not a complete sandbox for hostile PDFs: parsing still occurs in the current process, and extraction can allocate memory before a post-extraction character limit is checked. Production ingestion should therefore run in a separately resource-limited worker with CPU, memory, wall-time, and filesystem quotas.
+
+Scanned-image OCR is not included. OCR must be a separately reviewed optional capability with its own resource limits and page-level provenance.
