@@ -8,29 +8,30 @@ The runnable application source is committed to the default branch `main`.
 
 ## Latest automated validation
 
-GitHub Actions run #27 for commit `f959a7de0e35863f7a7befc868df9e50ee717347` completed successfully:
+GitHub Actions run #35 for commit `3ced85b99bd10ad30063451134d2cff77c10748a` completed successfully:
 
 - Python 3.12: passed
 - Python 3.14: passed
-- Experimental Python 3.15: passed
+- Python 3.15: passed
 - JavaScript syntax check: passed
 - Ruff: passed
 - `compileall`: passed
-- `pytest`: passed
+- `pytest`: 30 passed on each Python version
 
-Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44915420794
+One upstream Starlette TestClient deprecation warning remains: AnyIO's `BlockingPortal` alias is deprecated. Application startup no longer uses the deprecated FastAPI `on_event` API. Current GitHub Actions no longer emit the Node 20 deprecation warning.
 
-The next commits add stricter GeoJSON geometry validation and regression tests. Their CI result must be checked separately; the run above does not validate those later commits.
+Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916271361
 
 ## Implemented
 
 - Phase 1: FastAPI, SQLite projects/jobs, deterministic plan records.
 - Phase 2: bounded streaming dataset intake, generated storage paths, SHA-256, structural GeoJSON validation.
-- Phase 3: chief-agent plan identity, deterministic specialist-role routing, dataset-role readiness checks.
+- Phase 3: deterministic domain routing, specialist role labels, and required-role coverage reporting that explicitly does not claim content validation.
 - Phase 4: bilingual Arabic RTL / English LTR frontend for projects, dataset intake, and plan display.
 - Phase 5: CRS inspection and GeoJSON reprojection using optional pyproj; derived datasets are stored without overwriting source datasets.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
+- Full-history findings and remaining blockers: [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md).
 
 ## Explicitly not verified or not implemented
 
@@ -40,4 +41,4 @@ The next commits add stricter GeoJSON geometry validation and regression tests. 
 - GeoPackage, GeoTIFF, and LAS are stored only. CSV receives structural inspection; it is not scientifically interpreted.
 - No worker queue, isolated engine containers, or LLM provider integration.
 - Engine license reviews are pending individually; the platform license does not relicense third-party engines.
-- The GeoJSON validator checks structure and coordinate constraints, not complete OGC conformance, topology, or scientific validity.
+- GeoJSON checks are structural only, not complete OGC conformance, topology, or scientific validation.
