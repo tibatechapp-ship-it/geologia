@@ -199,6 +199,7 @@ def reproject_geojson(
         "bbox_policy": "existing bbox values removed because they are not transformed",
         "stored_source_modified": False,
         "operation_description": transformer.description,
+        "operation_definition": transformer.definition,
         "operation_accuracy_m": (
             float(transformer.accuracy) if transformer.accuracy >= 0 else None
         ),
