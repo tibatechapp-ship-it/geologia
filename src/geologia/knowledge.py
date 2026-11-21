@@ -26,22 +26,37 @@ LICENSE_STATUSES = {
 CORE_SEEDS = [
     ("hydrology_en.md", "geologia-core-hydrology-en-v1", "Groundwater data readiness", "en"),
     ("hydrology_ar.md", "geologia-core-hydrology-ar-v1", "جاهزية بيانات المياه الجوفية", "ar"),
+    ("hydrology_ru.md", "geologia-core-hydrology-ru-v1", "Гидрогеология — готовность данных", "ru"),
+    ("hydrology_zh.md", "geologia-core-hydrology-zh-v1", "水文地质数据准备", "zh"),
     ("gis_crs_en.md", "geologia-core-gis-crs-en-v1", "GIS and CRS preflight", "en"),
     ("gis_crs_ar.md", "geologia-core-gis-crs-ar-v1",
      "فحص نظم المعلومات الجغرافية والإحداثيات", "ar"),
+    ("gis_crs_ru.md", "geologia-core-gis-crs-ru-v1", "ГИС и системы координат", "ru"),
+    ("gis_crs_zh.md", "geologia-core-gis-crs-zh-v1", "GIS 与坐标参考系统", "zh"),
     ("geology3d_en.md", "geologia-core-geology3d-en-v1", "3D geological modeling evidence", "en"),
     ("geology3d_ar.md", "geologia-core-geology3d-ar-v1",
      "أدلة النمذجة الجيولوجية ثلاثية الأبعاد", "ar"),
+    ("geology3d_ru.md", "geologia-core-geology3d-ru-v1", "3D геологическое моделирование", "ru"),
+    ("geology3d_zh.md", "geologia-core-geology3d-zh-v1", "三维地质建模", "zh"),
     ("seismology_en.md", "geologia-core-seismology-en-v1", "Seismology data quality", "en"),
     ("seismology_ar.md", "geologia-core-seismology-ar-v1", "جودة بيانات الزلازل", "ar"),
+    ("seismology_ru.md", "geologia-core-seismology-ru-v1", "Сейсмология — качество данных", "ru"),
+    ("seismology_zh.md", "geologia-core-seismology-zh-v1", "地震学数据质量", "zh"),
     ("remote_sensing_en.md", "geologia-core-remote-sensing-en-v1",
      "Remote sensing product readiness", "en"),
     ("remote_sensing_ar.md", "geologia-core-remote-sensing-ar-v1",
      "جاهزية منتجات الاستشعار عن بعد", "ar"),
+    ("remote_sensing_ru.md", "geologia-core-remote-sensing-ru-v1",
+     "Дистанционное зондирование — готовность данных", "ru"),
+    ("remote_sensing_zh.md", "geologia-core-remote-sensing-zh-v1", "遥感产品准备", "zh"),
     ("mineral_exploration_en.md", "geologia-core-mineral-exploration-en-v1",
      "Mineral exploration QA/QC", "en"),
     ("mineral_exploration_ar.md", "geologia-core-mineral-exploration-ar-v1",
      "ضبط جودة استكشاف المعادن", "ar"),
+    ("mineral_exploration_ru.md", "geologia-core-mineral-exploration-ru-v1",
+     "Поиск полезных ископаемых — QA/QC", "ru"),
+    ("mineral_exploration_zh.md", "geologia-core-mineral-exploration-zh-v1",
+     "矿产勘查质量控制", "zh"),
 ]
 CORE_SEED_DIR = Path(__file__).parent / "data" / "knowledge_seed"
 
@@ -65,14 +80,35 @@ def _connect() -> sqlite3.Connection:
     return connection
 
 
+FTS_SCHEMA_VERSION = "2"
+CJK_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+
+
+def _cjk_bigrams(token: str) -> list[str]:
+    return [token[index:index + 2] for index in range(len(token) - 1)]
+
+
+def _fts_text(text: str) -> str:
+    """Add CJK bigram tokens while retaining original words for FTS matching."""
+    terms = []
+    for token in re.findall(r"[\w]+", text, flags=re.UNICODE):
+        if CJK_PATTERN.search(token):
+            terms.append(token)
+            terms.extend(_cjk_bigrams(token))
+        else:
+            terms.append(token)
+    return " ".join(terms)
+
+
 def _fts_available(connection: sqlite3.Connection) -> bool:
     return connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'knowledge_fts'"
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+        "AND name = 'knowledge_fts_v2'"
     ).fetchone() is not None
 
 
 def initialize() -> None:
-    """Create the local knowledge schema; FTS5 is optional with a safe fallback."""
+    """Create local schema and migrate the optional FTS index to CJK-aware v2."""
     with closing(_connect()) as connection:
         connection.executescript(
             """
@@ -107,21 +143,61 @@ def initialize() -> None:
                 UNIQUE(document_id, chunk_index)
             );
 
+            CREATE TABLE IF NOT EXISTS knowledge_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_document
                 ON knowledge_chunks(document_id);
             CREATE INDEX IF NOT EXISTS idx_knowledge_documents_doi
                 ON knowledge_documents(doi);
             """
         )
+        fts_existed = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'knowledge_fts_v2'"
+        ).fetchone() is not None
         try:
             connection.execute(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts "
+                "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts_v2 "
                 "USING fts5(chunk_id UNINDEXED, title, body, tokenize='unicode61')"
             )
         except sqlite3.OperationalError:
-            # Some mobile/system SQLite builds omit FTS5. The local token-scan
-            # fallback remains functional and does not add a runtime dependency.
-            pass
+            # Some mobile/system SQLite builds omit FTS5; token scan remains usable.
+            connection.commit()
+            return
+
+        version = connection.execute(
+            "SELECT value FROM knowledge_meta WHERE key = 'fts_schema_version'"
+        ).fetchone()
+        if not fts_existed or not version or version["value"] != FTS_SCHEMA_VERSION:
+            connection.execute("DELETE FROM knowledge_fts_v2")
+            chunks = connection.execute(
+                """
+                SELECT c.chunk_id, d.title, c.body
+                FROM knowledge_chunks c
+                JOIN knowledge_documents d ON d.id = c.document_id
+                ORDER BY d.title, c.chunk_index
+                """
+            ).fetchall()
+            connection.executemany(
+                "INSERT INTO knowledge_fts_v2 (chunk_id, title, body) VALUES (?, ?, ?)",
+                [
+                    (row["chunk_id"], _fts_text(row["title"]), _fts_text(row["body"]))
+                    for row in chunks
+                ],
+            )
+            connection.execute(
+                "INSERT OR REPLACE INTO knowledge_meta (key, value) "
+                "VALUES ('fts_schema_version', ?)",
+                (FTS_SCHEMA_VERSION,),
+            )
+        old_fts = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'knowledge_fts'"
+        ).fetchone()
+        if old_fts:
+            connection.execute("DROP TABLE knowledge_fts")
         connection.commit()
 
 
@@ -323,8 +399,8 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
             )
             if has_fts:
                 connection.execute(
-                    "INSERT INTO knowledge_fts (chunk_id, title, body) VALUES (?, ?, ?)",
-                    (chunk_id, source["title"], body),
+                    "INSERT INTO knowledge_fts_v2 (chunk_id, title, body) VALUES (?, ?, ?)",
+                    (chunk_id, _fts_text(source["title"]), _fts_text(body))
                 )
         connection.commit()
 
@@ -403,8 +479,14 @@ def seed_core_knowledge() -> dict:
 
 
 def _query_tokens(query: str) -> list[str]:
-    tokens = re.findall(r"[\w]+", query, flags=re.UNICODE)
-    return [token for token in tokens if token != "_"][:MAX_QUERY_TOKENS]
+    tokens = []
+    for token in re.findall(r"[\w]+", query, flags=re.UNICODE):
+        if token == "_":
+            continue
+        tokens.append(token)
+        if CJK_PATTERN.search(token):
+            tokens.extend(_cjk_bigrams(token))
+    return list(dict.fromkeys(tokens))[:MAX_QUERY_TOKENS]
 
 
 def _excerpt(body: str, tokens: list[str], max_chars: int = 900) -> str:
@@ -449,11 +531,11 @@ def search(query: str, limit: int = 5) -> dict:
                            d.source_id, d.title, d.author, d.publisher, d.source_url,
                            d.doi, d.license_name, d.license_status, d.reviewed_by,
                            d.review_date, d.language, d.file_sha256,
-                           bm25(knowledge_fts) AS relevance
-                    FROM knowledge_fts
-                    JOIN knowledge_chunks c ON c.chunk_id = knowledge_fts.chunk_id
+                           bm25(knowledge_fts_v2) AS relevance
+                    FROM knowledge_fts_v2
+                    JOIN knowledge_chunks c ON c.chunk_id = knowledge_fts_v2.chunk_id
                     JOIN knowledge_documents d ON d.id = c.document_id
-                    WHERE knowledge_fts MATCH ?
+                    WHERE knowledge_fts_v2 MATCH ?
                     ORDER BY relevance
                     LIMIT ?
                     """,
@@ -462,7 +544,8 @@ def search(query: str, limit: int = 5) -> dict:
             except sqlite3.OperationalError:
                 rows = []
         backend = "sqlite_fts5" if has_fts else "sqlite_token_scan"
-        if not rows and not has_fts:
+        if not rows:
+            backend = "sqlite_token_scan"
             conditions = []
             parameters = []
             for token in tokens:

@@ -424,9 +424,9 @@ def test_api_seeds_original_core_notes_without_external_downloads(tmp_path, monk
     status = client.get("/api/v1/knowledge/status")
     assert status.status_code == 200
     payload = status.json()
-    assert payload["document_count"] == 12
-    assert payload["core_seed_count"] == 12
-    assert payload["core_seeded_count"] == 12
+    assert payload["document_count"] == 24
+    assert payload["core_seed_count"] == 24
+    assert payload["core_seeded_count"] == 24
     assert payload["automatic_downloads_enabled"] is False
     assert payload["model_required"] is False
 

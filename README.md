@@ -50,7 +50,7 @@ bash scripts/install-local.sh --gis
 
 The index is stored by default at `.geologia/knowledge.sqlite3`. Ali's analysis plans retrieve up to three matching local text chunks with source and license metadata. Retrieval is deterministic and does not call a model.
 
-On the first knowledge status/search request, GEOLOGIA automatically indexes **12 original bilingual core checklists** across groundwater, GIS/CRS, 3D geology, seismology, remote sensing, and mineral exploration. These are GEOLOGIA-authored process notes, not copied publications. You can also run `geologia-knowledge --seed-core` explicitly. This core pack is local and model-free.
+On the first knowledge status/search request, GEOLOGIA automatically indexes **24 original multilingual core checklists** across groundwater, GIS/CRS, 3D geology, seismology, remote sensing, and mineral exploration. These are GEOLOGIA-authored process notes, not copied publications. You can also run `geologia-knowledge --seed-core` explicitly. This core pack is local and model-free. Chinese queries use deterministic bigram indexing in SQLite FTS; no embedding model is required.
 
 Index only UTF-8 `.txt`, `.md`, `.csv`, or `.json` text that you are legally allowed to process and have explicitly reviewed. Example:
 
@@ -122,7 +122,7 @@ See [the full-history engineering audit](docs/ENGINEERING_AUDIT.md) for verified
 
 ## Scientific and security honesty
 
-The index includes the 12 original GEOLOGIA core notes after first use. External full-text research remains empty until explicitly ingested after license review; the source catalog is not an ingested corpus. See the [international source/license matrix](docs/ALI_SOURCE_LICENSE_MATRIX.md). The 30 engine registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. Jobs remain `planned`; no geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
+The index includes the 24 original GEOLOGIA core notes after first use. External full-text research remains empty until explicitly ingested after license review; the source catalog is not an ingested corpus. See the [international source/license matrix](docs/ALI_SOURCE_LICENSE_MATRIX.md). The 30 engine registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. Jobs remain `planned`; no geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
 
 Do not expose this development API publicly. The launchers bind to loopback only. Remote deployment still requires authentication, authorization, quotas, private storage, isolated workers, and monitoring. Raster processing, general vector transformations, raster reprojection, worker isolation, and scientific engine adapters are not implemented. GeoJSON CRS inspection and vector reprojection are available through the optional `gis` extra. CRS metadata supplied by uploaders is treated as a declaration and is not inferred from coordinates. See [Phase 5](docs/PHASE5.md).
 

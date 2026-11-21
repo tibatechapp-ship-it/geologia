@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           changed="$(git diff --name-only "origin/${{ github.event.pull_request.base.ref }}...HEAD")"
-          if printf '%s\n' "$changed" | grep -Eq '^(src/geologia/desktop\.py|scripts/geologia_desktop\.py|scripts/smoke_desktop\.py|pyproject\.toml|\.github/workflows/desktop-build\.yml|\.github/workflows/ci\.yml|tests/test_desktop\.py)$'; then
+          if printf '%s\n' "$changed" | grep -Eq '^(src/geologia/.*|scripts/geologia_desktop\.py|scripts/smoke_desktop\.py|pyproject\.toml|\.github/workflows/desktop-build\.yml|\.github/workflows/ci\.yml|tests/test_desktop\.py)$'; then
             echo "desktop=true" >> "$GITHUB_OUTPUT"
           else
             echo "desktop=false" >> "$GITHUB_OUTPUT"

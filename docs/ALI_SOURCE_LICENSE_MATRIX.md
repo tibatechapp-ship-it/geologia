@@ -41,6 +41,6 @@
 
 ## Current ingestion state
 
-The 12-note core pack in `src/geologia/data/knowledge_seed/` is original GEOLOGIA-authored process guidance released under the repository's AGPL-3.0 license. It links to official sources but does not copy their full text.
+The 24-note four-language core pack in `src/geologia/data/knowledge_seed/` is original GEOLOGIA-authored process guidance released under the repository's AGPL-3.0 license. It links to official sources but does not copy their full text.
 
 The international institution catalog and Crossref candidates remain discovery metadata. No USGS/BGS/Russian/Chinese/Arabic journal full text is included in the built-in pack. External documents must be reviewed and explicitly ingested by an operator.

@@ -78,7 +78,7 @@ These are unsigned portable binaries, not signed native installers. Windows Smar
 
 ## Local knowledge pack
 
-The first knowledge search or status request indexes 12 original GEOLOGIA-authored Arabic/English checklists across six geoscience domains. This is a lightweight local retrieval pack, not neural training and not copied full-text publications. External documents are indexed only after explicit source/license review. See [the source/license matrix](ALI_SOURCE_LICENSE_MATRIX.md).
+The first knowledge search or status request indexes 24 original GEOLOGIA-authored checklists in Arabic, English, Russian, and Chinese across six geoscience domains. This is a lightweight local retrieval pack, not neural training and not copied full-text publications. External documents are indexed only after explicit source/license review. See [the source/license matrix](ALI_SOURCE_LICENSE_MATRIX.md).
 
 ## Safety and current limitations
 

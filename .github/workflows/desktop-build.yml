@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/geologia/desktop.py"
+      - "src/geologia/**"
       - "scripts/geologia_desktop.py"
       - "scripts/smoke_desktop.py"
       - "pyproject.toml"
