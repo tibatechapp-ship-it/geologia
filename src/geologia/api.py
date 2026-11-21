@@ -91,12 +91,25 @@ def _finite_json_float(value: str) -> float:
     return parsed
 
 
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
+
+
 def _read_json(path: Path) -> dict:
-    return json.loads(
-        path.read_text(encoding="utf-8"),
-        parse_constant=_reject_json_constant,
-        parse_float=_finite_json_float,
-    )
+    try:
+        return json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=_reject_json_constant,
+            parse_float=_finite_json_float,
+            object_pairs_hook=_unique_json_object,
+        )
+    except RecursionError as exc:
+        raise ValueError("JSON nesting exceeds the supported depth") from exc
 
 
 def _geojson_summary(path: Path) -> dict:
