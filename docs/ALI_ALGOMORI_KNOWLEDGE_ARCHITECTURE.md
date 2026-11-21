@@ -1,6 +1,6 @@
 # Ali Algomori — Scientific Knowledge Architecture
 
-**Status:** Phase 7 foundation / design and source-discovery seed only  
+**Status:** Local retrieval foundation implemented; source catalog remains discovery-only until human review and explicit local ingestion  
 **Owner:** GEOLOGIA  
 **Scope:** Scientific knowledge and retrieval for the proposed Ali Algomori geoscience agent
 
@@ -115,3 +115,25 @@ Before enabling Ali against production user datasets:
 ## 10. Initial implementation boundary
 
 The accompanying `ali_geoscience_source_catalog.json` is a small discovery seed. It contains institution homepages, not harvested papers or validated datasets. Entries marked `seed_homepage_unverified` require manual domain verification. No crawler, vector database, knowledge graph, Ali agent runtime, or fine-tuning pipeline is enabled by this commit.
+
+## 10. Local retrieval foundation implemented
+
+The application now has a small SQLite knowledge index:
+
+- Stores reviewed source metadata, file SHA-256, original language, license basis, reviewer, and review date.
+- Splits local UTF-8 text into bounded chunks with overlap.
+- Deduplicates by stable source ID and exact file digest.
+- Uses SQLite FTS5 when available and a parameterized token-scan fallback on SQLite builds without FTS5.
+- Provides local status and search endpoints and attaches up to three retrieved source chunks to an identified analysis plan.
+- Does not use embedding vectors, model weights, remote inference, or automatic downloads.
+
+Ingestion is deliberately explicit through `geologia-knowledge`. The operator must supply the source ID, title, original language, license name, accepted license status, reviewer, review date, and optionally a stable HTTPS URL or DOI. Only text files in UTF-8 `.txt`, `.md`, `.csv`, and `.json` formats are accepted; the per-file limit is 20 MiB. PDF extraction is not included in this lightweight core.
+
+The retrieval endpoints are:
+
+- `GET /api/v1/knowledge/status`
+- `GET /api/v1/knowledge/search?q=...`
+
+Analysis plans report retrieval status and source metadata, but do not convert retrieved text into a validated scientific conclusion. A citation points to a local indexed text chunk; original page/section locators are not inferred.
+
+**Current corpus status:** the index is empty until an operator explicitly ingests a lawful local document. The institution catalog remains discovery metadata and the approved bibliographic registry is still empty; no full-text publications have been automatically downloaded or ingested.
