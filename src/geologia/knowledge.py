@@ -119,10 +119,12 @@ def _validate_metadata(metadata: dict) -> dict:
         raise ValueError("license_status must represent a reviewed lawful source")
     reviewed_by = _required_text(metadata, "reviewed_by")
     review_date = _required_text(metadata, "review_date")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", review_date):
+        raise ValueError("review_date must use YYYY-MM-DD")
     try:
         date.fromisoformat(review_date)
     except ValueError as exc:
-        raise ValueError("review_date must use YYYY-MM-DD") from exc
+        raise ValueError("review_date must be a real calendar date") from exc
 
     language = _required_text(metadata, "language").lower()
     if not re.fullmatch(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})*|und", language):
