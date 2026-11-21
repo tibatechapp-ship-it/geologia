@@ -28,3 +28,55 @@ jobs:
       - run: python -m ruff check src tests
       - run: python -m compileall -q src tests
       - run: python -m pytest
+
+  desktop-changes:
+    name: Detect desktop packaging changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      desktop: ${{ steps.detect.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: detect
+        shell: bash
+        run: |
+          changed="$(git diff --name-only "origin/${{ github.event.pull_request.base.ref }}...HEAD")"
+          if printf '%s\n' "$changed" | grep -Eq '^(src/geologia/desktop\.py|scripts/geologia_desktop\.py|pyproject\.toml|\.github/workflows/desktop-build\.yml|\.github/workflows/ci\.yml|tests/test_desktop\.py)$'; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "desktop=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  desktop-package-check:
+    name: Desktop binary (${{ matrix.os }})
+    needs: desktop-changes
+    if: github.event_name == 'pull_request' && needs.desktop-changes.outputs.desktop == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[build]"
+      - run: python -m PyInstaller --noconfirm --clean --onefile --name geologia-desktop --collect-all geologia scripts/geologia_desktop.py
+      - name: Smoke test executable
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./dist/geologia-desktop.exe --version
+          else
+            ./dist/geologia-desktop --version
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: geologia-desktop-pr-${{ runner.os }}-${{ runner.arch }}
+          path: dist/geologia-desktop*
+          if-no-files-found: error
+          retention-days: 14
