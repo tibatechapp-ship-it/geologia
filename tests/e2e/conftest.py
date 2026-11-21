@@ -9,7 +9,8 @@ import urllib.request
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
+
+sync_playwright = pytest.importorskip("playwright.sync_api").sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 
