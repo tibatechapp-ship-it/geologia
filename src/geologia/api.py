@@ -197,37 +197,55 @@ async def dataset_upload(
         )
     if data_role and data_role not in ALLOWED_DATA_ROLES:
         raise HTTPException(status_code=422, detail="unknown dataset data role")
+    def clean_source_value(value: str | None) -> str | None:
+        return value.strip() if value and value.strip() else None
+
     external_source = {
         "status": "user_supplied_not_verified",
-        "url": source_url.strip() if source_url and source_url.strip() else None,
-        "title": source_title.strip() if source_title and source_title.strip() else None,
-        "creator": source_creator.strip() if source_creator and source_creator.strip() else None,
-        "publisher": source_publisher.strip() if source_publisher and source_publisher.strip() else None,
-        "doi": source_doi.strip() if source_doi and source_doi.strip() else None,
-        "license": source_license.strip() if source_license and source_license.strip() else None,
-        "citation": source_citation.strip() if source_citation and source_citation.strip() else None,
-        "version": source_version.strip() if source_version and source_version.strip() else None,
-        "accessed_at": source_accessed_at.strip() if source_accessed_at and source_accessed_at.strip() else None,
+        "url": clean_source_value(source_url),
+        "title": clean_source_value(source_title),
+        "creator": clean_source_value(source_creator),
+        "publisher": clean_source_value(source_publisher),
+        "doi": clean_source_value(source_doi),
+        "license": clean_source_value(source_license),
+        "citation": clean_source_value(source_citation),
+        "version": clean_source_value(source_version),
+        "accessed_at": clean_source_value(source_accessed_at),
     }
-    source_fields = [key for key, value in external_source.items() if key not in {"status"} and value]
-    if source_url and source_url.strip():
+    source_fields = [
+        key for key, value in external_source.items()
+        if key != "status" and value
+    ]
+    if external_source["url"]:
         try:
-            parsed_source = urlsplit(source_url.strip())
+            parsed_source = urlsplit(external_source["url"])
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail="source URL is malformed") from exc
+            raise HTTPException(
+                status_code=422, detail="source URL is malformed"
+            ) from exc
         if parsed_source.scheme not in {"http", "https"} or not parsed_source.hostname:
-            raise HTTPException(status_code=422, detail="source URL must be an absolute HTTP(S) URL")
+            raise HTTPException(
+                status_code=422, detail="source URL must be an absolute HTTP(S) URL"
+            )
         if parsed_source.username or parsed_source.password:
-            raise HTTPException(status_code=422, detail="source URL must not contain embedded credentials")
-    if source_doi and source_doi.strip() and not re.fullmatch(
-        r"10\.\d{4,9}/\S+", source_doi.strip(), flags=re.IGNORECASE
+            raise HTTPException(
+                status_code=422,
+                detail="source URL must not contain embedded credentials",
+            )
+    if external_source["doi"] and not re.fullmatch(
+        r"10\\.\\d{4,9}/\\S+", external_source["doi"], flags=re.IGNORECASE
     ):
-        raise HTTPException(status_code=422, detail="source DOI must use the standard 10.xxxx/... form")
-    if source_accessed_at and source_accessed_at.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="source DOI must use the standard 10.xxxx/... form",
+        )
+    if external_source["accessed_at"]:
         try:
-            date.fromisoformat(source_accessed_at.strip())
+            date.fromisoformat(external_source["accessed_at"])
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail="source accessed-at must be YYYY-MM-DD") from exc
+            raise HTTPException(
+                status_code=422, detail="source accessed-at must be YYYY-MM-DD"
+            ) from exc
     if not source_fields:
         external_source["status"] = "not_provided"
 
