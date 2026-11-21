@@ -4,11 +4,11 @@ Updated: 2026-11-21
 
 ## Source on GitHub
 
-The runnable application source is committed to the default branch `main`.
+The phase 6 browser-test implementation is on branch `phase-6-browser-e2e`, pending review before merging to `main`.
 
-## Latest code validation
+## Latest full validation
 
-GitHub Actions run #51 for commit `41609ccfac282f32d702436a8ca4f1f54570f658` completed successfully:
+GitHub Actions run #60 for commit `0b68dabdc85eae893243abf1534db84b833f7009` completed successfully:
 
 - Python 3.12: passed
 - Python 3.14: passed
@@ -16,11 +16,20 @@ GitHub Actions run #51 for commit `41609ccfac282f32d702436a8ca4f1f54570f658` com
 - JavaScript syntax check: passed
 - Ruff: passed
 - `compileall`: passed
-- `pytest`: 32 passed on each Python version
+- Core pytest suite: 32 passed on each Python version
+- Chromium/Playwright: 2 browser end-to-end tests passed
 
-One upstream Starlette TestClient deprecation warning remains: AnyIO's `BlockingPortal` alias is deprecated. Application startup no longer uses FastAPI's deprecated `on_event` API. Current GitHub Actions no longer emit the Node 20 deprecation warning.
+The browser tests launch a real Uvicorn process with temporary SQLite and upload storage. They cover:
+- Loading the bilingual UI and verifying API health.
+- Graceful map fallback when the externally hosted Leaflet CDN is unavailable.
+- Project creation through the browser.
+- CSV upload and structural inspection, including row and column metrics.
+- Analysis-plan creation while confirming execution remains disabled and scientific content validation is not claimed.
+- Arabic RTL to English LTR switching while preserving selected project.
+- Rejection of malformed CSV during inspection.
+- No uncaught browser JavaScript exceptions in the main user journey.
 
-Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490
+Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44917359033
 
 ## Implemented
 
@@ -29,6 +38,7 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490
 - Phase 3: deterministic domain routing, specialist role labels, and required-role coverage reporting that explicitly does not claim content validation.
 - Phase 4: bilingual Arabic RTL / English LTR frontend for projects, dataset intake, and plan display.
 - Phase 5: CRS inspection and GeoJSON reprojection using optional pyproj; derived datasets are stored without overwriting source datasets.
+- Phase 6 foundation: real Chromium/Playwright end-to-end coverage for key workspace flows.
 - Development CLI rejects non-loopback bind addresses.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
@@ -43,3 +53,4 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490
 - No worker queue, isolated engine containers, or LLM provider integration.
 - Engine license reviews are pending individually; the platform license does not relicense third-party engines.
 - GeoJSON checks are structural only, not complete OGC conformance, topology, or scientific validation.
+- Successful Leaflet rendering, map interaction, CRS reprojection through the browser, accessibility, and mobile browser behavior still require end-to-end coverage.
