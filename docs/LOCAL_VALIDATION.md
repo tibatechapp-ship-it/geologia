@@ -4,19 +4,24 @@ Date: 2026-11-21
 
 ## Source package validation
 
-The Phase 0/1 package was extracted and validated locally.
+The source bundle was cleaned, rebuilt from scratch, extracted into a fresh directory, and tested from that extracted copy.
 
-- `python -m pytest`: **8 passed** (after configuring pytest's `pythonpath` to include `apps/api`).
+- `python -m pytest`: **11 passed**.
 - `python -m compileall -q apps/api/app tests`: **passed**.
-- `ruff check .`: not run successfully in this environment because Ruff is not installed; CI installs Ruff from the development extra.
+- `python -m pip wheel . --no-deps --no-build-isolation`: wheel build passed.
+- ZIP integrity: passed.
+- Packaging inspection: no duplicate nested project folder, pytest cache, Python bytecode, or egg-info in the verified archive.
+- Archive SHA-256: `04591914fb62f4fb10d1b508dfe0a0f7209c58e9df95b61e30ea38c75b63923c`.
+
+Ruff was not available locally. Docker is not installed, so container build/runtime was not verified.
 
 ## Repository transfer status
 
-The GitHub repository currently contains the bootstrap README and this validation record. The full application source archive is not yet committed to GitHub. Do not interpret this repository as a complete or deployable implementation until the source tree is transferred and CI passes.
+The GitHub repository currently contains bootstrap documentation and this validation record. The full application source tree has **not yet been committed to GitHub**. The ZIP is a local artifact, not a repository release. Do not interpret the repository as a complete or deployable implementation until the source tree is transferred and GitHub CI passes.
 
 ## Known release blockers
 
-- `LICENSE` in the source archive is a placeholder, not the complete AGPL-3.0 text.
+- `LICENSE` in the source bundle is a placeholder, not the complete AGPL-3.0 text.
 - The API is intended for local development and must not be exposed publicly without authentication, authorization, malware scanning, quotas, isolated workers, private storage, and monitoring.
 - GeoPackage and GeoTIFF are registered only; no GIS worker is integrated.
 - No scientific interpretation, resource probability, groundwater yield, or drilling recommendation is provided.
