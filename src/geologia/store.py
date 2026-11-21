@@ -1,4 +1,4 @@
-"""Small durable SQLite store for projects and jobs; no scientific execution."""
+"""SQLite metadata store for projects, datasets, and analysis plans."""
 import json
 import os
 import sqlite3
@@ -13,9 +13,14 @@ def utc_now() -> str:
 
 
 def database_path() -> Path:
-    configured = os.environ.get("GEOLOGIA_DB_PATH", ".geologia/geologia.sqlite3")
-    path = Path(configured).expanduser()
+    path = Path(os.environ.get("GEOLOGIA_DB_PATH", ".geologia/geologia.sqlite3")).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def storage_path() -> Path:
+    path = Path(os.environ.get("GEOLOGIA_UPLOAD_DIR", ".geologia/uploads")).expanduser()
+    path.mkdir(parents=True, exist_ok=True)
     return path
 
 
@@ -43,6 +48,15 @@ def initialize() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_jobs_project_created
             ON jobs(project_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS datasets (
+            id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
+            name TEXT NOT NULL, format TEXT NOT NULL, original_filename TEXT NOT NULL,
+            content_path TEXT NOT NULL, sha256 TEXT NOT NULL, size_bytes INTEGER NOT NULL,
+            crs TEXT, status TEXT NOT NULL, summary_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_datasets_project_created
+            ON datasets(project_id, created_at DESC);
         """)
 
 
@@ -106,4 +120,48 @@ def get_job(job_id: str) -> dict[str, Any] | None:
 def _job_row(row: sqlite3.Row) -> dict[str, Any]:
     item = dict(row)
     item["plan"] = json.loads(item.pop("plan_json"))
+    return item
+
+
+def create_dataset(project_id: str, *, name: str, file_format: str,
+                   original_filename: str, content_path: str, sha256: str,
+                   size_bytes: int, crs: str | None, summary: dict) -> dict[str, Any]:
+    item = {
+        "id": str(uuid4()), "project_id": project_id, "name": name,
+        "format": file_format, "original_filename": original_filename,
+        "sha256": sha256, "size_bytes": size_bytes, "crs": crs,
+        "status": "stored_not_analyzed", "summary": summary, "created_at": utc_now(),
+    }
+    initialize()
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO datasets(id,project_id,name,format,original_filename,content_path,"
+            "sha256,size_bytes,crs,status,summary_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            (item["id"], project_id, name, file_format, original_filename, content_path,
+             sha256, size_bytes, crs, item["status"],
+             json.dumps(summary, ensure_ascii=False), item["created_at"]),
+        )
+    return item
+
+
+def list_datasets(project_id: str) -> list[dict[str, Any]]:
+    initialize()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM datasets WHERE project_id=? ORDER BY created_at DESC", (project_id,)
+        ).fetchall()
+    return [_dataset_row(row) for row in rows]
+
+
+def get_dataset(dataset_id: str) -> dict[str, Any] | None:
+    initialize()
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM datasets WHERE id=?", (dataset_id,)).fetchone()
+    return _dataset_row(row) if row else None
+
+
+def _dataset_row(row: sqlite3.Row) -> dict[str, Any]:
+    item = dict(row)
+    item["summary"] = json.loads(item.pop("summary_json"))
+    item.pop("content_path", None)
     return item

@@ -44,6 +44,56 @@ def test_projects_and_durable_plan(tmp_path, monkeypatch):
     assert readback.json()["plan"] == job["plan"]
 
 
+def test_safe_geojson_upload_and_metadata(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Yemen GIS"}).json()
+    geojson = b'{"type":"FeatureCollection","features":[{"type":"Feature","geometry":null,"properties":{}}]}'
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=geojson,
+        headers={"X-Dataset-Name": "Study area", "X-Filename": "../../study.geojson"},
+    )
+    assert response.status_code == 201
+    item = response.json()
+    assert item["original_filename"] == "study.geojson"
+    assert item["status"] == "stored_not_analyzed"
+    assert item["summary"]["feature_count"] == 1
+    assert item["crs"] == "EPSG:4326"
+    assert len(item["sha256"]) == 64
+    assert "content_path" not in item
+    assert client.get(f"/api/v1/datasets/{item['id']}").json()["id"] == item["id"]
+
+
+def test_upload_rejects_bad_geojson_and_unsupported_type(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Validation"}).json()
+    headers = {"X-Dataset-Name": "Bad data", "X-Filename": "bad.geojson"}
+    assert client.post(
+        f"/api/v1/projects/{project['id']}/datasets", content=b"not json", headers=headers
+    ).status_code == 422
+    headers["X-Filename"] = "unsafe.exe"
+    assert client.post(
+        f"/api/v1/projects/{project['id']}/datasets", content=b"x", headers=headers
+    ).status_code == 415
+
+
+def test_upload_size_limit(tmp_path, monkeypatch):
+    import geologia.api as api_module
+
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    monkeypatch.setattr(api_module, "MAX_UPLOAD_BYTES", 8)
+    project = client.post("/api/v1/projects", json={"name": "Limit test"}).json()
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=b"123456789",
+        headers={"X-Dataset-Name": "Large", "X-Filename": "large.csv"},
+    )
+    assert response.status_code == 413
+
+
 def test_missing_project_and_job_return_404(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     assert client.get("/api/v1/projects/missing").status_code == 404
