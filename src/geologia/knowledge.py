@@ -125,6 +125,14 @@ def initialize() -> None:
                 source_url TEXT,
                 doi TEXT,
                 license_name TEXT NOT NULL,
+                source_kind TEXT NOT NULL DEFAULT 'other',
+                scientific_review_status TEXT NOT NULL DEFAULT 'not_assessed' CHECK (
+                    scientific_review_status IN (
+                        'not_assessed', 'editorial_reviewed', 'subject_matter_reviewed'
+                    )
+                ),
+                scientific_reviewed_by TEXT,
+                scientific_review_date TEXT,
                 license_status TEXT NOT NULL CHECK (
                     license_status IN (
                         'public_domain', 'open_license', 'permission', 'original_work'
@@ -159,6 +167,21 @@ def initialize() -> None:
                 ON knowledge_documents(doi);
             """
         )
+        document_columns = {
+            row["name"] for row in connection.execute(
+                "PRAGMA table_info(knowledge_documents)"
+            )
+        }
+        for column, declaration in (
+            ("source_kind", "TEXT NOT NULL DEFAULT 'other'"),
+            ("scientific_review_status", "TEXT NOT NULL DEFAULT 'not_assessed'"),
+            ("scientific_reviewed_by", "TEXT"),
+            ("scientific_review_date", "TEXT"),
+        ):
+            if column not in document_columns:
+                connection.execute(
+                    f"ALTER TABLE knowledge_documents ADD COLUMN {column} {declaration}"
+                )
         chunk_columns = {
             row["name"] for row in connection.execute("PRAGMA table_info(knowledge_chunks)")
         }
@@ -254,6 +277,42 @@ def _validate_metadata(metadata: dict) -> dict:
     except ValueError as exc:
         raise ValueError("review_date must be a real calendar date") from exc
 
+    source_kind = (metadata.get("source_kind") or "other").strip().lower()
+    allowed_source_kinds = {
+        "research_article", "review_article", "official_dataset",
+        "technical_report", "textbook", "field_observation", "core_note",
+        "preprint", "other",
+    }
+    if source_kind not in allowed_source_kinds:
+        raise ValueError("source_kind must be a recognized evidence source type")
+    scientific_review_status = (
+        metadata.get("scientific_review_status") or "not_assessed"
+    ).strip().lower()
+    if scientific_review_status not in {
+        "not_assessed", "editorial_reviewed", "subject_matter_reviewed"
+    }:
+        raise ValueError("scientific_review_status is not a supported review state")
+    scientific_reviewed_by = (
+        metadata.get("scientific_reviewed_by") or ""
+    ).strip() or None
+    scientific_review_date = (
+        metadata.get("scientific_review_date") or ""
+    ).strip() or None
+    if scientific_review_status == "not_assessed":
+        if scientific_reviewed_by or scientific_review_date:
+            raise ValueError(
+                "scientific reviewer and date require a completed scientific review status"
+            )
+    else:
+        if not scientific_reviewed_by or not scientific_review_date:
+            raise ValueError("completed scientific review requires reviewer and date")
+        if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", scientific_review_date):
+            raise ValueError("scientific_review_date must use YYYY-MM-DD")
+        try:
+            date.fromisoformat(scientific_review_date)
+        except ValueError as exc:
+            raise ValueError("scientific_review_date must be a real calendar date") from exc
+
     language = _required_text(metadata, "language").lower()
     if not re.fullmatch(r"[a-z]{2,3}(?:-[a-z0-9]{2,8})*|und", language):
         raise ValueError("language must be a language code such as ar, en, ru, zh, or und")
@@ -280,6 +339,10 @@ def _validate_metadata(metadata: dict) -> dict:
         "doi": doi.lower() if doi else None,
         "license_name": license_name,
         "license_status": license_status,
+        "source_kind": source_kind,
+        "scientific_review_status": scientific_review_status,
+        "scientific_reviewed_by": scientific_reviewed_by,
+        "scientific_review_date": scientific_review_date,
         "reviewed_by": reviewed_by,
         "review_date": review_date,
         "language": language,
@@ -466,15 +529,20 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
             INSERT INTO knowledge_documents (
                 id, source_id, title, author, publisher, source_url, doi,
                 license_name, license_status, reviewed_by, review_date,
-                language, filename, file_sha256, indexed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                language, filename, file_sha256, indexed_at, source_kind,
+                scientific_review_status, scientific_reviewed_by,
+                scientific_review_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 document_id, source["source_id"], source["title"], source["author"],
                 source["publisher"], source["source_url"], source["doi"],
                 source["license_name"], source["license_status"], source["reviewed_by"],
                 source["review_date"], source["language"], source_path.name, digest,
-                indexed_at,
+                indexed_at, source["source_kind"],
+                source["scientific_review_status"],
+                source["scientific_reviewed_by"],
+                source["scientific_review_date"],
             ),
         )
         has_fts = _fts_available(connection)
@@ -505,6 +573,10 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
         "file_sha256": digest,
         "chunk_count": len(indexed_chunks),
         "license_status": source["license_status"],
+        "source_kind": source["source_kind"],
+        "scientific_review_status": source["scientific_review_status"],
+        "scientific_reviewed_by": source["scientific_reviewed_by"],
+        "scientific_review_date": source["scientific_review_date"],
         "language": source["language"],
     }
     if pages_extracted is not None:
@@ -637,7 +709,9 @@ def search(query: str, limit: int = 5) -> dict:
                     SELECT c.chunk_id, c.document_id, c.chunk_index, c.body, c.source_locator,
                            d.source_id, d.title, d.author, d.publisher, d.source_url,
                            d.doi, d.license_name, d.license_status, d.reviewed_by,
-                           d.review_date, d.language, d.file_sha256,
+                           d.review_date, d.source_kind, d.scientific_review_status,
+                           d.scientific_reviewed_by, d.scientific_review_date,
+                           d.language, d.file_sha256,
                            bm25(knowledge_fts_v2) AS relevance
                     FROM knowledge_fts_v2
                     JOIN knowledge_chunks c ON c.chunk_id = knowledge_fts_v2.chunk_id
@@ -673,7 +747,9 @@ def search(query: str, limit: int = 5) -> dict:
                 SELECT c.chunk_id, c.document_id, c.chunk_index, c.body, c.source_locator,
                        d.source_id, d.title, d.author, d.publisher, d.source_url,
                        d.doi, d.license_name, d.license_status, d.reviewed_by,
-                       d.review_date, d.language, d.file_sha256,
+                       d.review_date, d.source_kind, d.scientific_review_status,
+                       d.scientific_reviewed_by, d.scientific_review_date,
+                       d.language, d.file_sha256,
                        {" + ".join(score_terms)} AS relevance_score
                 FROM knowledge_chunks c
                 JOIN knowledge_documents d ON d.id = c.document_id
@@ -715,6 +791,10 @@ def search(query: str, limit: int = 5) -> dict:
             "doi": row["doi"],
             "license_name": row["license_name"],
             "license_status": row["license_status"],
+            "source_kind": row["source_kind"],
+            "scientific_review_status": row["scientific_review_status"],
+            "scientific_reviewed_by": row["scientific_reviewed_by"],
+            "scientific_review_date": row["scientific_review_date"],
             "reviewed_by": row["reviewed_by"],
             "review_date": row["review_date"],
             "language": row["language"],
