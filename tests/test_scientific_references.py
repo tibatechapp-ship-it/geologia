@@ -51,4 +51,4 @@ def test_geoid_grid_manifest_requires_checksum_conventions_and_operation_metadat
     gates = registry["acceptance_gates"]
     assert any("independently published" in gate for gate in gates)
     assert any("outside coverage" in gate for gate in gates)
-    assert any("fail explicitly" in gate for gate in gates)
+    assert any("reject unavailable" in gate for gate in gates)
