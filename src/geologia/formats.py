@@ -78,7 +78,7 @@ def inspect_geopackage(path: Path) -> dict[str, Any]:
     pyogrio = _dependency("pyogrio")
     with Path(path).open("rb") as source:
         signature = source.read(16)
-    if signature != b"SQLite format 3\\x00":
+    if signature != b"SQLite format 3\x00":
         raise FormatValidationError("GeoPackage must be a SQLite database")
     try:
         connection = sqlite3.connect(f"file:{Path(path).resolve()}?mode=ro", uri=True)
