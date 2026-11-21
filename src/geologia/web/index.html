@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#07111f"><meta name="description" content="GEOLOGIA bilingual geoscience workspace">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icon.svg">
 <title>GEOLOGIA | جيولوجيا</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script defer src="/app.js"></script>
 </head>
 <body><div class="shell">
@@ -27,4 +28,12 @@
 <section class="panel map-panel"><div class="panel-heading"><div><p class="section-kicker">MAP VIEW</p><h2 data-i18n="mapTitle">خريطة الطبقات</h2></div><select id="mapDataset" aria-label="GeoJSON layer"><option value="" data-i18n="mapChoose">اختر طبقة GeoJSON</option></select></div><div class="map-transform-controls"><label for="targetCrs" data-i18n="targetCrsLabel">نظام الإحداثيات الهدف</label><input id="targetCrs" value="EPSG:3857" maxlength="200" aria-label="Target CRS"><button id="reprojectButton" type="button" class="inspect-button" data-i18n="reprojectButton">تحويل وحفظ طبقة مشتقة</button></div><p id="mapStatus" class="feedback" role="status" data-i18n="mapEmpty">ارفع ملف GeoJSON لعرضه على الخريطة.</p><div id="geoMap" role="application" aria-label="Interactive GeoJSON map"></div><p class="map-attribution">© OpenStreetMap contributors · Leaflet</p></section>
 <section class="notice"><span class="notice-icon">ⓘ</span><p data-i18n="scientificNotice">المنصة تحفظ البيانات وتبني خططًا أولية فقط. لا توجد محركات علمية مدمجة بعد، ولا تنتج توصية حفر أو تقدير موارد.</p></section>
 </main><footer><span>GEOLOGIA © 2026</span><span data-i18n="footerText">علوم أرض مبنية على البيانات والأدلة</span></footer>
-</div></body></html>
+</div>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+  });
+}
+</script>
+</body></html>
