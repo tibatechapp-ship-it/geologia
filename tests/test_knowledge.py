@@ -2,11 +2,13 @@ import pytest
 
 from geologia import knowledge
 
-
 @pytest.fixture
+
+
 def local_index(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "application.sqlite3"))
     monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
+    monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
     knowledge.initialize()
     return tmp_path
 
@@ -107,6 +109,41 @@ def test_status_reports_local_model_free_storage(local_index):
     assert status["network_required"] is False
     assert status["automatic_downloads_enabled"] is False
 
+
+def test_open_license_ingestion_rejects_noncommercial_and_no_derivatives_terms(
+    local_index,
+):
+    source = local_index / "restricted.txt"
+    source.write_text("Restricted source text.", encoding="utf-8")
+    with pytest.raises(ValueError, match="non-commercial or no-derivatives"):
+        knowledge.ingest_document(
+            source,
+            metadata(license_name="CC BY-NC-ND 4.0", license_status="open_license"),
+        )
+
+
+def test_core_seed_pack_is_bilingual_local_and_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "core.sqlite3"))
+    monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
+    monkeypatch.delenv("GEOLOGIA_DISABLE_CORE_SEED", raising=False)
+
+    first_status = knowledge.status()
+    assert first_status["document_count"] == len(knowledge.CORE_SEEDS)
+    assert first_status["core_seed_count"] == len(knowledge.CORE_SEEDS)
+    assert first_status["core_seeded_count"] == len(knowledge.CORE_SEEDS)
+    assert first_status["core_seeded_automatically"] is True
+
+    found = knowledge.search("المياه الجوفية", limit=10)
+    assert found["count"] > 0
+    assert any(
+        item["source_id"] == "geologia-core-hydrology-ar-v1"
+        for item in found["results"]
+    )
+    second_status = knowledge.status()
+    assert second_status["document_count"] == len(knowledge.CORE_SEEDS)
+    assert second_status["network_required"] is False
+
+
 def test_doi_deduplication_prevents_duplicate_bibliographic_work(local_index):
     first_source = local_index / "first.txt"
     second_source = local_index / "second.txt"
@@ -124,3 +161,16 @@ def test_doi_deduplication_prevents_duplicate_bibliographic_work(local_index):
     assert second["status"] == "already_indexed"
     assert second["duplicate_reason"] == "doi"
     assert knowledge.status()["document_count"] == 1
+
+
+def test_knowledge_cli_can_seed_core_pack(tmp_path, monkeypatch, capsys):
+    from geologia.knowledge_cli import main
+
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "cli.sqlite3"))
+    monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
+    monkeypatch.delenv("GEOLOGIA_DISABLE_CORE_SEED", raising=False)
+    main(["--seed-core"])
+    output = capsys.readouterr().out
+    assert '"source_count": 12' in output
+    assert '"external_downloads": 0' in output
+    assert knowledge.status()["document_count"] == 12

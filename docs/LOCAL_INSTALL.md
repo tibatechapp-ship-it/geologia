@@ -76,6 +76,10 @@ The executable binds only to `127.0.0.1`, opens the browser when the server is r
 
 These are unsigned portable binaries, not signed native installers. Windows SmartScreen and macOS Gatekeeper may warn because the binaries are not code-signed. Android is still Termux + PWA; there is no native APK in this repository.
 
+## Local knowledge pack
+
+The first knowledge search or status request indexes 12 original GEOLOGIA-authored Arabic/English checklists across six geoscience domains. This is a lightweight local retrieval pack, not neural training and not copied full-text publications. External documents are indexed only after explicit source/license review. See [the source/license matrix](ALI_SOURCE_LICENSE_MATRIX.md).
+
 ## Safety and current limitations
 
 - Launchers bind to `127.0.0.1`; they do not provide a public or LAN server.

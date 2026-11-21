@@ -23,6 +23,28 @@ LICENSE_STATUSES = {
     "public_domain", "open_license", "permission", "original_work"
 }
 
+CORE_SEEDS = [
+    ("hydrology_en.md", "geologia-core-hydrology-en-v1", "Groundwater data readiness", "en"),
+    ("hydrology_ar.md", "geologia-core-hydrology-ar-v1", "جاهزية بيانات المياه الجوفية", "ar"),
+    ("gis_crs_en.md", "geologia-core-gis-crs-en-v1", "GIS and CRS preflight", "en"),
+    ("gis_crs_ar.md", "geologia-core-gis-crs-ar-v1",
+     "فحص نظم المعلومات الجغرافية والإحداثيات", "ar"),
+    ("geology3d_en.md", "geologia-core-geology3d-en-v1", "3D geological modeling evidence", "en"),
+    ("geology3d_ar.md", "geologia-core-geology3d-ar-v1",
+     "أدلة النمذجة الجيولوجية ثلاثية الأبعاد", "ar"),
+    ("seismology_en.md", "geologia-core-seismology-en-v1", "Seismology data quality", "en"),
+    ("seismology_ar.md", "geologia-core-seismology-ar-v1", "جودة بيانات الزلازل", "ar"),
+    ("remote_sensing_en.md", "geologia-core-remote-sensing-en-v1",
+     "Remote sensing product readiness", "en"),
+    ("remote_sensing_ar.md", "geologia-core-remote-sensing-ar-v1",
+     "جاهزية منتجات الاستشعار عن بعد", "ar"),
+    ("mineral_exploration_en.md", "geologia-core-mineral-exploration-en-v1",
+     "Mineral exploration QA/QC", "en"),
+    ("mineral_exploration_ar.md", "geologia-core-mineral-exploration-ar-v1",
+     "ضبط جودة استكشاف المعادن", "ar"),
+]
+CORE_SEED_DIR = Path(__file__).parent / "data" / "knowledge_seed"
+
 
 def database_path() -> Path:
     configured = os.environ.get("GEOLOGIA_KNOWLEDGE_DB_PATH")
@@ -119,6 +141,17 @@ def _validate_metadata(metadata: dict) -> dict:
     license_status = _required_text(metadata, "license_status")
     if license_status not in LICENSE_STATUSES:
         raise ValueError("license_status must represent a reviewed lawful source")
+    if license_status == "open_license":
+        compact_license = re.sub(r"[\s-]+", "", license_name.casefold())
+        if (
+            "noncommercial" in compact_license
+            or "noderivatives" in compact_license
+            or re.search(r"ccby(?:nc|nd)", compact_license)
+        ):
+            raise ValueError(
+                "non-commercial or no-derivatives terms are not eligible for "
+                "open_license ingestion; obtain explicit permission or keep metadata only"
+            )
     reviewed_by = _required_text(metadata, "reviewed_by")
     review_date = _required_text(metadata, "review_date")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", review_date):
@@ -306,6 +339,69 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
     }
 
 
+
+def seed_core_knowledge() -> dict:
+    """Index GEOLOGIA-authored bilingual core checklists; never fetch external sources."""
+    if os.environ.get("GEOLOGIA_DISABLE_CORE_SEED") == "1":
+        return {
+            "seeded_count": 0,
+            "already_present_count": 0,
+            "source_count": len(CORE_SEEDS),
+            "external_downloads": 0,
+            "model_used": False,
+            "disabled": True,
+        }
+    initialize()
+    with closing(_connect()) as connection:
+        existing = {
+            row["source_id"]
+            for row in connection.execute(
+                "SELECT source_id FROM knowledge_documents"
+            ).fetchall()
+        }
+
+    seeded = []
+    already_present = []
+    for filename, source_id, title, language in CORE_SEEDS:
+        if source_id in existing:
+            already_present.append(source_id)
+            continue
+        source_path = CORE_SEED_DIR / filename
+        source_url = (
+            "https://github.com/tibatechapp-ship-it/geologia/blob/main/"
+            f"src/geologia/data/knowledge_seed/{filename}"
+        )
+        result = ingest_document(
+            source_path,
+            {
+                "source_id": source_id,
+                "title": title,
+                "author": "GEOLOGIA Core Knowledge Team",
+                "publisher": "GEOLOGIA",
+                "source_url": source_url,
+                "license_name": "GEOLOGIA original content; repository AGPL-3.0",
+                "license_status": "original_work",
+                "reviewed_by": "GEOLOGIA core knowledge editorial",
+                "review_date": "2026-11-21",
+                "language": language,
+            },
+        )
+        if result["status"] == "indexed":
+            seeded.append(source_id)
+        else:
+            already_present.append(source_id)
+        existing.add(source_id)
+    return {
+        "seeded_count": len(seeded),
+        "already_present_count": len(already_present),
+        "source_count": len(CORE_SEEDS),
+        "source_ids": [source_id for _, source_id, _, _ in CORE_SEEDS],
+        "external_downloads": 0,
+        "model_used": False,
+        "disabled": False,
+    }
+
+
 def _query_tokens(query: str) -> list[str]:
     tokens = re.findall(r"[\w]+", query, flags=re.UNICODE)
     return [token for token in tokens if token != "_"][:MAX_QUERY_TOKENS]
@@ -339,6 +435,7 @@ def search(query: str, limit: int = 5) -> dict:
     if not tokens:
         raise ValueError("query must contain letters or numbers")
     initialize()
+    seed_core_knowledge()
 
     rows = []
     with closing(_connect()) as connection:
@@ -428,6 +525,7 @@ def search(query: str, limit: int = 5) -> dict:
 def status() -> dict:
     """Return counts and active local search backend without exposing file paths."""
     initialize()
+    seed_result = seed_core_knowledge()
     with closing(_connect()) as connection:
         documents = connection.execute(
             "SELECT count(*) FROM knowledge_documents"
@@ -445,4 +543,11 @@ def status() -> dict:
         "network_required": False,
         "automatic_downloads_enabled": False,
         "license_review_required_for_ingestion": True,
+        "core_seed_count": len(CORE_SEEDS),
+        "core_seeded_count": (
+            len(seed_result.get("source_ids", []))
+            if not seed_result.get("disabled")
+            else 0
+        ),
+        "core_seeded_automatically": os.environ.get("GEOLOGIA_DISABLE_CORE_SEED") != "1",
     }

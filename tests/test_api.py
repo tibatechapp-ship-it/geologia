@@ -114,6 +114,7 @@ def test_input_validation(tmp_path, monkeypatch):
         "/api/v1/projects", json={"name": "Valid", "language": "fr"}
     ).status_code == 422
 
+
 def test_data_role_drives_readiness_but_never_enables_execution(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
@@ -315,6 +316,7 @@ def test_geojson_inspection_rejects_non_finite_coordinates():
     else:
         raise AssertionError("non-finite coordinates must be rejected")
 
+
 def test_agent_status_endpoint_reports_model_independent_runtime():
     response = client.get("/api/v1/agent/status")
     assert response.status_code == 200
@@ -342,10 +344,12 @@ def test_unmatched_job_requests_clarification_without_false_readiness(tmp_path, 
     assert readiness["required_roles_present"] is None
     assert readiness["execution_allowed"] is False
 
+
 def test_local_knowledge_api_search_and_status(tmp_path, monkeypatch):
     from geologia import knowledge
 
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
     source = tmp_path / "open_hydro.txt"
     source.write_text(
         "Groundwater recharge is assessed from aquifer and water-level evidence.",
@@ -384,6 +388,7 @@ def test_analysis_plan_retrieves_local_source_chunks_without_model(tmp_path, mon
     from geologia import knowledge
 
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
     source = tmp_path / "groundwater.txt"
     source.write_text("Groundwater recharge and aquifer storage are related.", encoding="utf-8")
     knowledge.ingest_document(
@@ -409,3 +414,25 @@ def test_analysis_plan_retrieves_local_source_chunks_without_model(tmp_path, mon
     assert retrieval["model_used"] is False
     assert retrieval["scientific_conclusion"] is False
     assert retrieval["results"][0]["source_id"] == "plan-hydro-01"
+
+
+def test_api_seeds_original_core_notes_without_external_downloads(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "core.sqlite3"))
+    monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
+    monkeypatch.delenv("GEOLOGIA_DISABLE_CORE_SEED", raising=False)
+
+    status = client.get("/api/v1/knowledge/status")
+    assert status.status_code == 200
+    payload = status.json()
+    assert payload["document_count"] == 12
+    assert payload["core_seed_count"] == 12
+    assert payload["core_seeded_count"] == 12
+    assert payload["automatic_downloads_enabled"] is False
+    assert payload["model_required"] is False
+
+    result = client.get("/api/v1/knowledge/search", params={"q": "groundwater"})
+    assert result.status_code == 200
+    assert any(
+        item["source_id"] == "geologia-core-hydrology-en-v1"
+        for item in result.json()["results"]
+    )
