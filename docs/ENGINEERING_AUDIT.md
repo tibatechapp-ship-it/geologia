@@ -33,6 +33,8 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
    - Added regression tests.
 4. FastAPI startup used the deprecated `on_event` lifecycle API.
    - Replaced with an application lifespan context.
+5. The development CLI could bind to a non-loopback interface even though the application has no authentication.
+   - The CLI now rejects non-loopback bind addresses, and regression tests cover both rejection and valid localhost startup. Direct ASGI deployment can still bypass the CLI guard and remains unsafe without production controls.
 5. The readiness report used `data_complete` for a check that only compared user-supplied role tags.
    - Replaced it with `required_roles_present` and explicit `content_validation: not_performed`; execution remains blocked.
 6. Phase 5 documentation incorrectly said derived reprojection output was not saved.
@@ -42,11 +44,11 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 
 ## Verified by GitHub Actions
 
-The latest fully green validation is [Run #35](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916271361), on commit `3ced85b99bd10ad30063451134d2cff77c10748a`:
+The latest fully green code validation is [Run #51](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490), on commit `41609ccfac282f32d702436a8ca4f1f54570f658`:
 - Python 3.12, 3.14, and 3.15 all passed.
 - Editable install with development and GIS extras passed.
 - JavaScript syntax check, Ruff, compileall, and pytest passed.
-- The run reported 30 passing tests per Python version.
+- The run reported 32 passing tests per Python version.
 - One upstream deprecation warning remains in Starlette's TestClient use of AnyIO's deprecated `BlockingPortal` alias. No application startup deprecation or Node 20 action warning remains.
 
 This run includes the strict JSON handling, normalized-input validation, readiness semantics, lifespan modernization, current GitHub Actions, and engineering-audit documentation.
