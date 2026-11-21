@@ -162,3 +162,29 @@ def test_known_answer_crs_transform_and_inverse():
     assert actual_inverse == pytest.approx(
         inverse_item["expected_xy"], abs=inverse_item["absolute_tolerance_degrees"]
     )
+
+
+def test_api_inspection_endpoint_persists_geotiff_report(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from geologia.api import app
+
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "api.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "api-uploads"))
+    raster = _make_geotiff(tmp_path / "uploaded.tif")
+    project = TestClient(app).post(
+        "/api/v1/projects", json={"name": "Raster inspection"}
+    ).json()
+    upload = TestClient(app).post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=raster.read_bytes(),
+        headers={"X-Dataset-Name": "Reference raster", "X-Filename": "reference.tif"},
+    )
+    assert upload.status_code == 201
+    dataset_id = upload.json()["id"]
+    inspected = TestClient(app).post(f"/api/v1/datasets/{dataset_id}/inspect")
+    assert inspected.status_code == 200
+    report = inspected.json()
+    assert report["format"] == "geotiff"
+    assert report["operation"] == "geotiff_inspection"
+    assert report["scientific_interpretation"] is False
