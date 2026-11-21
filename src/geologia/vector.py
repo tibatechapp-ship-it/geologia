@@ -17,8 +17,7 @@ def _position(value: Any) -> tuple[float, ...]:
         raise ValueError("coordinate positions require at least x and y")
     ordinates = []
     for ordinate in value:
-        if (not isinstance(ordinate, (int, float)) or isinstance(ordinate, bool)
-                or not math.isfinite(ordinate)):
+        if not isinstance(ordinate, (int, float)) or isinstance(ordinate, bool):
             raise ValueError("all coordinate ordinates must be finite numbers")
         try:
             numeric = float(ordinate)
