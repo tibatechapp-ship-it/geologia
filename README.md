@@ -89,6 +89,12 @@ When served from HTTPS or localhost, supported browsers can install GEOLOGIA as 
 
 This provides an installable web app shell, **not a native APK/MSI/DMG/AppImage**. Offline caching covers the static interface only; API operations require the local server. The map still depends on external Leaflet assets and map tiles and is not guaranteed to work offline. See [PWA installation and limits](docs/INSTALLABLE_APP.md).
 
+## Portable desktop binaries
+
+The [GEOLOGIA Desktop Build workflow](https://github.com/tibatechapp-ship-it/geologia/actions/workflows/desktop-build.yml) builds one-file executables for Windows, Linux, and macOS. After a successful workflow run, download the matching `geologia-desktop-<OS>-<arch>` artifact from the run's **Artifacts** section. Artifacts are retained for 30 days.
+
+The executable starts the API on `127.0.0.1`, opens the local workspace, and stores persistent files under `~/.geologia`. It includes no AI model weights. These are unsigned portable binaries, not MSI/DMG/AppImage installers; Windows SmartScreen or macOS Gatekeeper may display a warning. Android remains a Termux + browser-installed PWA workflow; no native APK is built.
+
 ## API
 
 - `GET /api/v1/crs/inspect?crs=EPSG:4326` (requires optional `gis` extra)
