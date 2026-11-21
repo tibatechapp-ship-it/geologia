@@ -44,7 +44,7 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 
 ## Verified by GitHub Actions
 
-The latest full validation is [Run #87](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918428819), on commit `f048828256e403ba8e925a83eae717364ac5d280`:
+The latest full validation is [Run #96](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918712001), on commit `5051b2c49e8a525ae4c840ae471229c2b660924f`:
 - Python 3.12, 3.14, and 3.15 all passed: 43 tests passed in each matrix job (one optional browser-directory skip and one upstream deprecation warning).
 - The dedicated Chromium/Playwright browser job passed: 2 end-to-end tests.
 - Browser tests start a real Uvicorn process with isolated SQLite and upload directories; the API is not mocked.
@@ -59,6 +59,8 @@ This run includes the strict JSON handling, normalized-input validation, readine
 
 9. The platform had no explicit role-aware data validation report beyond generic structural inspection.
    - Added versioned v1 profiles for groundwater-level CSV time series and AOI GeoJSON boundaries, persisted reports, and exposed validation through the API and bilingual UI. The profiles are intentionally narrow and do not claim scientific validity.
+10. Validation did not verify that the stored file still matched its upload-time metadata.
+   - Validation now recomputes file size and SHA-256 before parsing; mismatches fail with an integrity report, and reports include source digest, source size, and validation timestamp.
 
 ## Known blockers — do not represent as production-ready
 
