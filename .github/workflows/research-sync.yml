@@ -38,7 +38,7 @@ jobs:
       - name: Create or update human-review pull request
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RESEARCH_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
           branch: automation/research-sync-inbox
           delete-branch: false
           title: "chore(research): refresh geoscience review inbox"
