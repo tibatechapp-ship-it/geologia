@@ -18,6 +18,8 @@ INTENTS = [
             "مياه", "المياه", "ماء", "الماء", "مياه جوفية", "المياه الجوفية",
             "جوفية", "الجوفية", "بئر", "آبار", "groundwater", "aquifer",
             "well", "pumping", "water table", "hydrogeology",
+            "гидрогеология", "подземные воды", "водоносный горизонт",
+            "скважина", "уровень воды", "地下水", "水文地质", "含水层", "水位", "水井",
         ],
     },
     {
@@ -27,6 +29,8 @@ INTENTS = [
         "keywords": [
             "ثلاثي", "طيات", "الفوالق", "فوالق", "مقطع جيولوجي", "3d",
             "cross section", "geological model", "structural geology",
+            "трехмерная геологическая модель", "3d геология", "складки", "разломы",
+            "геологический разрез", "三维地质", "地质建模", "褶皱", "断层", "地质剖面",
         ],
     },
     {
@@ -35,7 +39,8 @@ INTENTS = [
         "inputs": ["waveforms_or_catalog", "station_metadata"],
         "keywords": [
             "زلزال", "زلازل", "الزلازل", "زلزالي", "seismic", "earthquake",
-            "waveform", "ground motion",
+            "waveform", "ground motion", "землетрясение", "сейсмика", "сейсмология",
+            "сейсмические волны", "地震", "地震学", "地震波", "地震目录",
         ],
     },
     {
@@ -45,6 +50,8 @@ INTENTS = [
         "keywords": [
             "ذهب", "الذهب", "معدن", "المعادن", "تنقيب", "استكشاف معدني",
             "gold", "mineral", "minerals", "exploration", "prospectivity",
+            "золото", "минералы", "полезные ископаемые", "геохимия", "разведка",
+            "金矿", "矿产", "矿物勘查", "地球化学", "找矿",
         ],
     },
     {
@@ -54,7 +61,8 @@ INTENTS = [
         "keywords": [
             "درون", "استشعار عن بعد", "القمر الصناعي", "الأقمار الصناعية",
             "قمر صناعي", "صور فضائية", "drone", "satellite", "remote sensing",
-            "photogrammetry",
+            "photogrammetry", "дистанционное зондирование", "спутниковые снимки",
+            "беспилотник", "фотограмметрия", "遥感", "卫星影像", "无人机", "摄影测量",
         ],
     },
     {
@@ -64,6 +72,8 @@ INTENTS = [
         "keywords": [
             "خريطة", "الخريطة", "خرائط", "طبقات", "نظم المعلومات الجغرافية",
             "gis", "map", "maps", "layers", "geographic information system",
+            "геоинформационная система", "гис", "карта", "слои", "система координат",
+            "地理信息系统", "地图", "图层", "坐标参考系",
         ],
     },
 ]
@@ -87,6 +97,7 @@ GATES = [
 ]
 AGENT_ID = "ali-algomori"
 AGENT_NAME_AR = "علي الگوموري"
+CJK_ROUTING_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
 AGENT_NAME_EN = "Ali Algomori"
 
 
@@ -103,6 +114,7 @@ def agent_status() -> dict:
         "scientific_execution_enabled": False,
         "capabilities": [
             "request_classification",
+            "multilingual_ar_en_ru_zh_keyword_routing",
             "routing_evidence",
             "domain_routing",
             "data_role_readiness",
@@ -129,6 +141,9 @@ def _contains_phrase(normalized_text: str, keyword: str) -> bool:
     normalized_keyword = _normalize(keyword)
     if not normalized_keyword:
         return False
+    if CJK_ROUTING_PATTERN.search(normalized_keyword):
+        # CJK text commonly has no whitespace word boundaries.
+        return normalized_keyword in normalized_text
     return f" {normalized_keyword} " in f" {normalized_text} "
 
 

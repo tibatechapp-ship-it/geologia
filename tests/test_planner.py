@@ -1,3 +1,5 @@
+import pytest
+
 from geologia.planner import agent_status, build_plan, classify_request
 
 
@@ -57,5 +59,36 @@ def test_agent_status_declares_capabilities_and_limits_honestly():
     assert status["network_required"] is False
     assert status["scientific_execution_enabled"] is False
     assert "routing_evidence" in status["capabilities"]
+    assert "multilingual_ar_en_ru_zh_keyword_routing" in status["capabilities"]
     assert "local_knowledge_retrieval" in status["capabilities"]
     assert any("not calibrated" in item for item in status["limitations"])
+
+@pytest.mark.parametrize(
+    ("query_text", "expected_domain"),
+    [
+        ("Изучить подземные воды и водоносный горизонт", "hydrology"),
+        ("地下水与含水层评价", "hydrology"),
+        ("三维地质建模和断层", "geology3d"),
+        ("地震波与地震目录", "seismology"),
+        ("矿物勘查与地球化学", "exploration"),
+        ("遥感卫星影像", "remote_sensing"),
+        ("地理信息系统与坐标参考系", "gis"),
+    ],
+)
+def test_russian_and_chinese_domain_routing(query_text, expected_domain):
+    result = classify_request(query_text)
+    assert expected_domain in result["matched_domains"]
+    matched = next(item for item in result["routing_evidence"]
+                   if item["domain"] == expected_domain)
+    assert matched["evidence"]
+    assert result["needs_clarification"] is False
+
+
+def test_multilingual_routing_keeps_source_terms_in_evidence():
+    request = "地下水与水位，подземные воды"
+    result = classify_request(request)
+    hydro = next(item for item in result["routing_evidence"]
+                 if item["domain"] == "hydrology")
+    assert "地下水" in hydro["evidence"]
+    assert "подземные воды" in hydro["evidence"]
+    assert result["matched_domains"] == ["hydrology"]
