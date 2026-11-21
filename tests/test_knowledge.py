@@ -174,3 +174,47 @@ def test_knowledge_cli_can_seed_core_pack(tmp_path, monkeypatch, capsys):
     assert '"source_count": 24' in output
     assert '"external_downloads": 0' in output
     assert knowledge.status()["document_count"] == 12
+
+def test_cjk_bigrams_enable_chinese_text_retrieval(local_index):
+    source = local_index / "chinese_geo.txt"
+    source.write_text("地质灾害遥感监测与机器学习。地下水资源评价。", encoding="utf-8")
+    knowledge.ingest_document(
+        source,
+        metadata(source_id="zh-geology-01", title="地质与地下水", language="zh"),
+    )
+    assert "地下" in knowledge._query_tokens("地下水")
+    assert "下水" in knowledge._query_tokens("地下水")
+    result = knowledge.search("地下水")
+    assert any(item["source_id"] == "zh-geology-01" for item in result["results"])
+
+
+def test_fts_v2_rebuilds_legacy_index_and_preserves_chunks(local_index):
+    source = local_index / "migration.md"
+    source.write_text("Geological mapping and groundwater records.", encoding="utf-8")
+    knowledge.ingest_document(source, metadata(source_id="fts-migration-01"))
+
+    with knowledge._connect() as connection:
+        if not knowledge._fts_available(connection):
+            pytest.skip("SQLite FTS5 is not available in this environment")
+        connection.execute("DROP TABLE knowledge_fts_v2")
+        connection.execute(
+            "CREATE VIRTUAL TABLE knowledge_fts USING fts5("
+            "chunk_id UNINDEXED, title, body, tokenize='unicode61')"
+        )
+        connection.execute(
+            "DELETE FROM knowledge_meta WHERE key = 'fts_schema_version'"
+        )
+        connection.commit()
+
+    knowledge.initialize()
+    with knowledge._connect() as connection:
+        assert knowledge._fts_available(connection)
+        assert connection.execute(
+            "SELECT value FROM knowledge_meta WHERE key = 'fts_schema_version'"
+        ).fetchone()["value"] == "2"
+        assert connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='knowledge_fts'"
+        ).fetchone() is None
+
+    found = knowledge.search("geological mapping")
+    assert any(item["source_id"] == "fts-migration-01" for item in found["results"])
