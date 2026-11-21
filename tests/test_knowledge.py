@@ -1,4 +1,5 @@
 from contextlib import closing
+import sqlite3
 
 import pytest
 
