@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from geologia.validation import validate_csv_file, validate_geojson_payload
 
 
