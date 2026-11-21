@@ -7,7 +7,7 @@ The planned chief agent is **المهندس الجمهوري**. The current API 
 ## Current source scope
 
 - FastAPI application and health endpoint.
-- SQLite-backed projects, jobs, and dataset metadata.
+- SQLite-backed projects, datasets, durable job lifecycle state, and append-only job-event history.
 - Streaming dataset intake with a 50 MiB limit, filename sanitization, SHA-256, and generated storage paths.
 - Structural GeoJSON validation and deterministic inspection; CSV structural inspection. Neither produces geological interpretation.
 - Role-tagged datasets and a missing-input readiness report in every analysis plan.
@@ -49,16 +49,20 @@ Default SQLite path: `.geologia/geologia.sqlite3`. Set `GEOLOGIA_DB_PATH` to mov
 - `POST /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/jobs/{job_id}`
+- `GET /api/v1/jobs/{job_id}/events`
+- `POST /api/v1/jobs/{job_id}/cancel` (cooperative cancellation request for running work; does not claim to terminate a process)
 
 ## Engineering audit
 
 See [DATA_VALIDATION.md](docs/DATA_VALIDATION.md) for supported validation profiles and their scientific limitations.
 
+See [JOB_LIFECYCLE.md](docs/JOB_LIFECYCLE.md) for the persistent job state machine, cancellation semantics, retry bounds, and worker execution boundary.
+
 See [the full-history engineering audit](docs/ENGINEERING_AUDIT.md) for verified fixes, known blockers, and the ordered remediation roadmap.
 
 ## Scientific and security honesty
 
-The 30 registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. Jobs remain `planned`; no geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
+The 30 registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. New jobs are recorded as `planned`. A durable state machine records legal transitions, bounded attempts, cancellation requests, and audit events; no queue consumer or worker is enabled. No geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
 
 Do not expose this development API publicly. The bundled development CLI now rejects non-loopback bind addresses. Running the ASGI app through another server can bypass that CLI guard, so remote deployment still requires authentication, authorization, quotas, private storage, isolated workers, and monitoring. Raster processing, general vector transformations, raster reprojection, worker isolation, and scientific engine adapters are not implemented. GeoJSON CRS inspection and vector reprojection are available through the optional `gis` extra. CRS metadata supplied by uploaders is treated as a declaration and is not inferred from coordinates. See [Phase 5](docs/PHASE5.md).
 
