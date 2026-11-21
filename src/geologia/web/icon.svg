@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">GEOLOGIA</title>
+  <rect width="512" height="512" rx="112" fill="#07111f"/>
+  <path d="M62 322c69-34 118-29 169-78s117-90 219-66" fill="none" stroke="#3bc5e7" stroke-width="22" stroke-linecap="round"/>
+  <path d="M54 372c82-38 130-27 190-76s126-81 212-57" fill="none" stroke="#5b8dff" stroke-width="18" stroke-linecap="round"/>
+  <path d="M76 418c75-32 127-25 184-70s109-66 181-52" fill="none" stroke="#9c7cff" stroke-width="14" stroke-linecap="round"/>
+  <path d="M256 88c-72 0-130 58-130 130 0 59 40 108 94 124v62h72v-62c54-16 94-65 94-124 0-72-58-130-130-130z" fill="#10263b" stroke="#d5f7ff" stroke-width="12"/>
+  <path d="M194 202c0-34 28-62 62-62s62 28 62 62" fill="none" stroke="#3bc5e7" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="256" cy="202" r="16" fill="#d5f7ff"/>
+</svg>
