@@ -519,7 +519,7 @@ def search(query: str, limit: int = 5) -> dict:
 def status() -> dict:
     """Return counts and active local search backend without exposing file paths."""
     initialize()
-    seed_core_knowledge()
+    seed_result = seed_core_knowledge()
     with closing(_connect()) as connection:
         documents = connection.execute(
             "SELECT count(*) FROM knowledge_documents"
@@ -538,5 +538,8 @@ def status() -> dict:
         "automatic_downloads_enabled": False,
         "license_review_required_for_ingestion": True,
         "core_seed_count": len(CORE_SEEDS),
+        "core_seeded_count": len(seed_result.get("source_ids", []))
+        if not seed_result.get("disabled")
+        else 0,
         "core_seeded_automatically": os.environ.get("GEOLOGIA_DISABLE_CORE_SEED") != "1",
     }
