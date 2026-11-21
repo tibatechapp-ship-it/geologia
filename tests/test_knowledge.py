@@ -595,3 +595,136 @@ def test_knowledge_documents_migrate_scientific_review_columns(tmp_path, monkeyp
     assert row["scientific_review_status"] == "not_assessed"
     assert row["scientific_reviewed_by"] is None
     assert row["scientific_review_date"] is None
+
+
+def test_claim_evidence_ledger_records_relations_without_scientific_validation(local_index):
+    source = local_index / "evidence.txt"
+    source.write_text(
+        "Recharge increases groundwater levels under the documented conditions.",
+        encoding="utf-8",
+    )
+    knowledge.ingest_document(source, metadata())
+    search = knowledge.search("recharge groundwater levels", limit=3)
+    chunk_id = search["results"][0]["chunk_id"]
+    claim = knowledge.create_claim(
+        "Groundwater levels increased after recharge.",
+        "field geologist",
+    )
+    annotation = knowledge.annotate_claim_evidence(
+        claim["claim_id"],
+        chunk_id,
+        "supports",
+        "The indexed passage explicitly describes an increase under stated conditions.",
+        "reviewer A",
+    )
+    readback = knowledge.get_claim(claim["claim_id"])
+    assert claim["scientific_validation"] == "not_performed"
+    assert annotation["relation"] == "supports"
+    assert readback["scientific_validation"] == "not_performed"
+    assert readback["evidence_count"] == 1
+    assert readback["evidence_annotations"][0]["chunk_id"] == chunk_id
+    assert "do not establish truth" in readback["interpretation"]
+
+
+def test_claim_evidence_rejects_missing_claim_chunk_and_duplicate(local_index):
+    source = local_index / "evidence-2.txt"
+    source.write_text("A measured geological observation for testing.", encoding="utf-8")
+    knowledge.ingest_document(source, metadata())
+    chunk_id = knowledge.search(
+        "measured geological observation", limit=1
+    )["results"][0]["chunk_id"]
+    claim = knowledge.create_claim("A testable geological statement.", "researcher")
+    with pytest.raises(ValueError, match="claim_id does not exist"):
+        knowledge.annotate_claim_evidence(
+            "missing-claim", chunk_id, "supports", "Reason", "reviewer"
+        )
+    with pytest.raises(ValueError, match="chunk_id does not exist"):
+        knowledge.annotate_claim_evidence(
+            claim["claim_id"], "missing-chunk", "supports", "Reason", "reviewer"
+        )
+    knowledge.annotate_claim_evidence(
+        claim["claim_id"], chunk_id, "supports", "Reason", "reviewer"
+    )
+    with pytest.raises(ValueError, match="already linked"):
+        knowledge.annotate_claim_evidence(
+            claim["claim_id"], chunk_id, "contradicts", "Another reason", "reviewer"
+        )
+
+
+def test_claim_api_requires_explicit_relation_and_returns_unvalidated_claim(
+    tmp_path, monkeypatch
+):
+    from fastapi.testclient import TestClient
+    from geologia.api import app
+
+    monkeypatch.setenv("GEOLOGIA_KNOWLEDGE_DB_PATH", str(tmp_path / "claims.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
+    source = tmp_path / "api-evidence.md"
+    source.write_text("Groundwater recharge can affect observed water levels.", encoding="utf-8")
+    knowledge.ingest_document(source, metadata(source_id="api-claim-source"))
+    chunk_id = knowledge.search(
+        "groundwater recharge water levels", limit=1
+    )["results"][0]["chunk_id"]
+    client = TestClient(app)
+    created = client.post(
+        "/api/v1/knowledge/claims",
+        json={"statement": "Recharge affected the measured water level.", "created_by": "analyst"},
+    )
+    assert created.status_code == 201
+    claim_id = created.json()["claim_id"]
+    bad = client.post(
+        f"/api/v1/knowledge/claims/{claim_id}/evidence",
+        json={
+            "chunk_id": chunk_id, "relation": "proves",
+            "rationale": "It proves it.", "recorded_by": "analyst",
+        },
+    )
+    assert bad.status_code == 422
+    linked = client.post(
+        f"/api/v1/knowledge/claims/{claim_id}/evidence",
+        json={
+            "chunk_id": chunk_id, "relation": "contextualizes",
+            "rationale": "Relevant context only.", "recorded_by": "analyst",
+        },
+    )
+    assert linked.status_code == 201
+    fetched = client.get(f"/api/v1/knowledge/claims/{claim_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["scientific_validation"] == "not_performed"
+
+
+def test_knowledge_status_returns_database_counts(local_index):
+    result = knowledge.status()
+    assert result["storage"] == "local_sqlite"
+    assert result["document_count"] == 0
+    assert result["chunk_count"] == 0
+    assert result["model_required"] is False
+
+
+def test_claim_register_lists_claims_with_pagination_and_evidence_counts(local_index):
+    source = local_index / "claim-list-source.md"
+    source.write_text("A local evidence passage for a claim register.", encoding="utf-8")
+    knowledge.ingest_document(source, metadata(source_id="claim-list-source"))
+    chunk_id = knowledge.search(
+        "evidence passage claim register", limit=1
+    )["results"][0]["chunk_id"]
+    first = knowledge.create_claim("First geological statement.", "researcher")
+    second = knowledge.create_claim("Second geological statement.", "researcher")
+    knowledge.annotate_claim_evidence(
+        first["claim_id"], chunk_id, "contextualizes", "Provides background context.", "reviewer"
+    )
+    listed = knowledge.list_claims(limit=1, offset=0)
+    assert listed["total"] == 2
+    assert listed["count"] == 1
+    assert listed["scientific_validation"] == "not_performed"
+    assert listed["claims"][0]["claim_id"] == second["claim_id"]
+    next_page = knowledge.list_claims(limit=1, offset=1)
+    assert next_page["claims"][0]["claim_id"] == first["claim_id"]
+    assert next_page["claims"][0]["evidence_count"] == 1
+
+
+def test_claim_register_validates_pagination(local_index):
+    with pytest.raises(ValueError, match="limit must be between"):
+        knowledge.list_claims(limit=101)
+    with pytest.raises(ValueError, match="offset must be zero"):
+        knowledge.list_claims(offset=-1)

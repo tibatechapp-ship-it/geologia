@@ -156,3 +156,9 @@ The package contains 24 original GEOLOGIA-authored checklists: six domains in Ar
 This is **retrieval memory**, not neural training. The agent retrieves relevant local chunks and their source metadata; it does not infer a scientific result from a checklist. External documents remain subject to explicit license review and ingestion. The FTS index uses schema v2 with deterministic CJK bigram tokens; it rebuilds from preserved original chunks during migration, so Chinese queries can match without embeddings or model weights.
 
 See [ALI_SOURCE_LICENSE_MATRIX.md](ALI_SOURCE_LICENSE_MATRIX.md) for the reviewed international source families and ingestion restrictions.
+
+## Claim-to-evidence annotation ledger
+
+GEOLOGIA now provides a local ledger for explicitly recording a human-authored claim and linking it to exact indexed evidence chunks. Each link must be labelled `supports`, `contradicts`, `contextualizes`, or `unclear`, and includes a rationale and recorder. Duplicate links are rejected. Claim records are not generated automatically by retrieval and are not automatically treated as scientific conclusions.
+
+The API returns `scientific_validation: not_performed` for claim records and evidence annotations. A relation label is an attributed annotation, not proof of truth, causality, sufficiency, or consensus. The ledger preserves the exact chunk ID, source identity, source type, review state, license state, and locator for traceability. Future scientific review workflows must evaluate the actual claim, methods, uncertainty, and conflicting evidence before any validated conclusion can be represented.
