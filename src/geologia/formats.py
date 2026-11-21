@@ -203,7 +203,10 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
                 "bounds": bounds,
                 "band_dtypes": list(dataset.dtypes),
                 "band_units": units,
-                "nodata_values": list(dataset.nodatavals),
+                "nodata_values": [
+                    float(value) if value is not None and math.isfinite(float(value)) else None
+                    for value in dataset.nodatavals
+                ],
                 "block_shapes": [list(shape) for shape in block_shapes],
                 "compression": [str(dataset.compression.value) if dataset.compression else None],
                 "metadata": {key: str(value) for key, value in tags.items()},
@@ -230,6 +233,11 @@ def inspect_las(path: Path) -> dict[str, Any]:
             point_offset = int(header.offset_to_point_data)
             if count < 0 or record_length <= 0 or point_offset < 0:
                 raise FormatValidationError("LAS header contains invalid point-data values")
+            if not all(
+                math.isfinite(float(value)) and float(value) != 0
+                for value in header.scales
+            ) or not all(math.isfinite(float(value)) for value in header.offsets):
+                raise FormatValidationError("LAS scale/offset values must be finite and scales non-zero")
             expected_end = point_offset + count * record_length
             if expected_end > size:
                 raise FormatValidationError("LAS point records extend beyond end of file")
