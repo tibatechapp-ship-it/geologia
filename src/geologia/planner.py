@@ -87,6 +87,7 @@ GATES = [
 ]
 AGENT_ID = "ali-algomori"
 AGENT_NAME_AR = "علي الگوموري"
+CJK_ROUTING_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
 AGENT_NAME_EN = "Ali Algomori"
 
 
@@ -130,6 +131,9 @@ def _contains_phrase(normalized_text: str, keyword: str) -> bool:
     normalized_keyword = _normalize(keyword)
     if not normalized_keyword:
         return False
+    if CJK_ROUTING_PATTERN.search(normalized_keyword):
+        # CJK text commonly has no whitespace word boundaries.
+        return normalized_keyword in normalized_text
     return f" {normalized_keyword} " in f" {normalized_text} "
 
 
