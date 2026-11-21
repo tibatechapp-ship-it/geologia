@@ -57,4 +57,5 @@ def test_agent_status_declares_capabilities_and_limits_honestly():
     assert status["network_required"] is False
     assert status["scientific_execution_enabled"] is False
     assert "routing_evidence" in status["capabilities"]
+    assert "local_knowledge_retrieval" in status["capabilities"]
     assert any("not calibrated" in item for item in status["limitations"])
