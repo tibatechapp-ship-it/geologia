@@ -483,6 +483,33 @@ def test_knowledge_cli_search_returns_local_evidence_summary(local_index, capsys
     assert result["results"][0]["source_id"] == "cli-search-001"
 
 
+def test_knowledge_cli_accepts_scientific_review_metadata(tmp_path, monkeypatch, capsys):
+    from geologia.knowledge_cli import main
+    import json
+
+    monkeypatch.setenv("GEOLOGIA_KNOWLEDGE_DB_PATH", str(tmp_path / "cli-review.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
+    source = tmp_path / "cli-reviewed.md"
+    source.write_text("Geological evidence from a reviewed source.", encoding="utf-8")
+    main([
+        str(source),
+        "--source-id", "cli-review-001",
+        "--title", "Reviewed geology source",
+        "--language", "en",
+        "--license-name", "CC BY 4.0",
+        "--license-status", "open_license",
+        "--reviewed-by", "rights reviewer",
+        "--review-date", "2026-11-21",
+        "--source-kind", "research_article",
+        "--scientific-review-status", "subject_matter_reviewed",
+        "--scientific-reviewed-by", "Geoscience specialist",
+        "--scientific-review-date", "2026-11-21",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["source_kind"] == "research_article"
+    assert result["scientific_review_status"] == "subject_matter_reviewed"
+
+
 def test_scientific_review_metadata_is_separate_from_license_review(local_index):
     source = local_index / "review-status.txt"
     source.write_text("A locally indexed geology source.", encoding="utf-8")
