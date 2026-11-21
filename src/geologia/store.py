@@ -164,10 +164,8 @@ def create_job(project_id: str, request: str, language: str, plan: dict) -> dict
     initialize()
     with connect() as conn:
         conn.execute(
-            INSERT INTO jobs(
-                id,project_id,request,language,status,plan_json,created_at,updated_at
-            ) "
-            "VALUES(?,?,?,?,?,?,?,?)",
+            "INSERT INTO jobs(id,project_id,request,language,status,plan_json,"
+            "created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
             (item["id"], project_id, request, language, item["status"],
              json.dumps(plan, ensure_ascii=False), item["created_at"], item["created_at"]),
         )
