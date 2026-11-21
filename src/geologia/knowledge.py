@@ -570,15 +570,25 @@ def seed_core_knowledge() -> dict:
     }
 
 
-def _query_tokens(query: str) -> list[str]:
+def _tokenize_search_text(text: str) -> list[str]:
     tokens = []
-    for token in re.findall(r"[\w]+", query, flags=re.UNICODE):
+    for token in re.findall(r"[\w]+", text, flags=re.UNICODE):
         if token == "_":
             continue
-        tokens.append(token)
+        tokens.append(token.casefold())
         if CJK_PATTERN.search(token):
             tokens.extend(_cjk_bigrams(token))
-    return list(dict.fromkeys(tokens))[:MAX_QUERY_TOKENS]
+    return list(dict.fromkeys(tokens))
+
+
+def _query_tokens(query: str) -> list[str]:
+    return _tokenize_search_text(query)[:MAX_QUERY_TOKENS]
+
+
+def _matched_query_terms(body: str, title: str, tokens: list[str]) -> list[str]:
+    document_terms = set(_tokenize_search_text(body))
+    document_terms.update(_tokenize_search_text(title))
+    return [token for token in tokens if token.casefold() in document_terms]
 
 
 def _excerpt(body: str, tokens: list[str], max_chars: int = 900) -> str:
@@ -666,11 +676,27 @@ def search(query: str, limit: int = 5) -> dict:
                 ORDER BY relevance_score DESC, d.title, c.chunk_index
                 LIMIT ?
                 """,
-                (*score_parameters, *filter_parameters, limit),
+                (*score_parameters, *filter_parameters, min(limit * 5, 100)),
             ).fetchall()
 
-    results = []
+    ranked_rows = []
     for row in rows:
+        matched_terms = _matched_query_terms(row["body"], row["title"], tokens)
+        if not matched_terms:
+            continue
+        ranked_rows.append((row, matched_terms))
+    if backend == "sqlite_token_scan":
+        ranked_rows.sort(
+            key=lambda item: (
+                -len(item[1]),
+                item[0]["title"].casefold(),
+                item[0]["chunk_index"],
+            )
+        )
+    ranked_rows = ranked_rows[:limit]
+
+    results = []
+    for row, matched_terms in ranked_rows:
         citation_url = row["source_url"] or (
             f"https://doi.org/{row['doi']}" if row["doi"] else None
         )
@@ -692,6 +718,9 @@ def search(query: str, limit: int = 5) -> dict:
             "citation_locator": row["source_locator"] or (
                 f"local indexed text chunk {row['chunk_index'] + 1}"
             ),
+            "matched_query_terms": matched_terms,
+            "query_term_coverage": round(len(matched_terms) / len(tokens), 4),
+            "retrieval_evidence": "exact_lexical_tokens",
             "excerpt": _excerpt(row["body"], tokens),
         })
     return {

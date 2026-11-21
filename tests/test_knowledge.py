@@ -365,3 +365,30 @@ def test_token_scan_fallback_ranks_chunks_by_query_term_coverage(local_index, mo
     found = knowledge.search("aquifer recharge", limit=5)
     assert found["retrieval_method"] == "sqlite_token_scan"
     assert found["results"][0]["source_id"] == "rank-multi-001"
+def test_search_reports_exact_query_term_coverage_and_evidence(local_index):
+    source = local_index / "coverage.txt"
+    source.write_text(
+        "Aquifer recharge supports groundwater replenishment.",
+        encoding="utf-8",
+    )
+    knowledge.ingest_document(
+        source, metadata(source_id="coverage-001", title="Aquifer recharge")
+    )
+
+    found = knowledge.search("aquifer recharge", limit=3)
+    hit = next(item for item in found["results"] if item["source_id"] == "coverage-001")
+    assert hit["matched_query_terms"] == ["aquifer", "recharge"]
+    assert hit["query_term_coverage"] == 1.0
+    assert hit["retrieval_evidence"] == "exact_lexical_tokens"
+
+
+def test_token_fallback_does_not_accept_substring_only_matches(local_index, monkeypatch):
+    source = local_index / "substring.txt"
+    source.write_text("The shoreline is mapped during fieldwork.", encoding="utf-8")
+    knowledge.ingest_document(
+        source, metadata(source_id="substring-001", title="Shoreline mapping")
+    )
+    monkeypatch.setattr(knowledge, "_fts_available", lambda _connection: False)
+
+    found = knowledge.search("ore", limit=5)
+    assert all(item["source_id"] != "substring-001" for item in found["results"])
