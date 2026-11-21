@@ -42,13 +42,14 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 
 ## Verified by GitHub Actions
 
-The last fully green pre-hardening baseline run is [Run #32](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44915877037):
+The latest fully green validation is [Run #35](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916271361), on commit `3ced85b99bd10ad30063451134d2cff77c10748a`:
 - Python 3.12, 3.14, and 3.15 all passed.
 - Editable install with development and GIS extras passed.
 - JavaScript syntax check, Ruff, compileall, and pytest passed.
-- The run reported 24 passing tests per Python version.
+- The run reported 30 passing tests per Python version.
+- One upstream deprecation warning remains in Starlette's TestClient use of AnyIO's deprecated `BlockingPortal` alias. No application startup deprecation or Node 20 action warning remains.
 
-Subsequent commits add strict JSON handling, normalized-input validation, readiness semantics, lifecycle modernization, and newer GitHub Actions. Their latest CI result must be read from the Actions page before describing those changes as validated. A successful earlier run does not validate later commits.
+This run includes the strict JSON handling, normalized-input validation, readiness semantics, lifespan modernization, current GitHub Actions, and engineering-audit documentation.
 
 ## Known blockers — do not represent as production-ready
 
