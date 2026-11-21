@@ -306,7 +306,7 @@ def _validate_metadata(metadata: dict) -> dict:
     else:
         if not scientific_reviewed_by or not scientific_review_date:
             raise ValueError("completed scientific review requires reviewer and date")
-        if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", scientific_review_date):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", scientific_review_date):
             raise ValueError("scientific_review_date must use YYYY-MM-DD")
         try:
             date.fromisoformat(scientific_review_date)
