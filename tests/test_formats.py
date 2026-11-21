@@ -211,7 +211,7 @@ def test_api_inspection_endpoint_persists_geotiff_report(tmp_path, monkeypatch):
 
     with store.connect() as connection:
         connection.execute(
-            "UPDATE provenance_events SET payload_json='{}' WHERE dataset_id=? "
+            "UPDATE provenance_events SET payload_json='not-json' WHERE dataset_id=? "
             "AND event_type='dataset_inspected'",
             (dataset_id,),
         )
