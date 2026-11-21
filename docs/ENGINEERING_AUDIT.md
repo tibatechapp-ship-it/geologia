@@ -55,7 +55,7 @@ This run includes the strict JSON handling, normalized-input validation, readine
 
 ### Security and operations
 - No user authentication, authorization, tenant isolation, or project ownership model.
-- The CLI accepts a custom bind host; public binding is unsafe until authentication and operational controls exist. Keep it on loopback.
+- The bundled development CLI now rejects non-loopback bind addresses. Running the ASGI app through another server can bypass this guard; public deployment remains unsafe until authentication and operational controls exist.
 - No rate limiting, per-user quotas, upload concurrency limits, request timeouts, or abuse monitoring.
 - No malware scanning or sandbox for uploaded content. The current application does not execute uploaded code or scientific tools.
 - No production secret management, audit log, backup/restore procedure, retention policy, or deployment hardening.
