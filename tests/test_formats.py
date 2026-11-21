@@ -62,6 +62,8 @@ def _make_las(path: Path) -> Path:
     laspy = pytest.importorskip("laspy")
     numpy = pytest.importorskip("numpy")
     header = laspy.LasHeader(point_format=3, version="1.2")
+    pyproj = pytest.importorskip("pyproj")
+    header.add_crs(pyproj.CRS.from_epsg(32637))
     header.scales = numpy.array([0.01, 0.01, 0.01])
     header.offsets = numpy.array([500000.0, 1500000.0, 100.0])
     data = laspy.LasData(header)
@@ -121,6 +123,8 @@ def test_real_las_header_and_point_sample(tmp_path):
     assert report["sampled_point_count"] == 3
     assert report["point_format_id"] == 3
     assert report["scale"] == [0.01, 0.01, 0.01]
+    assert report["crs"] == "EPSG:32637"
+    assert report["coordinate_units"] == ["metre", "metre"]
     assert report["scientific_validation"] is False
 
 
