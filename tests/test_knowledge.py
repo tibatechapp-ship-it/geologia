@@ -106,3 +106,21 @@ def test_status_reports_local_model_free_storage(local_index):
     assert status["model_required"] is False
     assert status["network_required"] is False
     assert status["automatic_downloads_enabled"] is False
+
+def test_doi_deduplication_prevents_duplicate_bibliographic_work(local_index):
+    first_source = local_index / "first.txt"
+    second_source = local_index / "second.txt"
+    first_source.write_text("Original DOI source text.", encoding="utf-8")
+    second_source.write_text("A different local extraction of the same DOI.", encoding="utf-8")
+    first = knowledge.ingest_document(
+        first_source,
+        metadata(source_id="doi-source-a", doi="10.1234/geo.1"),
+    )
+    second = knowledge.ingest_document(
+        second_source,
+        metadata(source_id="doi-source-b", doi="https://doi.org/10.1234/geo.1"),
+    )
+    assert first["status"] == "indexed"
+    assert second["status"] == "already_indexed"
+    assert second["duplicate_reason"] == "doi"
+    assert knowledge.status()["document_count"] == 1
