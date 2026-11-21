@@ -1,0 +1,583 @@
+{
+  "schema_version": 1,
+  "catalog_id": "ali-algomori-geoscience-source-seeds",
+  "catalog_status": "discovery_seeds_not_ingested",
+  "maintainer": "GEOLOGIA",
+  "policy": {
+    "default_access": "metadata_only_until_access_and_license_review",
+    "download_requires": [
+      "robots_or_api_policy_review",
+      "license_review",
+      "rate_limit",
+      "source_attribution"
+    ],
+    "never_execute_source_content": true,
+    "never_treat_source_homepage_as_verified_dataset": true,
+    "deduplicate_by": [
+      "doi",
+      "publisher_identifier",
+      "normalized_title_authors_year",
+      "sha256"
+    ],
+    "preserve_original_language": true,
+    "machine_translation_is_not_source_of_record": true
+  },
+  "institutions": [
+    {
+      "id": "us-usgs",
+      "country": "United States",
+      "region_group": "north_america",
+      "name": "United States Geological Survey",
+      "language_codes": [
+        "en"
+      ],
+      "institution_type": "national_geological_survey",
+      "discovery_url": "https://www.usgs.gov/",
+      "discovery_status": "seed_homepage",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "geochemistry",
+        "geophysics",
+        "hazards",
+        "hydrogeology"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "uk-bgs",
+      "country": "United Kingdom",
+      "region_group": "europe",
+      "name": "British Geological Survey",
+      "language_codes": [
+        "en"
+      ],
+      "institution_type": "national_geological_survey",
+      "discovery_url": "https://www.bgs.ac.uk/",
+      "discovery_status": "seed_homepage",
+      "topics": [
+        "geologic_mapping",
+        "boreholes",
+        "marine_geology",
+        "geochemistry",
+        "geophysics"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "ru-ginras",
+      "country": "Russia",
+      "region_group": "eurasia",
+      "name": "Geological Institute, Russian Academy of Sciences",
+      "language_codes": [
+        "ru",
+        "en"
+      ],
+      "institution_type": "research_institute",
+      "discovery_url": "https://www.ginras.ru/",
+      "discovery_status": "seed_homepage",
+      "topics": [
+        "tectonics",
+        "stratigraphy",
+        "petrology",
+        "geochemistry",
+        "regional_geology"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "ru-vsegei",
+      "country": "Russia",
+      "region_group": "eurasia",
+      "name": "A.P. Karpinsky Russian Geological Research Institute",
+      "language_codes": [
+        "ru",
+        "en"
+      ],
+      "institution_type": "national_geological_research_institute",
+      "discovery_url": "https://www.vsegei.ru/",
+      "discovery_status": "seed_homepage",
+      "topics": [
+        "geologic_mapping",
+        "regional_geology",
+        "stratigraphy",
+        "mineral_resources"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "cn-cgs",
+      "country": "China",
+      "region_group": "east_asia",
+      "name": "China Geological Survey",
+      "language_codes": [
+        "zh",
+        "en"
+      ],
+      "institution_type": "national_geological_survey",
+      "discovery_url": "https://www.cgs.gov.cn/",
+      "discovery_status": "seed_homepage",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "marine_geology",
+        "geochemistry",
+        "geophysics"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "ye-gsmrb",
+      "country": "Yemen",
+      "region_group": "arabian_peninsula",
+      "name": "Geological Survey and Mineral Resources Board",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "national_geological_survey",
+      "discovery_url": "https://www.gsmr-yemen.org/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "hydrogeology",
+        "regional_geology"
+      ],
+      "source_priority": "primary",
+      "review_note": "Verify current official domain and repository endpoints before crawling."
+    },
+    {
+      "id": "sa-sgs",
+      "country": "Saudi Arabia",
+      "region_group": "arabian_peninsula",
+      "name": "Saudi Geological Survey",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "national_geological_survey",
+      "discovery_url": "https://sgs.org.sa/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "geochemistry",
+        "geophysics"
+      ],
+      "source_priority": "primary",
+      "review_note": "Verify current official domain and open-data access before crawling."
+    },
+    {
+      "id": "eg-emra",
+      "country": "Egypt",
+      "region_group": "north_africa",
+      "name": "Egyptian Mineral Resources Authority",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "national_mineral_resources_authority",
+      "discovery_url": "https://www.emra.gov.eg/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "mineral_resources",
+        "economic_geology",
+        "geologic_mapping"
+      ],
+      "source_priority": "primary",
+      "review_note": "Verify current official domain and repository endpoints before crawling."
+    },
+    {
+      "id": "jo-memr",
+      "country": "Jordan",
+      "region_group": "levant",
+      "name": "Jordan Ministry of Energy and Mineral Resources",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "government_geoscience_source",
+      "discovery_url": "https://www.memr.gov.jo/",
+      "discovery_status": "seed_homepage",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "hydrogeology"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "tr-mta",
+      "country": "Türkiye",
+      "region_group": "west_asia",
+      "name": "General Directorate of Mineral Research and Exploration (MTA)",
+      "language_codes": [
+        "tr",
+        "en"
+      ],
+      "institution_type": "national_geological_research_institute",
+      "discovery_url": "https://www.mta.gov.tr/eng/mta/home",
+      "discovery_status": "seed_homepage_verified_by_international_directory",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "geochemistry",
+        "geophysics",
+        "tectonics"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "my-jmg",
+      "country": "Malaysia",
+      "region_group": "southeast_asia",
+      "name": "Department of Mineral and Geoscience Malaysia (JMG)",
+      "language_codes": [
+        "ms",
+        "en"
+      ],
+      "institution_type": "national_geoscience_department",
+      "discovery_url": "https://www.jmg.gov.my/",
+      "discovery_status": "seed_homepage_verified_by_international_directory",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "hydrogeology",
+        "engineering_geology",
+        "marine_geology"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "id-geological-agency",
+      "country": "Indonesia",
+      "region_group": "southeast_asia",
+      "name": "Geological Agency (Badan Geologi), Ministry of Energy and Mineral Resources",
+      "language_codes": [
+        "id",
+        "en"
+      ],
+      "institution_type": "national_geological_agency",
+      "discovery_url": "https://geologi.esdm.go.id/",
+      "discovery_status": "seed_homepage_verified_by_international_directory",
+      "topics": [
+        "geologic_mapping",
+        "volcanology",
+        "geological_hazards",
+        "groundwater",
+        "mineral_resources"
+      ],
+      "source_priority": "primary"
+    },
+    {
+      "id": "ve-geoscience",
+      "country": "Venezuela",
+      "region_group": "south_america",
+      "name": "National geological and mining research authorities (institutional discovery pending)",
+      "language_codes": [
+        "es"
+      ],
+      "institution_type": "government_geoscience_source",
+      "discovery_url": "https://www.minpet.gob.ve/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "economic_geology"
+      ],
+      "source_priority": "primary",
+      "review_note": "Verify the current geological survey unit, official domain, and public research repository; this seed is ministry-level discovery only."
+    },
+    {
+      "id": "pk-gsp",
+      "country": "Pakistan",
+      "region_group": "south_asia",
+      "name": "Geological Survey of Pakistan",
+      "language_codes": [
+        "en",
+        "ur"
+      ],
+      "institution_type": "national_geological_survey",
+      "discovery_url": "https://www.gsp.gov.pk/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "engineering_geology",
+        "geochemistry"
+      ],
+      "source_priority": "primary",
+      "review_note": "Confirm current official domain and open-data/repository endpoints before crawling."
+    },
+    {
+      "id": "af-ags",
+      "country": "Afghanistan",
+      "region_group": "south_central_asia",
+      "name": "Afghanistan Geological Survey, Ministry of Mines and Petroleum",
+      "language_codes": [
+        "fa",
+        "ps",
+        "en"
+      ],
+      "institution_type": "national_geological_survey",
+      "discovery_url": "https://momp.gov.af/",
+      "discovery_status": "seed_ministry_portal",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "regional_geology"
+      ],
+      "source_priority": "primary",
+      "review_note": "Ministry portal seed; locate and verify the Geological Survey's specific archive and data access."
+    },
+    {
+      "id": "dz-asga",
+      "country": "Algeria",
+      "region_group": "north_africa",
+      "name": "Algerian Geological Survey Agency (ASGA)",
+      "language_codes": [
+        "ar",
+        "fr"
+      ],
+      "institution_type": "national_geological_survey",
+      "discovery_url": "https://www.asga.dz/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "geochemistry",
+        "regional_geology"
+      ],
+      "source_priority": "primary",
+      "review_note": "Verify current official HTTPS domain and institutional repository; international directory lists ASGA."
+    },
+    {
+      "id": "ma-geology",
+      "country": "Morocco",
+      "region_group": "north_africa",
+      "name": "Direction de la Géologie, Ministry responsible for energy and mines",
+      "language_codes": [
+        "ar",
+        "fr"
+      ],
+      "institution_type": "government_geoscience_source",
+      "discovery_url": "https://www.mem.gov.ma/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "geochemistry",
+        "regional_geology"
+      ],
+      "source_priority": "primary",
+      "review_note": "Ministry-level seed; verify current department name, official domain, and repository."
+    },
+    {
+      "id": "mr-geology",
+      "country": "Mauritania",
+      "region_group": "west_africa",
+      "name": "Geology and mining administration, Ministry responsible for mines",
+      "language_codes": [
+        "ar",
+        "fr"
+      ],
+      "institution_type": "government_geoscience_source",
+      "discovery_url": "https://www.energies.gov.mr/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "economic_geology"
+      ],
+      "source_priority": "primary",
+      "review_note": "Ministry-level discovery seed; confirm current geological directorate and repository."
+    },
+    {
+      "id": "sd-gras",
+      "country": "Sudan",
+      "region_group": "northeast_africa",
+      "name": "Geological Research Authority of Sudan (GRAS)",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "national_geological_research_authority",
+      "discovery_url": "https://www.gras.gov.sd/",
+      "discovery_status": "seed_homepage_unverified",
+      "topics": [
+        "geologic_mapping",
+        "mineral_resources",
+        "geochemistry",
+        "regional_geology"
+      ],
+      "source_priority": "primary",
+      "review_note": "Verify current official domain and access status before crawling."
+    },
+    {
+      "id": "qa-qu-earth-sciences",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Qatar University — Earth Sciences Cluster",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "university_research_cluster",
+      "discovery_url": "https://qu.edu.qa/en-us/Research/esc/Research/Pages/earth-sciences.aspx",
+      "discovery_status": "official_research_page",
+      "topics": [
+        "earth_system_science",
+        "coastal_geology",
+        "marine_science",
+        "environmental_geoscience",
+        "geospatial_analysis"
+      ],
+      "source_priority": "primary",
+      "review_note": "Research page verified; discover publications, datasets, and project records separately."
+    },
+    {
+      "id": "qa-qu-rs-gis",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Qatar University — Remote Sensing and GIS Laboratory",
+      "language_codes": [
+        "en"
+      ],
+      "institution_type": "university_research_lab",
+      "discovery_url": "https://engineering.qu.edu.qa/en-us/research/esc/facilities/labs/remote-sensing-and-gis",
+      "discovery_status": "official_research_page",
+      "topics": [
+        "satellite_imagery",
+        "remote_sensing",
+        "GIS",
+        "coastal_monitoring",
+        "sabkha",
+        "geology",
+        "soil_science"
+      ],
+      "source_priority": "primary",
+      "review_note": "The lab page describes satellite/aerial imagery archives and applications including geological formations, coastal erosion, and sediment distribution; archive access/licensing must be checked."
+    },
+    {
+      "id": "qa-eshailsat",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Es’hailSat — Qatar Satellite Company",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "commercial_satellite_operator",
+      "discovery_url": "https://www.eshailsat.qa/",
+      "discovery_status": "official_company_page",
+      "topics": [
+        "communications_satellites",
+        "satellite_telecommunications",
+        "satellite_ground_segment",
+        "space_industry"
+      ],
+      "source_priority": "primary",
+      "review_note": "Primarily communications satellite operator; do not misclassify Es’hail-1/2 as Earth-observation imaging satellites. Explore technical/publication records and partnerships."
+    },
+    {
+      "id": "qa-qubesat",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Qatar University — QUbeSat1 nanosatellite project",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "university_satellite_research_project",
+      "discovery_url": "https://www.qu.edu.qa/en-us/about/Documents/Campus%20Life%20%28E%29%20-%20May%202026.pdf",
+      "discovery_status": "official_university_publication",
+      "topics": [
+        "nanosatellites",
+        "CubeSat",
+        "spacecraft_engineering",
+        "student_research",
+        "space_technology"
+      ],
+      "source_priority": "primary",
+      "review_note": "University publication reports QUbeSat1; follow project technical publications and mission data availability."
+    },
+    {
+      "id": "qa-bayanat-eo",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Bayanat Engineering Qatar — Earth Observation and Remote Sensing Division",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "commercial_earth_observation_services",
+      "discovery_url": "https://www.bayanatengineering.qa/bayanat-engineering-qatar-launches-earth-observation-remote-sensing-division/",
+      "discovery_status": "official_company_announcement",
+      "topics": [
+        "earth_observation",
+        "satellite_imagery",
+        "remote_sensing",
+        "geospatial_analytics"
+      ],
+      "source_priority": "primary",
+      "review_note": "Commercial service provider announcement; verify sensor/source satellite, licensing, resolution, coverage, and product terms for each imagery offering."
+    },
+    {
+      "id": "qa-srmc",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Space Radio Monitoring Center (SRMC)",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "government_space_communications_monitoring_center",
+      "discovery_url": "https://qna.org.qa/en/news/news-bulletins-details?date=10%2F10%2F2024&id=0056-minister-of-communication-to-qna%C2%A0srmc-enhances-qatar%27s%C2%A0leadership-in-space-communications",
+      "discovery_status": "official_news_report",
+      "topics": [
+        "satellite_radio_monitoring",
+        "spectrum_monitoring",
+        "space_communications",
+        "interference_analysis"
+      ],
+      "source_priority": "primary",
+      "review_note": "Qatar News Agency report identifies center and capabilities; locate its official institutional portal and public research outputs."
+    }
+  ],
+  "next_discovery_targets": [
+    {
+      "id": "arab-university-repositories",
+      "scope": "Arab university geology departments, theses repositories, institutional research archives",
+      "status": "discovery_required",
+      "languages": [
+        "ar",
+        "en",
+        "fr"
+      ]
+    },
+    {
+      "id": "global-data-repositories",
+      "scope": "DOI-backed geoscience datasets and institutional repositories",
+      "status": "discovery_required",
+      "languages": [
+        "en",
+        "ru",
+        "zh",
+        "ar",
+        "fr",
+        "de",
+        "es"
+      ]
+    },
+    {
+      "id": "qatar-space-geoscience",
+      "scope": "Qatar satellite operators, QUbeSat1 and nanosatellite research, Qatar University Earth Sciences and Remote Sensing/GIS lab, Earth-observation service providers, and public geospatial datasets",
+      "status": "discovery_required",
+      "languages": [
+        "ar",
+        "en"
+      ]
+    }
+  ]
+}

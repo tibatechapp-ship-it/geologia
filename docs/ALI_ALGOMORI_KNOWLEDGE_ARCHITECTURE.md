@@ -1,0 +1,117 @@
+# Ali Algomori — Scientific Knowledge Architecture
+
+**Status:** Phase 7 foundation / design and source-discovery seed only  
+**Owner:** GEOLOGIA  
+**Scope:** Scientific knowledge and retrieval for the proposed Ali Algomori geoscience agent
+
+This document defines the knowledge system before any model training. It does not claim that Ali is currently connected to the application, that the source catalog has been crawled, or that a fine-tuned model exists.
+
+## 1. Agent responsibility
+
+Ali Algomori is proposed as the geoscience knowledge and evidence coordinator. He should:
+
+- identify the geological question, region, scale, time interval, and data types;
+- delegate bounded tasks to specialist roles (stratigraphy, tectonics, mineralogy, petrology, geophysics, geochemistry, hydrogeology, GIS/remote sensing);
+- retrieve primary evidence and preserve source-level provenance;
+- distinguish source statements, computed results, interpretations, and hypotheses;
+- detect disagreement and missing evidence;
+- abstain or request data when the evidence does not support a conclusion.
+
+This is a proposed scientific role. The existing application’s deterministic chief-agent routing is not replaced by this document.
+
+## 2. Knowledge layers
+
+1. **Source catalog:** institutions, repositories, APIs, language, access policy, license state, and discovery status.
+2. **Immutable source records:** original file or record identifier, retrieval date, checksum, version, language, license evidence, and canonical URL.
+3. **Extracted evidence:** page/section/table/figure location, verbatim source span where legally permitted, normalized text, extraction tool/version, and quality flags.
+4. **Knowledge claims:** small atomic claims linked to one or more evidence records. Claims may be supported, contradicted, qualified, or superseded.
+5. **Geoscience graph:** spatial and temporal relationships among formations, lithologies, minerals, faults, basins, samples, boreholes, events, and publications.
+6. **Agent working memory:** task-scoped context, hypotheses, tool results, and unresolved questions; expires or is archived after task completion.
+7. **Model training corpus:** separately curated examples with license clearance, decontamination, splits, and evaluation. It is not a dump of the retrieval index.
+
+## 3. Evidence record contract
+
+Each claim must include:
+
+- stable claim ID and normalized claim text;
+- source ID, publisher, author(s), publication date and version;
+- DOI or stable identifier when available;
+- page, section, table, figure, sample, or dataset row locator;
+- source language and original text pointer;
+- region/geometry and geological time range when known;
+- units, coordinate reference system, datum, and conventions where applicable;
+- license/access evidence and allowed processing;
+- extraction method and software version;
+- review state, confidence rationale, and known limitations.
+
+Do not promote a source homepage, abstract, AI-generated summary, or unverified metadata into a scientific fact.
+
+## 4. Source acquisition rules
+
+- Begin with metadata discovery and manually verified source endpoints.
+- Prefer publisher/agency APIs, repository OAI-PMH, DOI metadata, and documented open-data endpoints.
+- Respect robots rules, terms, rate limits, copyright, licenses, and institutional access controls.
+- Never bypass paywalls, authentication, or access controls.
+- Do not execute downloaded code, notebooks, macros, binaries, or embedded scripts during ingestion.
+- Parse in resource-limited workers; quarantine malformed or suspicious files.
+- Preserve original files only where the license permits; otherwise store permitted metadata and a lawful link.
+- Mark every catalog seed as unverified until the institution/domain and endpoint are reviewed.
+
+## 5. Deduplication and novelty
+
+Deduplicate in stages:
+
+1. exact artifact SHA-256;
+2. DOI, repository accession, or publisher identifier;
+3. normalized title + authors + year;
+4. near-duplicate text and abstract similarity;
+5. claim-level semantic overlap.
+
+Do not delete legitimate distinct editions or contradictory studies. Link preprint, accepted manuscript, publisher version, dataset, thesis, and later correction as related records. Novelty is a review label, not a model-generated certainty: classify additions as new region, new observation, new method, replication, reinterpretation, correction, or duplicate.
+
+## 6. Cross-language handling
+
+Retain original language and script. Store translations as derivative records with model/tool, version, date, and quality status. Scientific names, stratigraphic units, mineral names, symbols, coordinates, units, and citations must be preserved and normalized without overwriting the original. For Russian and Chinese sources, require terminology review for high-impact claims; Arabic and French sources receive the same evidence treatment.
+
+## 7. Retrieval and answer policy
+
+At answer time, retrieve by topic, spatial overlap, geological time, method, source authority, and evidence quality. Rerank by relevance and provenance completeness. Ali should provide:
+
+- a concise answer;
+- cited evidence and exact locators;
+- distinction between observation and interpretation;
+- conflicting evidence when material;
+- uncertainty and coverage limits;
+- data or tests needed to resolve remaining uncertainty.
+
+A citation must resolve to the source record and not merely to an institution homepage.
+
+## 8. Training policy
+
+Do not fine-tune until the retrieval system and evaluation set are established.
+
+Training candidates must be:
+- license-reviewed and provenance-complete;
+- deduplicated and separated by source/work;
+- split by publication or geological region to reduce leakage;
+- checked for benchmark contamination;
+- reviewed by geoscience subject matter experts for high-risk tasks.
+
+Train on behavior and task formats (evidence extraction, citation discipline, uncertainty, unit/CRS checks, tool selection), not on a goal of memorizing entire reference libraries. Retrieval remains the source of current, auditable knowledge.
+
+## 9. Acceptance gates
+
+Before enabling Ali against production user datasets:
+
+- source catalog endpoints and licenses reviewed;
+- ingestion is bounded, observable, resumable, and safe;
+- every answer citation resolves to evidence;
+- deduplication preserves distinct scientific works;
+- evaluation includes Arabic, English, Russian, Chinese, and French cases;
+- withheld tests measure citation correctness, factuality, uncertainty, and regional coverage;
+- no model training or data redistribution occurs without documented rights;
+- scientific workflows remain disabled until each tool/engine has its own validation and safety gate.
+
+## 10. Initial implementation boundary
+
+The accompanying `ali_geoscience_source_catalog.json` is a small discovery seed. It contains institution homepages, not harvested papers or validated datasets. Entries marked `seed_homepage_unverified` require manual domain verification. No crawler, vector database, knowledge graph, Ali agent runtime, or fine-tuning pipeline is enabled by this commit.
