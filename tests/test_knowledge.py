@@ -59,7 +59,8 @@ def test_ingest_and_search_return_reviewed_citation_metadata(local_index):
     assert hit["license_status"] == "open_license"
     assert hit["source_url"] == "https://example.org/groundwater"
     assert hit["file_sha256"] == result["file_sha256"]
-    assert "chunk_number" in hit["citation_locator"] or "chunk_number" in hit
+    assert hit["chunk_number"] >= 1
+    assert "local indexed text chunk" in hit["citation_locator"]
 
 
 def test_duplicate_source_and_file_are_idempotent(local_index):
