@@ -33,3 +33,9 @@ The workflow has least-privilege `contents: write` and `pull-requests: write` pe
 ## Provider expansion
 
 Crossref is the initial metadata provider. Future providers (e.g. OpenAlex, institutional repositories, USGS/GSJ/BGS/CGS portals, satellite mission data portals, and DOI-backed datasets) should be added through explicit adapters with API/robots, license, rate-limit, and provenance checks. Do not crawl the existing institutional seed catalog indiscriminately.
+
+## From candidate to application reference
+
+The app reference registry is `src/geologia/data/approved_research_references.json`. Candidates remain unapproved in the inbox until a reviewer changes the candidate's `review_status` to `approved_for_reference` in the research-sync PR and merges that PR. The merge-triggered promotion workflow then opens a second draft PR containing only validated bibliographic fields (DOI, title, authors, date, publisher, URL, and topic tags). Review and merge that second PR to add the reference to the app registry.
+
+A PR comment is useful for discussion and evidence notes; comments alone do not silently approve or promote a paper. The explicit status edit and merged review PR are the approval gate. Promotion is idempotent and does not copy abstracts or convert paper findings into code.
