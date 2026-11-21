@@ -72,3 +72,27 @@ def test_role_coverage_never_claims_dataset_content_is_validated(tmp_path, monke
     assert readiness["required_roles_present"] is True
     assert readiness["content_validation"] == "not_performed"
     assert readiness["execution_allowed"] is False
+
+
+def test_development_cli_rejects_non_loopback_binding(monkeypatch):
+    import sys
+
+    import geologia.api as api_module
+
+    monkeypatch.setattr(sys, "argv", ["geologia-api", "--host", "0.0.0.0"])
+    with pytest.raises(SystemExit) as exc:
+        api_module.run()
+    assert exc.value.code == 2
+
+
+def test_development_cli_starts_on_loopback(monkeypatch):
+    import sys
+
+    import geologia.api as api_module
+
+    calls = []
+    monkeypatch.setattr(sys, "argv", ["geologia-api", "--host", "127.0.0.1", "--port", "8123"])
+    monkeypatch.setattr(api_module.uvicorn, "run", lambda *args, **kwargs: calls.append((args, kwargs)))
+    api_module.run()
+    assert calls[0][1]["host"] == "127.0.0.1"
+    assert calls[0][1]["port"] == 8123
