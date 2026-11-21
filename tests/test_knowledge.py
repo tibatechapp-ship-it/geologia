@@ -1,3 +1,5 @@
+from contextlib import closing
+
 import pytest
 
 from geologia import knowledge
@@ -193,7 +195,7 @@ def test_fts_v2_rebuilds_legacy_index_and_preserves_chunks(local_index):
     source.write_text("Geological mapping and groundwater records.", encoding="utf-8")
     knowledge.ingest_document(source, metadata(source_id="fts-migration-01"))
 
-    with knowledge._connect() as connection:
+    with closing(knowledge._connect()) as connection:
         if not knowledge._fts_available(connection):
             pytest.skip("SQLite FTS5 is not available in this environment")
         connection.execute("DROP TABLE knowledge_fts_v2")
