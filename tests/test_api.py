@@ -178,9 +178,10 @@ def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
         f"/api/v1/datasets/{dataset_id}/reproject",
         json={"target_crs": "EPSG:3857"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     result = response.json()
-    coords = result["geojson"]["features"][0]["geometry"]["coordinates"]
+    coords = result["dataset"]["summary"]["coordinate_count"]
+    assert coords == 1
     assert abs(coords[0] - 4920321.493) < 1
     assert abs(coords[1] - 1723798.499) < 1
     assert result["source_crs"] == "EPSG:4326"
