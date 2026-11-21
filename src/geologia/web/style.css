@@ -6,3 +6,24 @@
 .map-panel{margin-top:18px}.map-panel .panel-heading select{max-width:min(100%,320px);background:#0b1b2b;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px}.map-panel #geoMap{height:430px;min-height:260px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#07111f}.map-panel .feedback{margin:4px 0 10px}.map-attribution{margin:7px 2px 0;color:var(--muted);font-size:9px;direction:ltr;text-align:left}.leaflet-popup-content{font-family:inherit;overflow-wrap:anywhere}
 
 .map-transform-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 14px}.map-transform-controls label{font-size:11px;color:var(--muted)}.map-transform-controls input{width:145px;max-width:100%;background:#0b1b2b;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px;font:inherit}.map-transform-controls button{max-width:100%}
+
+.plan-output-cards{direction:inherit;text-align:start;font:inherit;white-space:normal;color:var(--text);max-height:none;overflow:visible;padding:14px}
+.plan-render-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:4px 2px 14px;border-bottom:1px solid var(--line)}
+.plan-agent-name{font-weight:800;font-size:16px;color:#dff8ff}
+.plan-state{font-size:10px;color:#b9d7e9;background:#132b42;border:1px solid #25445f;border-radius:100px;padding:6px 11px}
+.plan-section{margin-top:16px;min-width:0}
+.plan-section-title{margin:0 0 10px;font-size:13px;color:#8ddff2;font-weight:800}
+.plan-summary-text,.plan-domain-meta{font-size:12px;line-height:1.85;color:#a9bfd2;margin:6px 0;overflow-wrap:anywhere}
+.plan-clarification{margin-top:10px;padding:11px 13px;border:1px solid #745b35;background:#211d17;border-radius:11px;color:#f3c982;font-size:12px;line-height:1.8}
+.plan-domain-card,.plan-reference-card{border:1px solid #20384e;background:#091725;border-radius:13px;padding:13px;margin:9px 0;min-width:0}
+.plan-domain-name,.plan-reference-title{margin:0 0 8px;font-size:13px;color:#e7f5ff;overflow-wrap:anywhere}
+.plan-chip-list,.plan-evidence-list,.plan-missing-list{display:flex;gap:6px;flex-wrap:wrap;list-style:none;padding:0;margin:7px 0 0}
+.plan-chip-list li,.plan-evidence-list li,.plan-missing-list li{max-width:100%;overflow-wrap:anywhere;padding:5px 8px;border-radius:8px;font-size:10px;line-height:1.6}
+.plan-chip-list li{background:#13263a;border:1px solid #253f58;color:#b9d5eb}
+.plan-evidence-list li{background:#102b30;border:1px solid #28565b;color:#a9e8df}
+.plan-missing-list li{background:#2b2117;border:1px solid #66502d;color:#f0c37b}
+.plan-reference-excerpt{font-size:12px;line-height:1.9;color:#c1d5e7;white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0}
+.plan-reference-link{display:inline-block;margin-top:8px;color:#75d9f3;font-size:11px;text-decoration:none;border-bottom:1px solid #32758c;padding-bottom:2px}
+.plan-reference-link:hover{color:#c7f5ff}
+.plan-empty{font-size:12px;color:var(--muted)}
+.plan-output-cards .plan-section-title{direction:inherit}

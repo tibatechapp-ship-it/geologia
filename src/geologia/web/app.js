@@ -2,11 +2,16 @@ const i18n={
 ar:{brandSub:"منصة علوم الأرض",localMode:"وضع محلي",platformLabel:"مساحة عمل علوم الأرض · المرحلة 5",heroTitle:"جيولوجيا، ببياناتك وأدلتك",heroText:"نظّم مشاريعك الجيولوجية، أضف بياناتك، وابنِ خطة تحليل قابلة للتتبع.",chiefAgent:"الوكيل الرئيسي",agentName:"علي الگوموري",apiStatus:"حالة API",engineCount:"محركات مدمجة",execution:"التنفيذ العلمي",disabled:"غير مفعّل",workspace:"مساحة العمل",projects:"المشاريع",projectName:"اسم المشروع",description:"الوصف",createProject:"+ إنشاء مشروع",activeProject:"المشروع الحالي",chooseProject:"اختر مشروعًا",dataLayer:"طبقة البيانات",datasets:"مجموعات البيانات",datasetName:"اسم البيانات",dataRole:"دور البيانات",unclassified:"غير مصنّف",crs:"نظام الإحداثيات (اختياري)",chooseFile:"اختر ملفًا لرفعه",fileLimit:"GeoJSON, GPKG, GeoTIFF, CSV, LAS · حتى 50 MiB",uploadDataset:"حفظ البيانات",noDatasets:"لا توجد بيانات في هذا المشروع.",agentPlanning:"تخطيط الوكيل",analysisPlan:"خطة التحليل",planOnly:"خطة فقط",analysisRequest:"ماذا تريد أن تدرس؟",buildPlan:"إنشاء خطة",planPlaceholder:"ستظهر الخطة هنا بعد اختيار مشروع وإنشاء الطلب.",scientificNotice:"المنصة تحفظ البيانات وتبني خططًا أولية فقط. لا توجد محركات علمية مدمجة بعد، ولا تنتج توصية حفر أو تقدير موارد.",footerText:"علوم أرض مبنية على البيانات والأدلة",apiOnline:"متصل",apiOffline:"غير متصل",projectCreated:"تم إنشاء المشروع.",uploadDone:"تم حفظ البيانات. لم تُحلل علميًا.",inspectDataset:"فحص GeoJSON",inspecting:"جارٍ فحص البيانات…",inspectFailed:"تعذر فحص البيانات",reportTitle:"تقرير الفحص البنيوي",mapTitle:"خريطة الطبقات",mapChoose:"اختر طبقة GeoJSON",mapLoading:"جارٍ تحميل الطبقة…",mapEmpty:"ارفع ملف GeoJSON لعرضه على الخريطة.",mapUnavailable:"تعذر تحميل مكتبة الخريطة. تحقق من اتصال الإنترنت.",mapError:"تعذر عرض الطبقة",mapFeatures:"معلم",targetCrsLabel:"نظام الإحداثيات الهدف",reprojectButton:"تحويل وحفظ طبقة مشتقة",reprojecting:"جارٍ التحويل…",reprojectDone:"تم إنشاء طبقة مشتقة جديدة. الملف الأصلي لم يتغير.",reprojectError:"فشل تحويل الإحداثيات",planDone:"تم حفظ خطة التحليل. لم يتم تشغيل أي محرك.",needProject:"أنشئ أو اختر مشروعًا أولًا.",loading:"جارٍ التحميل…",roleLabels:{dem:"نموذج ارتفاع DEM",geology_map:"خريطة جيولوجية",well_logs:"سجلات آبار",water_levels_timeseries:"سلاسل مناسيب المياه",recharge_estimate:"تقدير التغذية",aoi_boundary:"حدود منطقة الدراسة",geochemistry_samples:"عينات جيوكيميائية",waveforms_or_catalog:"بيانات زلزالية",imagery:"صور استشعار",data_layers:"طبقات GIS",crs_definition:"تعريف نظام الإحداثيات"}},
 en:{brandSub:"Geoscience platform",localMode:"Local mode",platformLabel:"GEOSCIENCE WORKSPACE · PHASE 5",heroTitle:"Geoscience, grounded in your data",heroText:"Organize geology projects, add datasets, and create traceable analysis plans.",chiefAgent:"Chief agent",agentName:"Ali Algomori",apiStatus:"API status",engineCount:"Integrated engines",execution:"Scientific execution",disabled:"Disabled",workspace:"WORKSPACE",projects:"Projects",projectName:"Project name",description:"Description",createProject:"+ Create project",activeProject:"Active project",chooseProject:"Choose a project",dataLayer:"DATA LAYER",datasets:"Datasets",datasetName:"Dataset name",dataRole:"Data role",unclassified:"Unclassified",crs:"Coordinate reference system (optional)",chooseFile:"Choose a file to upload",fileLimit:"GeoJSON, GPKG, GeoTIFF, CSV, LAS · up to 50 MiB",uploadDataset:"Store dataset",noDatasets:"No datasets in this project.",agentPlanning:"AGENT PLANNING",analysisPlan:"Analysis plan",planOnly:"Plan only",analysisRequest:"What would you like to study?",buildPlan:"Create plan",planPlaceholder:"Your plan appears here after selecting a project and submitting a request.",scientificNotice:"The platform stores data and creates preliminary plans only. No scientific engines are integrated; it does not provide drilling recommendations or resource estimates.",footerText:"Earth science built on data and evidence",apiOnline:"Online",apiOffline:"Offline",projectCreated:"Project created.",uploadDone:"Dataset stored. It has not been scientifically analyzed.",inspectDataset:"Inspect GeoJSON",inspecting:"Inspecting dataset…",inspectFailed:"Inspection failed",reportTitle:"Structural inspection report",mapTitle:"Map layers",mapChoose:"Select a GeoJSON layer",mapLoading:"Loading layer…",mapEmpty:"Upload a GeoJSON file to display it.",mapUnavailable:"Map library unavailable. Check your internet connection.",mapError:"Could not display layer",mapFeatures:"features",targetCrsLabel:"Target coordinate reference system",reprojectButton:"Reproject and save derived layer",reprojecting:"Reprojecting…",reprojectDone:"A new derived layer was created. The source remains unchanged.",reprojectError:"Reprojection failed",planDone:"Analysis plan saved. No engine was executed.",needProject:"Create or select a project first.",loading:"Loading…",roleLabels:{dem:"Elevation model (DEM)",geology_map:"Geological map",well_logs:"Well logs",water_levels_timeseries:"Water-level time series",recharge_estimate:"Recharge estimate",aoi_boundary:"Area of interest boundary",geochemistry_samples:"Geochemistry samples",waveforms_or_catalog:"Seismic data",imagery:"Imagery",data_layers:"GIS layers",crs_definition:"Coordinate reference system"}}};
 let lang="ar",projects=[],activeProject="";
+let currentPlan=null;
+
+Object.assign(i18n.ar,{planSummary:"ملخص الخطة",domains:"المجالات المحددة",specialist:"الاختصاص",candidateEngines:"محركات مرشحة (غير مفعلة)",requiredInputs:"المدخلات المطلوبة",availableInputs:"الأدوار المتوفرة",missingInputs:"المدخلات الناقصة",routeEvidence:"دليل التصنيف",knowledgeEvidence:"مراجع محلية مسترجعة",noKnowledge:"لم يُعثر على مرجع محلي معتمد لهذا الطلب.",source:"المصدر",confidence:"مستوى المطابقة",clarification:"يلزم توضيح الطلب",readiness:"جاهزية البيانات",notAssessed:"لم تُقيّم بعد",scientificBoundary:"حدود علمية",noEngine:"لم يُشغّل أي محرك علمي. هذه خطة قابلة للمراجعة وليست نتيجة علمية.",retrievalPending:"سيتم البحث بعد توضيح المجال.",chunk:"مقطع محلي",noEngines:"لا توجد محركات مرشحة لهذا الطلب."});
+Object.assign(i18n.en,{planSummary:"Plan summary",domains:"Matched domains",specialist:"Specialist",candidateEngines:"Candidate engines (not enabled)",requiredInputs:"Required inputs",availableInputs:"Available data roles",missingInputs:"Missing inputs",routeEvidence:"Routing evidence",knowledgeEvidence:"Retrieved local references",noKnowledge:"No approved local reference matched this request.",source:"Source",confidence:"Match confidence",clarification:"Clarification required",readiness:"Data readiness",notAssessed:"Not assessed yet",scientificBoundary:"Scientific boundary",noEngine:"No scientific engine ran. This is a reviewable plan, not a scientific result.",retrievalPending:"Retrieval will run after the domain is clarified.",chunk:"Local chunk",noEngines:"No candidate engines for this request."});
+
 const $=id=>document.getElementById(id);
 function tr(key){return i18n[lang][key]||key}
 function feedback(id,msg,error=false){const el=$(id);el.textContent=msg||"";el.classList.toggle("error",!!error)}
 async function api(path,options={}){const response=await fetch(path,options);const raw=await response.text();let body;try{body=JSON.parse(raw)}catch{body={detail:raw||response.statusText}}if(!response.ok)throw new Error(body.detail||response.statusText);return body}
-function setLang(next){lang=next;document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";$("langToggle").textContent=lang==="ar"?"EN":"عربي";document.querySelectorAll("[data-i18n]").forEach(el=>{el.textContent=tr(el.dataset.i18n)});renderProjects();if($("planOutput").dataset.hasPlan!=="1")$("planOutput").textContent=tr("planPlaceholder");loadDatasets()}
+function setLang(next){lang=next;document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";$("langToggle").textContent=lang==="ar"?"EN":"عربي";document.querySelectorAll("[data-i18n]").forEach(el=>{el.textContent=tr(el.dataset.i18n)});renderProjects();if(currentPlan)renderPlan(currentPlan);else $("planOutput").textContent=tr("planPlaceholder");loadDatasets()}
 function renderProjects(){const select=$("projectSelect");select.replaceChildren();const first=document.createElement("option");first.value="";first.textContent=tr("chooseProject");select.append(first);projects.forEach(p=>{const opt=document.createElement("option");opt.value=p.id;opt.textContent=p.name;select.append(opt)});select.value=activeProject}
 function bytes(n){if(n<1024)return n+" B";if(n<1048576)return(n/1024).toFixed(1)+" KiB";return(n/1048576).toFixed(1)+" MiB"}
 function mapMessage(msg,error=false){feedback("mapStatus",msg,error)}
@@ -22,6 +27,66 @@ $("reloadProjects").addEventListener("click",loadProjects);
 $("projectSelect").addEventListener("change",async e=>{activeProject=e.target.value;await loadDatasets();feedback("projectStatus","")});
 $("projectForm").addEventListener("submit",async e=>{e.preventDefault();try{const p=await api("/api/v1/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:$("projectName").value.trim(),description:$("projectDescription").value.trim(),language:lang})});activeProject=p.id;$("projectName").value="";$("projectDescription").value="";await loadProjects();feedback("projectStatus",tr("projectCreated"))}catch(err){feedback("projectStatus",err.message,true)}});
 $("datasetForm").addEventListener("submit",async e=>{e.preventDefault();if(!activeProject){feedback("uploadStatus",tr("needProject"),true);return}const file=$("fileInput").files[0];if(!file)return;feedback("uploadStatus",tr("loading"));try{const headers={"X-Dataset-Name":$("datasetName").value.trim()||file.name,"X-Filename":file.name};if($("dataRole").value)headers["X-Data-Role"]=$("dataRole").value;if($("crsInput").value.trim())headers["X-CRS"]=$("crsInput").value.trim();await api("/api/v1/projects/"+encodeURIComponent(activeProject)+"/datasets",{method:"POST",headers:headers,body:file});$("fileInput").value="";$("datasetName").value="";await loadDatasets();feedback("uploadStatus",tr("uploadDone"))}catch(err){feedback("uploadStatus",err.message,true)}});
-$("jobForm").addEventListener("submit",async e=>{e.preventDefault();if(!activeProject){feedback("jobStatus",tr("needProject"),true);return}feedback("jobStatus",tr("loading"));try{const job=await api("/api/v1/projects/"+encodeURIComponent(activeProject)+"/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request:$("analysisRequest").value.trim(),language:lang})});$("planOutput").textContent=JSON.stringify(job.plan,null,2);$("planOutput").dataset.hasPlan="1";feedback("jobStatus",tr("planDone"))}catch(err){feedback("jobStatus",err.message,true)}});
+
+function planElement(tag,className,text){const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined&&text!==null)node.textContent=String(text);return node}
+function planSection(container,title){const section=planElement("section","plan-section");section.append(planElement("h3","plan-section-title",title));container.append(section);return section}
+function planList(container,items,className="plan-chip-list"){const list=planElement("ul",className);(items||[]).forEach(item=>{const li=planElement("li","",item);list.append(li)});container.append(list);return list}
+function safeCitationUrl(value){try{const url=new URL(value);return url.protocol==="https:"?url.href:null}catch{return null}}
+function renderPlan(plan){
+ const output=$("planOutput");output.replaceChildren();output.dataset.hasPlan="1";
+ const header=planElement("div","plan-render-header");
+ const agent=planElement("div","plan-agent-name",plan.chief_agent?.name_ar&&lang==="ar"?plan.chief_agent.name_ar:(plan.chief_agent?.name_en||"Ali Algomori"));
+ header.append(agent,planElement("span","plan-state",plan.needs_clarification?tr("clarification"):tr("planOnly")));
+ output.append(header);
+ const summary=planSection(output,tr("planSummary"));
+ summary.append(planElement("p","plan-summary-text",plan.disclaimer||tr("noEngine")));
+ if(plan.needs_clarification&&plan.clarification_question){
+  const clarification=planElement("div","plan-clarification",plan.clarification_question);summary.append(clarification);
+ }
+ const domains=plan.steps||[];
+ if(domains.length){
+  const section=planSection(output,tr("domains"));
+  domains.forEach(step=>{
+   const card=planElement("article","plan-domain-card");
+   card.append(planElement("h4","plan-domain-name",step.domain||"—"));
+   const specialist=(plan.agent_assignments||[]).find(x=>x.role_id===({hydrology:"groundwater_specialist",geology3d:"geology3d_specialist",seismology:"seismology_specialist",exploration:"mineral_exploration_specialist",remote_sensing:"remote_sensing_specialist",gis:"gis_specialist"}[step.domain]));
+   if(specialist)card.append(planElement("p","plan-domain-meta",tr("specialist")+": "+(lang==="ar"?specialist.name_ar:specialist.name_en)));
+   card.append(planElement("p","plan-domain-meta",tr("confidence")+": "+(step.confidence_level||"—")));
+   const engines=planSection(card,tr("candidateEngines"));planList(engines,step.candidate_engines||[]);
+   const inputs=planSection(card,tr("requiredInputs"));planList(inputs,(step.required_inputs||[]).map(x=>i18n[lang].roleLabels?.[x]||x));
+   if(step.routing_evidence?.length){const evidence=planSection(card,tr("routeEvidence"));planList(evidence,step.routing_evidence,"plan-evidence-list")}
+   section.append(card);
+  });
+ }else if(!plan.needs_clarification){output.append(planElement("p","plan-empty",tr("noEngines")))}
+ if(plan.data_readiness){
+  const ready=planSection(output,tr("readiness"));
+  const data=plan.data_readiness;
+  ready.append(planElement("p","plan-domain-meta",tr("availableInputs")+": "+((data.available_inputs||[]).map(x=>i18n[lang].roleLabels?.[x]||x).join("، ")||"—")));
+  if(data.readiness_status==="not_assessed")ready.append(planElement("p","plan-clarification",tr("notAssessed")));
+  else if(data.missing_inputs?.length)planList(ready,data.missing_inputs.map(x=>i18n[lang].roleLabels?.[x]||x),"plan-missing-list");
+  else if(data.readiness_status==="assessed")ready.append(planElement("p","plan-domain-meta",tr("missingInputs")+": 0"));
+  ready.append(planElement("p","plan-domain-meta",data.execution_blocked_reason||""));
+ }
+ const retrieval=plan.knowledge_retrieval;
+ if(retrieval){
+  const section=planSection(output,tr("knowledgeEvidence"));
+  if(retrieval.status==="deferred_until_clarification")section.append(planElement("p","plan-domain-meta",tr("retrievalPending")));
+  else if(!retrieval.results?.length)section.append(planElement("p","plan-domain-meta",tr("noKnowledge")));
+  (retrieval.results||[]).forEach(item=>{
+   const card=planElement("article","plan-reference-card");
+   card.append(planElement("h4","plan-reference-title",item.title||item.source_id||tr("source")));
+   card.append(planElement("p","plan-domain-meta",[item.author,item.publisher,item.language,item.license_name].filter(Boolean).join(" · ")));
+   card.append(planElement("p","plan-reference-excerpt",item.excerpt||""));
+   card.append(planElement("small","plan-domain-meta",tr("chunk")+" "+(item.chunk_number||"—")+" · SHA-256 "+(item.file_sha256||"—")));
+   const url=safeCitationUrl(item.source_url);
+   if(url){const link=planElement("a","plan-reference-link",tr("source")+" ↗");link.href=url;link.target="_blank";link.rel="noopener noreferrer";card.append(link)}
+   section.append(card);
+  });
+ }
+ const boundary=planSection(output,tr("scientificBoundary"));
+ boundary.append(planElement("p","plan-domain-meta",tr("noEngine")));
+}
+
+$("jobForm").addEventListener("submit",async e=>{e.preventDefault();if(!activeProject){feedback("jobStatus",tr("needProject"),true);return}feedback("jobStatus",tr("loading"));try{const job=await api("/api/v1/projects/"+encodeURIComponent(activeProject)+"/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request:$("analysisRequest").value.trim(),language:lang})});currentPlan=job.plan;renderPlan(currentPlan);feedback("jobStatus",tr("planDone"))}catch(err){feedback("jobStatus",err.message,true)}});
 async function start(){setLang("ar");initMap();await loadHealth();await loadProjects()}
 start();
