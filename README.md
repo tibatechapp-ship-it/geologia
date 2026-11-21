@@ -9,14 +9,14 @@ This repository is the starting foundation for GEOLOGIA and its planned chief ag
 - Projects, dataset registration/upload, job status, and tool registry
 - Safe structural GeoJSON summary (geometry counts and bounding box only)
 - Validation gate and provenance manifest
-- Automated CI workflow and tests
+- Automated CI workflow and tests in the prepared source package
 
 GeoPackage and GeoTIFF can be registered, but are not analyzed until isolated GDAL/GeoPandas/Rasterio workers are integrated. This foundation does **not** generate geological interpretations, groundwater-yield estimates, mineral probabilities, or drilling recommendations.
 
 ## Source status
-The Phase 0/1 source package has been prepared and locally validated, but the application source tree has **not yet been transferred into this repository**. This repository currently contains bootstrap documentation and a validation record, not a runnable implementation. Track the remaining source-transfer and release work in [Issue #1](https://github.com/tibatechapp-ship-it/geologia/issues/1).
+The Phase 0/1 source package has been prepared and validated locally, but the application source tree has **not yet been transferred into this repository**. This repository currently contains bootstrap documentation and a validation record, not a runnable implementation. Track source transfer and release readiness in [Issue #1](https://github.com/tibatechapp-ship-it/geologia/issues/1).
 
-Local validation of the prepared package: **8 tests passed** and `compileall` passed. Ruff could not be run in the local environment because it is not installed; CI installs Ruff through the development dependencies.
+Latest local validation of the prepared package: **11 tests passed**, `compileall` passed, and a Python wheel built successfully. The package also includes a Dockerfile and a Compose configuration bound to localhost by default. Docker itself is not installed in the validation environment, so an actual container build/run has not been verified. Ruff is included in CI but was unavailable locally.
 
 ## Planned quick start (after source transfer)
 ```bash
