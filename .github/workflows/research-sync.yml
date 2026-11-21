@@ -45,9 +45,9 @@ jobs:
           title: "chore(research): refresh geoscience review inbox"
           commit-message: "chore(research): refresh metadata review inbox"
           body: |
-            Automated metadata-only discovery of recent geoscience and geotechnology publications.
+            Automated metadata-only discovery of recent geoscience and geotechnology publications using English, Arabic, Russian, and Chinese query groups. The candidate record retains the publication language when Crossref provides it.
 
-            **Review required:** check source identity, methodology, evidence, licensing, and relevance. Comment on this PR to discuss candidates. Merge only references you approve.
+            **Review required:** check source identity, methodology, evidence, licensing, and relevance. Open access is not a license; keep non-commercial/no-derivatives material metadata-only unless explicit permission is recorded. Comment on this PR to discuss candidates. Merge only references you approve.
 
             This workflow does not download full papers, execute research code, approve scientific claims, or modify application logic. It creates a candidate inbox; human review is required before any candidate becomes an application reference or implementation.
           add-paths: |
