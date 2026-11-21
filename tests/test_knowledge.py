@@ -1,0 +1,109 @@
+from pathlib import Path
+
+import pytest
+
+from geologia import knowledge
+
+
+@pytest.fixture
+def local_index(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "application.sqlite3"))
+    monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
+    knowledge.initialize()
+    return tmp_path
+
+
+def metadata(**overrides):
+    values = {
+        "source_id": "hydro-textbook-001",
+        "title": "Groundwater and recharge",
+        "author": "Research Group",
+        "publisher": "Open Geoscience Archive",
+        "source_url": "https://example.org/groundwater",
+        "doi": "",
+        "license_name": "CC BY 4.0",
+        "license_status": "open_license",
+        "reviewed_by": "local reviewer",
+        "review_date": "2026-11-21",
+        "language": "en",
+    }
+    values.update(overrides)
+    return values
+
+
+def test_chunking_is_bounded_and_overlaps_long_text():
+    paragraph = "groundwater recharge aquifer stratigraphy " * 150
+    chunks = knowledge.chunk_text(paragraph)
+    assert len(chunks) > 1
+    assert all(0 < len(chunk) <= knowledge.MAX_CHUNK_CHARS for chunk in chunks)
+    assert chunks[0][-80:] in chunks[1]
+
+
+def test_ingest_and_search_return_reviewed_citation_metadata(local_index):
+    source = local_index / "source.md"
+    source.write_text(
+        "# Groundwater\n\nAquifer recharge and groundwater levels are measured "
+        "with observation wells.\n\nHydrogeology uses a clear water balance.",
+        encoding="utf-8",
+    )
+    result = knowledge.ingest_document(source, metadata())
+    assert result["status"] == "indexed"
+    assert result["chunk_count"] >= 1
+
+    found = knowledge.search("aquifer recharge", limit=3)
+    assert found["count"] >= 1
+    assert found["model_used"] is False
+    assert found["scientific_conclusion"] is False
+    hit = found["results"][0]
+    assert hit["source_id"] == "hydro-textbook-001"
+    assert hit["license_status"] == "open_license"
+    assert hit["source_url"] == "https://example.org/groundwater"
+    assert hit["file_sha256"] == result["file_sha256"]
+    assert "chunk_number" in hit["citation_locator"] or "chunk_number" in hit
+
+
+def test_duplicate_source_and_file_are_idempotent(local_index):
+    source = local_index / "same.txt"
+    source.write_text("Groundwater data and aquifer recharge.", encoding="utf-8")
+    first = knowledge.ingest_document(source, metadata())
+    second = knowledge.ingest_document(source, metadata())
+    assert first["status"] == "indexed"
+    assert second["status"] == "already_indexed"
+    assert second["document_id"] == first["document_id"]
+    assert knowledge.status()["document_count"] == 1
+
+
+def test_ingestion_rejects_unreviewed_license_status(local_index):
+    source = local_index / "unreviewed.txt"
+    source.write_text("Geology reference text.", encoding="utf-8")
+    with pytest.raises(ValueError, match="license_status"):
+        knowledge.ingest_document(source, metadata(license_status="unverified"))
+    assert knowledge.status()["document_count"] == 0
+
+
+def test_ingestion_rejects_invalid_utf8_and_unsupported_extension(local_index):
+    invalid = local_index / "invalid.txt"
+    invalid.write_bytes(b"\xff\xfe")
+    with pytest.raises(ValueError, match="UTF-8"):
+        knowledge.ingest_document(invalid, metadata())
+
+    unsupported = local_index / "source.pdf"
+    unsupported.write_bytes(b"not a pdf parser input")
+    with pytest.raises(ValueError, match="only UTF-8"):
+        knowledge.ingest_document(unsupported, metadata())
+
+
+def test_search_rejects_empty_and_overlong_queries(local_index):
+    with pytest.raises(ValueError, match="searchable text"):
+        knowledge.search("   ")
+    with pytest.raises(ValueError, match="500 character"):
+        knowledge.search("x" * 501)
+
+
+def test_status_reports_local_model_free_storage(local_index):
+    status = knowledge.status()
+    assert status["storage"] == "local_sqlite"
+    assert status["document_count"] == 0
+    assert status["model_required"] is False
+    assert status["network_required"] is False
+    assert status["automatic_downloads_enabled"] is False
