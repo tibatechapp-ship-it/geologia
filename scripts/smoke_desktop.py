@@ -49,8 +49,7 @@ def main() -> None:
                 except (URLError, TimeoutError):
                     time.sleep(0.25)
             else:
-                output = process.stdout.read() if process.stdout else ""
-                raise RuntimeError(f"Desktop server did not start in time:\n{output}")
+                raise RuntimeError("Desktop server did not start in time.")
 
             with urlopen(f"{base_url}/", timeout=3) as response:
                 html = response.read()
