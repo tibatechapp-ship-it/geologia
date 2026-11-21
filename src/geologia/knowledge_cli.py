@@ -1,9 +1,7 @@
 """CLI for explicit, license-reviewed local knowledge indexing."""
 import argparse
-from datetime import date
 import json
 import sqlite3
-import sys
 
 from geologia.knowledge import ingest_document
 
