@@ -413,6 +413,9 @@ def test_analysis_plan_retrieves_local_source_chunks_without_model(tmp_path, mon
     assert retrieval["status"] == "local_references_found"
     assert retrieval["model_used"] is False
     assert retrieval["scientific_conclusion"] is False
+    assert retrieval["evidence_summary"]["matched_query_terms"]
+    assert retrieval["evidence_summary"]["coverage_scope"] == "returned_results"
+    assert retrieval["evidence_interpretation"].startswith("local lexical retrieval only")
     assert retrieval["results"][0]["source_id"] == "plan-hydro-01"
 
 
