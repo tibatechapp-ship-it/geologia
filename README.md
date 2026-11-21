@@ -2,7 +2,7 @@
 
 **Bilingual open-source geoscience platform** — engineering foundation, not a certified scientific analysis system.
 
-The planned chief agent is **المهندس الجمهوري**. The current API provides a local workspace for projects, datasets, and durable analysis-plan records. It does not execute scientific engines.
+The local, model-independent chief geoscience agent is **Ali Algomori (علي الگوموري)**. Its current routing and planning core is deterministic and evidence-backed; it is not a trained neural model or a substitute for scientific engines. The current API provides a local workspace for projects, datasets, and durable analysis-plan records. It does not execute scientific engines.
 
 ## Current source scope
 
