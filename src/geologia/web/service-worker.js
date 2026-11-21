@@ -1,7 +1,7 @@
 "use strict";
 
 const CACHE_PREFIX = "geologia-shell-";
-const CACHE_NAME = "geologia-shell-v1";
+const CACHE_NAME = "geologia-shell-v2";
 const SHELL_ASSETS = [
   "/",
   "/style.css",
@@ -11,20 +11,22 @@ const SHELL_ASSETS = [
 ];
 
 self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_ASSETS))
-  );
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(SHELL_ASSETS);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
       keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
         .map(key => caches.delete(key))
-    ))
-  );
-  self.clients.claim();
+    );
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener("fetch", event => {
@@ -38,31 +40,34 @@ self.addEventListener("fetch", event => {
   if (url.pathname.startsWith("/api/") || url.pathname === "/health") return;
 
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request).then(response => {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
         if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put("/", copy));
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put("/", response.clone());
         }
         return response;
-      }).catch(async () => {
+      } catch {
         const cached = await caches.match("/");
-        return cached || new Response("GEOLOGIA is offline. Start the local API and reload.",
-          { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
-      })
-    );
+        return cached || new Response("GEOLOGIA is offline. Start the local API and reload.", {
+          status: 503,
+          headers: { "Content-Type": "text/plain; charset=utf-8" }
+        });
+      }
+    })());
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then(async cached => {
-      if (cached) return cached;
-      const response = await fetch(request);
-      if (response.ok) {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-      }
-      return response;
-    })
-  );
+  event.respondWith((async () => {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  })());
 });
