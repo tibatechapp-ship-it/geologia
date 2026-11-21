@@ -33,6 +33,8 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44917359033
 
 ## Implemented
 
+- Phase 7 foundation: versioned CSV/GeoJSON validation profiles, persisted reports, and a bilingual UI validation action. Details: [DATA_VALIDATION.md](DATA_VALIDATION.md).
+
 - Phase 1: FastAPI, SQLite projects/jobs, deterministic plan records.
 - Phase 2: bounded streaming dataset intake, generated storage paths, SHA-256, strict JSON and structural GeoJSON validation.
 - Phase 3: deterministic domain routing, specialist role labels, and required-role coverage reporting that explicitly does not claim content validation.
@@ -54,3 +56,4 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44917359033
 - Engine license reviews are pending individually; the platform license does not relicense third-party engines.
 - GeoJSON checks are structural only, not complete OGC conformance, topology, or scientific validation.
 - Successful Leaflet rendering, map interaction, CRS reprojection through the browser, accessibility, and mobile browser behavior still require end-to-end coverage.
+- Role-specific schema validation currently covers only groundwater-level CSV and AOI GeoJSON; it does not establish scientific validity.
