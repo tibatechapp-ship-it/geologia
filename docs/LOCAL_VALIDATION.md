@@ -17,6 +17,10 @@ The runnable application source is committed to the default branch `main`.
 - Desktop PR #14 validation [#44941262275](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44941262275) passed all three Python versions; 73 tests passed on Python 3.12. Portable Windows, Linux, and macOS binaries passed packaged HTTP health, root-page, and manifest smoke checks.
 - Main desktop build [#44941454934](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44941454934) passed and uploaded three artifacts (Windows x64, Linux x64, macOS ARM64). Artifacts are retained for 30 days.
 - Main CI after desktop merge [#44941454941](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44941454941) passed the Python 3.12/3.14/3.15 matrix; 73 tests passed on Python 3.12.
+- Main CI after core knowledge pack [#44942822111](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44942822111) passed all three Python versions; 78 tests passed on Python 3.12.
+- Main portable desktop artifacts [#44942822099](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44942822099) passed on Windows x64, Linux x64, and macOS ARM64; artifact sizes were approximately 16.4 MB, 30.9 MB, and 15.0 MB respectively (30-day retention).
+- Multilingual research-sync PR #17 [#44943072702](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44943072702) passed all three Python versions; 82 tests passed on Python 3.12.
+- Live Crossref synchronization was not manually dispatched during this validation; the PR validates query logic and language handling with unit tests. Provider availability and candidate volume remain subject to the scheduled/manual workflow.
 
 ## Implemented
 
@@ -32,6 +36,8 @@ The runnable application source is committed to the default branch `main`.
 - Ali agent status endpoint and explicit model-independent runtime contract.
 - Local SQLite knowledge retrieval foundation with FTS5/token-scan fallback, explicit license-reviewed ingestion, SHA-256 deduplication, and source-attributed chunks; no model or auto-download.
 - Built-in 12-note bilingual GEOLOGIA core pack, auto-seeded locally on first search/status; no external publication text copied.
+- Crossref metadata discovery expanded to English, Arabic, Russian, and Chinese query groups; publication language is retained and all candidates remain human-review-only.
+- Portable desktop artifacts are published by the main-branch build workflow; they are unsigned executables, not native installers.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
 - Full-history findings and remaining blockers: [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md).
