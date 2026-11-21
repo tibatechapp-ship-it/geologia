@@ -34,6 +34,16 @@ raise SystemExit(0 if payload.get("service") == "geologia" else 1)
 PY
 }
 
+if is_geologia_healthy; then
+  echo "GEOLOGIA is already running at $BASE_URL"
+  if command -v termux-open-url >/dev/null 2>&1; then
+    termux-open-url "$BASE_URL" || true
+  else
+    echo "Open this address in your browser: $BASE_URL"
+  fi
+  exit 0
+fi
+
 if [ -f "$PID_FILE" ]; then
   OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
   case "$OLD_PID" in
