@@ -17,7 +17,7 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 - Phase 3: deterministic domain routing, specialist role labels, and required-input role coverage.
 - Phase 4: bilingual Arabic RTL / English LTR web workspace.
 - Phase 5: CRS inspection and GeoJSON reprojection through optional pyproj.
-- Python support was raised to 3.12+, Pydantic was aligned to v2 for the modern FastAPI dependency range, and CI now covers Python 3.12, 3.14, and 3.15.
+- Python support was raised to 3.12+, Pydantic was aligned to v2 for the modern FastAPI dependency range, and CI covers Python 3.12, 3.14, and 3.15.
 - GitHub Actions were upgraded to current major releases to avoid the runner's Node 20 deprecation path.
 
 ## Defects found and addressed in this review
@@ -44,14 +44,14 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 
 ## Verified by GitHub Actions
 
-The latest fully green code validation is [Run #51](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490), on commit `41609ccfac282f32d702436a8ca4f1f54570f658`:
+The latest fully green main-branch validation is [Run #54](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916671711), on commit `29ba9f8dddef22f95c1b2049c9272ae26a2d25a5`:
 - Python 3.12, 3.14, and 3.15 all passed.
 - Editable install with development and GIS extras passed.
 - JavaScript syntax check, Ruff, compileall, and pytest passed.
 - The run reported 32 passing tests per Python version.
-- One upstream deprecation warning remains in Starlette's TestClient use of AnyIO's deprecated `BlockingPortal` alias. No application startup deprecation or Node 20 action warning remains.
+- One upstream deprecation warning remains in Starlette's TestClient use of AnyIO's deprecated `BlockingPortal` alias. This is a warning, not a failing test.
 
-This run includes the strict JSON handling, normalized-input validation, readiness semantics, lifespan modernization, current GitHub Actions, and engineering-audit documentation.
+This run validates the current main-branch code, including strict JSON handling, normalized-input validation, readiness semantics, lifespan modernization, and the CLI loopback guard. It does not include browser automation.
 
 ## Known blockers — do not represent as production-ready
 
@@ -75,7 +75,8 @@ This run includes the strict JSON handling, normalized-input validation, readine
 - No provenance model yet records software versions, exact transformation parameters, input snapshots, and reproducible run artifacts for scientific computations.
 
 ### Frontend and test coverage
-- CI checks JavaScript syntax but does not run browser-based end-to-end tests.
+- Main currently has API-level frontend checks and JavaScript syntax validation, but no merged browser-based end-to-end suite.
+- Draft PR #7 adds Playwright coverage for project creation, language switching, GeoJSON upload/inspection, and plan-only behavior. Its Chromium CI result must pass before it is considered verified.
 - The map view depends on externally hosted map assets/tiles; local data storage does not imply a fully offline map experience.
 - No accessibility audit, cross-browser/mobile interaction suite, or performance budget has been completed.
 
@@ -85,14 +86,13 @@ This run includes the strict JSON handling, normalized-input validation, readine
 
 ## Ordered next work
 
-1. Close the current CI run and fix every lint, test, packaging, or runtime failure before adding features.
-2. Add browser-level tests for project creation, upload, language switching, map rendering, inspection, and reprojection.
-3. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
-4. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
-5. Build a typed data-validation layer for GeoJSON, CSV, GeoPackage, GeoTIFF, and LAS; never infer scientific validity from filenames or role tags.
-6. Introduce a durable job queue and isolated workers only after job state transitions, cancellation, retries, timeouts, resource limits, and provenance are specified and tested.
-7. Integrate scientific engines one at a time, with pinned versions, license review, published benchmark datasets, known-answer tests, uncertainty reporting, and independent scientific review.
-8. Verify Termux separately on the user's device; record exact commands, package versions, and outputs.
+1. Complete and verify the browser-level test suite, then add map rendering and reprojection interaction coverage.
+2. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
+3. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
+4. Build a typed data-validation layer for GeoJSON, CSV, GeoPackage, GeoTIFF, and LAS; never infer scientific validity from filenames or role tags.
+5. Introduce a durable job queue and isolated workers only after job state transitions, cancellation, retries, timeouts, resource limits, and provenance are specified and tested.
+6. Integrate scientific engines one at a time, with pinned versions, license review, published benchmark datasets, known-answer tests, uncertainty reporting, and independent scientific review.
+7. Verify Termux separately on the user's device; record exact commands, package versions, and outputs.
 
 ## Acceptance rule
 
