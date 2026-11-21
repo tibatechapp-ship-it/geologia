@@ -1,14 +1,27 @@
-"""Deterministic GeoJSON structural inspection; no scientific interpretation."""
+"""Deterministic GeoJSON and CSV structural inspection; no scientific interpretation."""
 import csv
 import math
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
 GEOMETRY_TYPES = {
     "Point", "MultiPoint", "LineString", "MultiLineString",
     "Polygon", "MultiPolygon", "GeometryCollection",
 }
+
+
+def _position(value: Any) -> tuple[float, float]:
+    """Validate a GeoJSON position, including optional Z/extra ordinates."""
+    if not isinstance(value, list) or len(value) < 2:
+        raise ValueError("coordinate positions require at least x and y")
+    ordinates = []
+    for ordinate in value:
+        if (not isinstance(ordinate, (int, float)) or isinstance(ordinate, bool)
+                or not math.isfinite(ordinate)):
+            raise ValueError("all coordinate ordinates must be finite numbers")
+        ordinates.append(float(ordinate))
+    return ordinates[0], ordinates[1]
 
 
 def inspect_geojson(payload: Any) -> dict[str, Any]:
@@ -31,24 +44,33 @@ def inspect_geojson(payload: Any) -> dict[str, Any]:
     ys: list[float] = []
     null_geometry_count = 0
 
-    def walk_coordinates(value: Any) -> None:
+    def add_position(position: Any) -> None:
         nonlocal coordinate_count
+        x, y = _position(position)
+        xs.append(x)
+        ys.append(y)
+        coordinate_count += 1
+
+    def line(value: Any) -> None:
+        if not isinstance(value, list) or len(value) < 2:
+            raise ValueError("LineString coordinates require at least two positions")
+        for position in value:
+            add_position(position)
+
+    def ring(value: Any) -> None:
+        if not isinstance(value, list) or len(value) < 4:
+            raise ValueError("Polygon linear rings require at least four positions")
+        positions = [_position(position) for position in value]
+        if positions[0] != positions[-1]:
+            raise ValueError("Polygon linear rings must be closed")
+        for position in value:
+            add_position(position)
+
+    def polygon(value: Any) -> None:
         if not isinstance(value, list) or not value:
-            raise ValueError("coordinates must be non-empty arrays")
-        if isinstance(value[0], (int, float)) and not isinstance(value[0], bool):
-            if len(value) < 2:
-                raise ValueError("coordinate positions require at least x and y")
-            x, y = value[0], value[1]
-            if (not isinstance(x, (int, float)) or isinstance(x, bool)
-                    or not isinstance(y, (int, float)) or isinstance(y, bool)
-                    or not math.isfinite(x) or not math.isfinite(y)):
-                raise ValueError("coordinates must be finite numbers")
-            xs.append(float(x))
-            ys.append(float(y))
-            coordinate_count += 1
-            return
-        for child in value:
-            walk_coordinates(child)
+            raise ValueError("Polygon coordinates require at least one linear ring")
+        for item in value:
+            ring(item)
 
     def walk_geometry(geometry: Any) -> None:
         nonlocal null_geometry_count
@@ -59,16 +81,34 @@ def inspect_geojson(payload: Any) -> dict[str, Any]:
             raise ValueError("invalid GeoJSON geometry object")
         geometry_type = geometry["type"]
         geometry_counts[geometry_type] += 1
+        coordinates = geometry.get("coordinates")
         if geometry_type == "GeometryCollection":
             geometries = geometry.get("geometries")
             if not isinstance(geometries, list):
                 raise ValueError("GeometryCollection.geometries must be an array")
             for child in geometries:
                 walk_geometry(child)
-        else:
-            if "coordinates" not in geometry:
-                raise ValueError("geometry is missing coordinates")
-            walk_coordinates(geometry["coordinates"])
+        elif geometry_type == "Point":
+            add_position(coordinates)
+        elif geometry_type == "MultiPoint":
+            if not isinstance(coordinates, list) or not coordinates:
+                raise ValueError("MultiPoint coordinates must be a non-empty array")
+            for position in coordinates:
+                add_position(position)
+        elif geometry_type == "LineString":
+            line(coordinates)
+        elif geometry_type == "MultiLineString":
+            if not isinstance(coordinates, list) or not coordinates:
+                raise ValueError("MultiLineString coordinates must be a non-empty array")
+            for item in coordinates:
+                line(item)
+        elif geometry_type == "Polygon":
+            polygon(coordinates)
+        elif geometry_type == "MultiPolygon":
+            if not isinstance(coordinates, list) or not coordinates:
+                raise ValueError("MultiPolygon coordinates must be a non-empty array")
+            for item in coordinates:
+                polygon(item)
 
     for feature in features:
         if not isinstance(feature, dict) or feature.get("type") != "Feature":
