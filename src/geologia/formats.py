@@ -15,6 +15,9 @@ MAX_RASTER_PIXELS = 100_000_000
 MAX_RASTER_BANDS = 256
 MAX_RASTER_BLOCK_BYTES = 64 * 1024 * 1024
 MAX_GPKG_LAYERS = 128
+MAX_GPKG_FIELDS = 4096
+MAX_METADATA_ITEMS = 128
+MAX_METADATA_VALUE_LENGTH = 2048
 MAX_LAS_VLRS = 10_000
 LAS_SAMPLE_POINTS = 100_000
 
@@ -130,12 +133,15 @@ def inspect_geopackage(path: Path) -> dict[str, Any]:
                 info = pyogrio.read_info(Path(path), layer=name)
             except Exception as exc:
                 raise FormatValidationError("GeoPackage layer metadata cannot be read") from exc
+            fields = list(info.get("fields", []))
+            if len(fields) > MAX_GPKG_FIELDS:
+                raise FormatValidationError("GeoPackage layer contains too many fields")
             crs = info.get("crs")
             layers.append({
                 "name": name,
                 "geometry_type": info.get("geometry_type"),
                 "feature_count": info.get("features"),
-                "fields": list(info.get("fields", [])),
+                "fields": fields,
                 "crs": crs,
                 "coordinate_units": _crs_axis_units(crs),
                 "srs_id": next((row[2] for row in contents if row[0] == name), None),
@@ -185,6 +191,14 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
             sample_height = min(height, 32)
             dataset.read(1, window=((0, sample_height), (0, sample_width)))
             tags = dataset.tags()
+            metadata = {
+                str(key)[:256]: str(value)[:MAX_METADATA_VALUE_LENGTH]
+                for key, value in list(tags.items())[:MAX_METADATA_ITEMS]
+            }
+            metadata_truncated = (
+                len(tags) > MAX_METADATA_ITEMS
+                or any(len(str(value)) > MAX_METADATA_VALUE_LENGTH for value in tags.values())
+            )
             crs = dataset.crs
             bounds = [float(value) for value in dataset.bounds]
             if not all(math.isfinite(value) for value in bounds):
@@ -210,7 +224,8 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
                 ],
                 "block_shapes": [list(shape) for shape in block_shapes],
                 "compression": [str(dataset.compression.value) if dataset.compression else None],
-                "metadata": {key: str(value) for key, value in tags.items()},
+                "metadata": metadata,
+                "metadata_truncated": metadata_truncated,
                 "vertical_reference": _vertical_reference(crs, tags),
                 "sample_window": {"width": sample_width, "height": sample_height},
                 "scientific_validation": False,
