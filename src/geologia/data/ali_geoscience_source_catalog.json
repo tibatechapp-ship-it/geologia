@@ -413,6 +413,136 @@
       ],
       "source_priority": "primary",
       "review_note": "Verify current official domain and access status before crawling."
+    },
+    {
+      "id": "qa-qu-earth-sciences",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Qatar University — Earth Sciences Cluster",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "university_research_cluster",
+      "discovery_url": "https://qu.edu.qa/en-us/Research/esc/Research/Pages/earth-sciences.aspx",
+      "discovery_status": "official_research_page",
+      "topics": [
+        "earth_system_science",
+        "coastal_geology",
+        "marine_science",
+        "environmental_geoscience",
+        "geospatial_analysis"
+      ],
+      "source_priority": "primary",
+      "review_note": "Research page verified; discover publications, datasets, and project records separately."
+    },
+    {
+      "id": "qa-qu-rs-gis",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Qatar University — Remote Sensing and GIS Laboratory",
+      "language_codes": [
+        "en"
+      ],
+      "institution_type": "university_research_lab",
+      "discovery_url": "https://engineering.qu.edu.qa/en-us/research/esc/facilities/labs/remote-sensing-and-gis",
+      "discovery_status": "official_research_page",
+      "topics": [
+        "satellite_imagery",
+        "remote_sensing",
+        "GIS",
+        "coastal_monitoring",
+        "sabkha",
+        "geology",
+        "soil_science"
+      ],
+      "source_priority": "primary",
+      "review_note": "The lab page describes satellite/aerial imagery archives and applications including geological formations, coastal erosion, and sediment distribution; archive access/licensing must be checked."
+    },
+    {
+      "id": "qa-eshailsat",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Es’hailSat — Qatar Satellite Company",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "commercial_satellite_operator",
+      "discovery_url": "https://www.eshailsat.qa/",
+      "discovery_status": "official_company_page",
+      "topics": [
+        "communications_satellites",
+        "satellite_telecommunications",
+        "satellite_ground_segment",
+        "space_industry"
+      ],
+      "source_priority": "primary",
+      "review_note": "Primarily communications satellite operator; do not misclassify Es’hail-1/2 as Earth-observation imaging satellites. Explore technical/publication records and partnerships."
+    },
+    {
+      "id": "qa-qubesat",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Qatar University — QUbeSat1 nanosatellite project",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "university_satellite_research_project",
+      "discovery_url": "https://www.qu.edu.qa/en-us/about/Documents/Campus%20Life%20%28E%29%20-%20May%202026.pdf",
+      "discovery_status": "official_university_publication",
+      "topics": [
+        "nanosatellites",
+        "CubeSat",
+        "spacecraft_engineering",
+        "student_research",
+        "space_technology"
+      ],
+      "source_priority": "primary",
+      "review_note": "University publication reports QUbeSat1; follow project technical publications and mission data availability."
+    },
+    {
+      "id": "qa-bayanat-eo",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Bayanat Engineering Qatar — Earth Observation and Remote Sensing Division",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "commercial_earth_observation_services",
+      "discovery_url": "https://www.bayanatengineering.qa/bayanat-engineering-qatar-launches-earth-observation-remote-sensing-division/",
+      "discovery_status": "official_company_announcement",
+      "topics": [
+        "earth_observation",
+        "satellite_imagery",
+        "remote_sensing",
+        "geospatial_analytics"
+      ],
+      "source_priority": "primary",
+      "review_note": "Commercial service provider announcement; verify sensor/source satellite, licensing, resolution, coverage, and product terms for each imagery offering."
+    },
+    {
+      "id": "qa-srmc",
+      "country": "Qatar",
+      "region_group": "arabian_peninsula",
+      "name": "Space Radio Monitoring Center (SRMC)",
+      "language_codes": [
+        "ar",
+        "en"
+      ],
+      "institution_type": "government_space_communications_monitoring_center",
+      "discovery_url": "https://qna.org.qa/en/news/news-bulletins-details?date=10%2F10%2F2024&id=0056-minister-of-communication-to-qna%C2%A0srmc-enhances-qatar%27s%C2%A0leadership-in-space-communications",
+      "discovery_status": "official_news_report",
+      "topics": [
+        "satellite_radio_monitoring",
+        "spectrum_monitoring",
+        "space_communications",
+        "interference_analysis"
+      ],
+      "source_priority": "primary",
+      "review_note": "Qatar News Agency report identifies center and capabilities; locate its official institutional portal and public research outputs."
     }
   ],
   "next_discovery_targets": [
@@ -438,6 +568,15 @@
         "fr",
         "de",
         "es"
+      ]
+    },
+    {
+      "id": "qatar-space-geoscience",
+      "scope": "Qatar satellite operators, QUbeSat1 and nanosatellite research, Qatar University Earth Sciences and Remote Sensing/GIS lab, Earth-observation service providers, and public geospatial datasets",
+      "status": "discovery_required",
+      "languages": [
+        "ar",
+        "en"
       ]
     }
   ]
