@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from geologia import __version__
 from geologia import store
-from geologia.planner import build_plan
+from geologia.planner import agent_status, build_plan
 from geologia.registry import get_engine, list_engines
 from geologia.vector import inspect_csv, inspect_geojson
 
@@ -117,6 +117,12 @@ def _geojson_summary(path: Path) -> dict:
 def health() -> dict:
     return {"status": "ok", "service": "geologia", "version": __version__,
             "engines_integrated": 0, "execution_enabled": False}
+
+@app.get("/api/v1/agent/status")
+def agent_status_endpoint() -> dict:
+    """Expose the model-independent local agent's declared capabilities."""
+    return agent_status()
+
 
 
 @app.get("/api/v1/engines")
