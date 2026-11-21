@@ -14,11 +14,38 @@ The planned chief agent is **المهندس الجمهوري**. The current API 
 - Bilingual Arabic RTL / English LTR web workspace for projects, dataset intake, maps, and plan display.
 - Chief-agent identity and specialist-role routing by deterministic rules (not an LLM).
 - Deterministic Arabic/English plan routing.
-- Installable PWA shell with a manifest, vector icon, and service-worker offline shell cache; API data is deliberately not cached. See [PWA installation and limits](docs/INSTALLABLE_APP.md).
+- Installable PWA shell with manifest, vector icon, and offline static-shell caching; API data is deliberately not cached. See [PWA installation and limits](docs/INSTALLABLE_APP.md).
+- Local installation and loopback-only launch scripts for Linux/macOS, Windows PowerShell, and Termux. See [Local installation](docs/LOCAL_INSTALL.md).
 - Registry with 30 catalog cards, all explicitly `planned` and `license_status: unverified`.
-- Python 3.12+ is required. CI tests Python 3.12, 3.14, and 3.15, including GIS dependencies, Ruff, JavaScript syntax, compile, and pytest. Python 3.14 remains the practical local baseline where Python 3.15 is not yet available (including the current Termux validation target).
+- Python 3.12+ is required. CI tests Python 3.12, 3.14, and 3.15, including GIS dependencies, Ruff, JavaScript syntax, compile, and pytest. Python 3.14 remains the practical local baseline where Python 3.15 is not yet available.
 
-## Quick start
+## Quick start — Linux/macOS/Termux
+
+From the repository root:
+
+```bash
+bash scripts/install-local.sh
+bash scripts/start-local.sh
+```
+
+Open `http://127.0.0.1:8000`. Choose a port with `GEOLOGIA_PORT=8123 bash scripts/start-local.sh`.
+
+For Android Termux, the one-time native build bootstrap is:
+
+```bash
+bash scripts/install-termux.sh
+bash scripts/start-local.sh
+```
+
+The bootstrap may install Rust and native build tools because some Python dependencies need compilation on Android. No AI model weights are installed. For Windows, see [Local installation](docs/LOCAL_INSTALL.md).
+
+Optional GIS dependencies are not installed by default:
+
+```bash
+bash scripts/install-local.sh --gis
+```
+
+## Developer quick start
 
 ```bash
 python3.14 -m venv .venv
@@ -37,7 +64,7 @@ Default SQLite path: `.geologia/geologia.sqlite3`. Set `GEOLOGIA_DB_PATH` to mov
 
 ## Install on phone or desktop
 
-When served from HTTPS or localhost, supported browsers can install GEOLOGIA as a standalone web app or add it to the home screen. For local use, run the Quick Start above and use the browser's **Install app** / **Add to Home screen** option.
+When served from HTTPS or localhost, supported browsers can install GEOLOGIA as a standalone web app or add it to the home screen.
 
 This provides an installable web app shell, **not a native APK/MSI/DMG/AppImage**. Offline caching covers the static interface only; API operations require the local server. The map still depends on external Leaflet assets and map tiles and is not guaranteed to work offline. See [PWA installation and limits](docs/INSTALLABLE_APP.md).
 
@@ -65,7 +92,7 @@ See [the full-history engineering audit](docs/ENGINEERING_AUDIT.md) for verified
 
 The 30 registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. Jobs remain `planned`; no geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
 
-Do not expose this development API publicly. The bundled development CLI now rejects non-loopback bind addresses. Running the ASGI app through another server can bypass that CLI guard, so remote deployment still requires authentication, authorization, quotas, private storage, isolated workers, and monitoring. Raster processing, general vector transformations, raster reprojection, worker isolation, and scientific engine adapters are not implemented. GeoJSON CRS inspection and vector reprojection are available through the optional `gis` extra. CRS metadata supplied by uploaders is treated as a declaration and is not inferred from coordinates. See [Phase 5](docs/PHASE5.md).
+Do not expose this development API publicly. The launchers bind to loopback only. Remote deployment still requires authentication, authorization, quotas, private storage, isolated workers, and monitoring. Raster processing, general vector transformations, raster reprojection, worker isolation, and scientific engine adapters are not implemented. GeoJSON CRS inspection and vector reprojection are available through the optional `gis` extra. CRS metadata supplied by uploaders is treated as a declaration and is not inferred from coordinates. See [Phase 5](docs/PHASE5.md).
 
 Development baseline: Python 3.14.x. Python 3.12 and 3.15 are included in CI compatibility coverage. Python 3.15 CI success does not imply Termux/Android compatibility. See [Phase 1](docs/PHASE1.md), [Phase 2](docs/PHASE2.md), [Phase 3](docs/PHASE3.md), and [Phase 4](docs/PHASE4.md).
 

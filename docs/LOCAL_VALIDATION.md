@@ -6,21 +6,11 @@ Updated: 2026-11-21
 
 The runnable application source is committed to the default branch `main`.
 
-## Latest code validation
+## Latest verified CI
 
-GitHub Actions run #51 for commit `41609ccfac282f32d702436a8ca4f1f54570f658` completed successfully:
-
-- Python 3.12: passed
-- Python 3.14: passed
-- Python 3.15: passed
-- JavaScript syntax check: passed
-- Ruff: passed
-- `compileall`: passed
-- `pytest`: 32 passed on each Python version
-
-One upstream Starlette TestClient deprecation warning remains: AnyIO's `BlockingPortal` alias is deprecated. Application startup no longer uses FastAPI's deprecated `on_event` API. Current GitHub Actions no longer emit the Node 20 deprecation warning.
-
-Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490
+- Main-branch run [#44939490958](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44939490958) passed after the PWA merge.
+- PWA PR validation [#44939426012](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44939426012) passed on commit `66f0b6cbe4e9d8cb6d00e2d0938ca128c82a773c`: Python 3.12, 3.14, and 3.15; 45 tests passed on Python 3.12, Ruff and compile checks passed.
+- A first intermediate commit in the PWA branch failed because the new test arrived before the HTML manifest link; the link was added, and the final PR head passed. The failure was not hidden.
 
 ## Implemented
 
@@ -29,14 +19,17 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490
 - Phase 3: deterministic domain routing, specialist role labels, and required-role coverage reporting that explicitly does not claim content validation.
 - Phase 4: bilingual Arabic RTL / English LTR frontend for projects, dataset intake, and plan display.
 - Phase 5: CRS inspection and GeoJSON reprojection using optional pyproj; derived datasets are stored without overwriting source datasets.
-- Development CLI rejects non-loopback bind addresses.
+- Installable PWA manifest, SVG icon, service worker, and static-shell offline fallback; API responses are not cached by the service worker.
+- Local installer and loopback launcher scripts for POSIX systems, Termux bootstrap, and Windows PowerShell.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
 - Full-history findings and remaining blockers: [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md).
 
 ## Explicitly not verified or not implemented
 
-- CI runs on GitHub-hosted Ubuntu; **Termux/Android itself has not been tested for this repository**.
+- CI runs on GitHub-hosted Ubuntu; **Termux/Android installation has not been validated on a physical device**. The bootstrap may need native compilation for Pydantic dependencies.
+- PWA browser installation on actual Android, Windows, macOS, and Linux devices is not yet cross-device certified.
+- No signed native APK, MSI, DMG, or AppImage release.
 - No production deployment or production authentication/authorization; keep the API bound to localhost.
 - No scientific engine is integrated or certified; `engines_integrated` remains 0.
 - GeoPackage, GeoTIFF, and LAS are stored only. CSV receives structural inspection; it is not scientifically interpreted.

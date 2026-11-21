@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -z "${TERMUX_VERSION:-}" ] || ! command -v pkg >/dev/null 2>&1; then
+  echo "This bootstrap is intended for Termux on Android." >&2
+  echo "For Linux or macOS, use: bash scripts/install-local.sh" >&2
+  exit 2
+fi
+
+echo "Installing the build tools needed by Python packages on Android."
+echo "The Rust toolchain is used only when native Python dependencies need compilation."
+pkg update -y
+pkg install -y python git clang rust make pkg-config
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+bash scripts/install-local.sh
+
+echo
+echo "GEOLOGIA is installed locally."
+echo "Start with: bash scripts/start-local.sh"
+echo "Keep the API bound to 127.0.0.1; do not expose it to the network."
