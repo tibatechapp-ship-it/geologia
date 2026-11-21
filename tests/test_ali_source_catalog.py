@@ -21,7 +21,7 @@ def test_ali_source_catalog_has_unique_stable_ids_and_valid_https_urls():
     ids = [item["id"] for item in institutions]
 
     assert len(ids) == len(set(ids))
-    assert len(institutions) >= 8
+    assert len(institutions) >= 19
 
     for item in institutions:
         assert item["id"]
@@ -34,7 +34,7 @@ def test_ali_source_catalog_has_unique_stable_ids_and_valid_https_urls():
         assert item["source_priority"] == "primary"
 
 
-def test_catalog_covers_required_geoscience_regions_and_languages():
+def test_catalog_covers_original_and_new_requested_countries():
     catalog = load_catalog()
     countries = {item["country"] for item in catalog["institutions"]}
     languages = {
@@ -43,8 +43,13 @@ def test_catalog_covers_required_geoscience_regions_and_languages():
         for language in item["language_codes"]
     }
 
-    assert {"United States", "United Kingdom", "Russia", "China", "Yemen"} <= countries
-    assert {"en", "ru", "zh", "ar"} <= languages
+    expected_countries = {
+        "United States", "United Kingdom", "Russia", "China", "Yemen",
+        "Türkiye", "Malaysia", "Indonesia", "Venezuela", "Pakistan",
+        "Afghanistan", "Algeria", "Morocco", "Mauritania", "Sudan",
+    }
+    assert expected_countries <= countries
+    assert {"en", "ru", "zh", "ar", "tr", "ms", "id", "es", "ur", "fa", "ps", "fr"} <= languages
 
 
 def test_catalog_does_not_claim_seeds_are_ingested_or_license_cleared():
