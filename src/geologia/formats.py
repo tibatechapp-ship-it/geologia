@@ -66,26 +66,43 @@ def _crs_axis_units(crs: Any) -> list[str]:
     return [axis.unit_name for axis in parsed.axis_info] if parsed is not None else []
 
 
-def _vertical_reference(crs: Any, tags: dict[str, Any] | None = None) -> dict[str, Any]:
+def _vertical_reference(
+    crs: Any, tags: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Report declared vertical CRS/tags without asserting datum verification."""
     parsed = _parsed_crs(crs)
-    vertical_crs = None
+    components = []
     if parsed is not None:
         try:
-            vertical = [item for item in parsed.sub_crs_list if item.is_vertical]
-            if vertical:
-                vertical_crs = [item.to_string() for item in vertical]
-            elif parsed.is_vertical:
-                vertical_crs = [parsed.to_string()]
+            candidates = list(parsed.sub_crs_list) if parsed.is_compound else [parsed]
+            for component in candidates:
+                if not component.is_vertical:
+                    continue
+                authority = component.to_authority()
+                datum = component.datum
+                components.append({
+                    "crs": component.to_string(),
+                    "authority": authority[0] if authority else None,
+                    "code": authority[1] if authority else None,
+                    "name": component.name,
+                    "datum_name": datum.name if datum is not None else None,
+                    "axis_units": [axis.unit_name for axis in component.axis_info],
+                    "axis_directions": [axis.direction for axis in component.axis_info],
+                })
         except (AttributeError, TypeError, ValueError):
-            vertical_crs = None
-    tag_names = []
-    for key in (tags or {}):
+            components = []
+
+    vertical_values = {}
+    for key, value in (tags or {}).items():
         lowered = str(key).lower()
         if any(token in lowered for token in ("vertical", "geoid", "datum", "height")):
-            tag_names.append(str(key))
+            vertical_values[str(key)[:256]] = str(value)[:MAX_METADATA_VALUE_LENGTH]
+
     return {
-        "declared_vertical_crs": vertical_crs,
-        "vertical_metadata_keys": sorted(tag_names),
+        "declared_vertical_crs": [item["crs"] for item in components] or None,
+        "vertical_crs_components": components,
+        "vertical_metadata_keys": sorted(vertical_values),
+        "vertical_metadata_values": vertical_values,
         "vertical_datum_verified": False,
         "vertical_transformation_performed": False,
     }
