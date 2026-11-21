@@ -129,8 +129,10 @@ def validate_csv_file(path: Path, data_role: str | None) -> dict[str, Any]:
             ),
         })
 
-        if timestamp_candidates and measurement_index is not None:
-            timestamp_index = normalized.index(timestamp_candidates[0])
+        if timestamp_candidates or measurement_index is not None:
+            timestamp_index = (
+                normalized.index(timestamp_candidates[0]) if timestamp_candidates else None
+            )
             try:
                 with path.open("r", encoding="utf-8-sig", newline="") as source:
                     reader = csv.reader(source, strict=True)
@@ -141,42 +143,48 @@ def validate_csv_file(path: Path, data_role: str | None) -> dict[str, Any]:
                         rows_checked += 1
                         if len(row) != len(headers):
                             continue
-                        timestamp_value = row[timestamp_index].strip()
-                        try:
-                            datetime.fromisoformat(timestamp_value.replace("Z", "+00:00"))
-                        except ValueError:
-                            invalid_timestamps += 1
-                            if invalid_timestamps <= 20:
-                                errors.append({
-                                    "code": "profile.timestamp.invalid",
-                                    "message": "Timestamp must use an ISO-8601 date or datetime.",
-                                    "row": row_number,
-                                })
-                        measurement_value = row[measurement_index].strip()
-                        try:
-                            numeric = float(measurement_value)
-                            if not math.isfinite(numeric):
-                                raise ValueError("not finite")
-                        except ValueError:
-                            invalid_measurements += 1
-                            if invalid_measurements <= 20:
-                                errors.append({
-                                    "code": "profile.water_level_m.invalid",
-                                    "message": "water_level_m must be a finite numeric value.",
-                                    "row": row_number,
-                                })
+                        if timestamp_index is not None:
+                            timestamp_value = row[timestamp_index].strip()
+                            try:
+                                datetime.fromisoformat(timestamp_value.replace("Z", "+00:00"))
+                            except ValueError:
+                                invalid_timestamps += 1
+                                if invalid_timestamps <= 20:
+                                    errors.append({
+                                        "code": "profile.timestamp.invalid",
+                                        "message": (
+                                            "Timestamp must use an ISO-8601 date or datetime."
+                                        ),
+                                        "row": row_number,
+                                    })
+                        if measurement_index is not None:
+                            measurement_value = row[measurement_index].strip()
+                            try:
+                                numeric = float(measurement_value)
+                                if not math.isfinite(numeric):
+                                    raise ValueError("not finite")
+                            except ValueError:
+                                invalid_measurements += 1
+                                if invalid_measurements <= 20:
+                                    errors.append({
+                                        "code": "profile.water_level_m.invalid",
+                                        "message": "water_level_m must be a finite numeric value.",
+                                        "row": row_number,
+                                    })
             except (UnicodeDecodeError, csv.Error, OSError) as exc:
                 errors.append({"code": "csv.parse", "message": str(exc)})
         checks.append({
             "code": "profile.timestamp.iso8601",
-            "status": "failed" if invalid_timestamps else (
-                "passed" if timestamp_candidates and measurement_index is not None else "not_run"
+            "status": (
+                "failed" if invalid_timestamps else "passed" if timestamp_candidates else "not_run"
             ),
         })
         checks.append({
             "code": "profile.water_level_m.finite_numeric",
-            "status": "failed" if invalid_measurements else (
-                "passed" if measurement_index is not None and timestamp_candidates else "not_run"
+            "status": (
+                "failed" if invalid_measurements else (
+                    "passed" if measurement_index is not None else "not_run"
+                )
             ),
         })
     else:
