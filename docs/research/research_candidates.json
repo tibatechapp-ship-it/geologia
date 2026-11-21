@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "generated_at": null,
+  "sync_window_days": 180,
+  "provider": "Crossref REST API",
+  "provider_url": "https://api.crossref.org/",
+  "mode": "metadata_and_abstract_excerpt_only",
+  "status": "review_inbox_not_approved_references",
+  "candidate_count": 0,
+  "provider_errors": [],
+  "policy": {
+    "no_fulltext_download": true,
+    "no_source_code_execution": true,
+    "no_automatic_scientific_claim_approval": true,
+    "no_automatic_application_code_changes": true,
+    "human_review_and_pull_request_required": true
+  },
+  "candidates": []
+}
