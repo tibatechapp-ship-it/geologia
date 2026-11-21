@@ -27,6 +27,7 @@ def test_geoid_model_reference_registry_has_primary_sources_and_explicit_limits(
     assert "nga-egm96-grid" in source_ids
     assert "nga-egm2008-grid" in source_ids
     assert "noaa-egm96-concept" in source_ids
+    assert "geographiclib-geoid-500k-testdata" in source_ids
 
     status = registry["status"]
     assert status["grid_bundled"] is False
@@ -52,3 +53,27 @@ def test_geoid_grid_manifest_requires_checksum_conventions_and_operation_metadat
     assert any("independently published" in gate for gate in gates)
     assert any("outside coverage" in gate for gate in gates)
     assert any("reject unavailable" in gate for gate in gates)
+
+
+def test_geoid_numerical_reference_dataset_is_pinned_and_scientifically_scoped():
+    registry = json.loads((DATA / "geoid_model_reference.json").read_text())
+    dataset = next(
+        item for item in registry["reference_datasets"]
+        if item["id"] == "geographiclib-geoid-heights-500k"
+    )
+
+    assert dataset["point_count"] == 500000
+    assert dataset["columns"] == [
+        "latitude_degrees",
+        "longitude_degrees",
+        "EGM84_geoid_height_m",
+        "EGM96_geoid_height_m",
+        "EGM2008_geoid_height_m",
+    ]
+    assert dataset["distribution_sha256"] == (
+        "e0b9804694b3eac78ffd0b3df9cffd30a134d72007276e732ff72f9651bc9995"
+    )
+    assert any("NGA harmonic-synthesis programs" in dataset["oracle_method"] for _ in [0])
+    assert any("Not an independent field survey" in limitation for limitation in dataset["limitations"])
+    assert registry["status"]["numerical_reference_dataset_identified"] is True
+    assert registry["status"]["numerical_known_answer_points_bundled"] is False
