@@ -11,13 +11,13 @@ from typing import Literal
 from uuid import uuid4
 
 import uvicorn
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from geologia import __version__
-from geologia import store
+from geologia import knowledge, store
 from geologia.planner import agent_status, build_plan
 from geologia.registry import get_engine, list_engines
 from geologia.vector import inspect_csv, inspect_geojson
@@ -25,6 +25,7 @@ from geologia.vector import inspect_csv, inspect_geojson
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     store.initialize()
+    knowledge.initialize()
     yield
 
 
@@ -122,6 +123,24 @@ def health() -> dict:
 def agent_status_endpoint() -> dict:
     """Expose the model-independent local agent's declared capabilities."""
     return agent_status()
+
+
+@app.get("/api/v1/knowledge/status")
+def knowledge_status_endpoint() -> dict:
+    """Return local knowledge index counts and active search backend."""
+    return knowledge.status()
+
+
+@app.get("/api/v1/knowledge/search")
+def knowledge_search_endpoint(
+    q: str = Query(..., min_length=1, max_length=500),
+    limit: int = Query(5, ge=1, le=20),
+) -> dict:
+    """Search only locally ingested, license-reviewed source text."""
+    try:
+        return knowledge.search(q, limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 
@@ -445,6 +464,27 @@ def jobs_create(project_id: str, body: JobInput) -> dict:
             "content_validation": "not_performed",
             "execution_allowed": False,
             "execution_blocked_reason": "No scientific engine is integrated or certified.",
+        }
+    if plan["needs_clarification"]:
+        plan["knowledge_retrieval"] = {
+            "status": "deferred_until_clarification",
+            "retrieval_method": "local_only",
+            "model_used": False,
+            "scientific_conclusion": False,
+            "results": [],
+        }
+    else:
+        retrieval = knowledge.search(body.request, limit=3)
+        plan["knowledge_retrieval"] = {
+            "status": (
+                "local_references_found"
+                if retrieval["count"]
+                else "no_approved_local_sources"
+            ),
+            "retrieval_method": retrieval["retrieval_method"],
+            "model_used": False,
+            "scientific_conclusion": False,
+            "results": retrieval["results"],
         }
     return store.create_job(project_id, body.request, body.language, plan)
 
