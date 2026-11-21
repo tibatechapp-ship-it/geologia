@@ -16,7 +16,18 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 bash scripts/install-local.sh
 
+SHORTCUTS_DIR="$HOME/.shortcuts"
+mkdir -p "$SHORTCUTS_DIR"
+{
+  printf '#!/usr/bin/env bash\n'
+  printf 'export GEOLOGIA_PROJECT_DIR=%q\n' "$ROOT_DIR"
+  printf 'exec bash %q\n' "$ROOT_DIR/scripts/termux-widget-start.sh"
+} > "$SHORTCUTS_DIR/GEOLOGIA"
+chmod 700 "$SHORTCUTS_DIR/GEOLOGIA"
+
 echo
 echo "GEOLOGIA is installed locally."
-echo "Start with: bash scripts/start-local.sh"
+echo "Start in a terminal: bash scripts/start-local.sh"
+echo "Optional one-tap launcher: install the Termux:Widget app, then add the GEOLOGIA shortcut."
+echo "Stop: bash scripts/termux-widget-stop.sh"
 echo "Keep the API bound to 127.0.0.1; do not expose it to the network."
