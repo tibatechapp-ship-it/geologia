@@ -41,6 +41,8 @@ def test_windows_installer_and_launcher_bind_to_loopback():
     launcher = (SCRIPTS / "start-windows.ps1").read_text(encoding="utf-8")
     assert "sys.version_info >= (3,12)" in installer
     assert ".[pdf,gis]" in installer
+    assert '{ $PackageSpec }' not in installer
+    assert 'else { ".[pdf]" }' in installer
     assert "--host 127.0.0.1 --port $Port" in launcher
     assert "ValidateRange(1, 65535)" in launcher
 
