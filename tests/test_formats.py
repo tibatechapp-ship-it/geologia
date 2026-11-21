@@ -1,0 +1,164 @@
+"""Real parser-backed format fixtures and known-answer geospatial references."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from geologia.formats import (
+    FormatValidationError,
+    MAX_FORMAT_FILE_BYTES,
+    inspect_geopackage,
+    inspect_geotiff,
+    inspect_las,
+)
+
+ROOT = Path(__file__).parent
+
+
+def _make_gpkg(path: Path) -> Path:
+    geopandas = pytest.importorskip("geopandas")
+    pyogrio = pytest.importorskip("pyogrio")
+    shapely = pytest.importorskip("shapely")
+    frame = geopandas.GeoDataFrame(
+        {"sample_id": [1, 2], "lithology": ["A", "B"]},
+        geometry=[shapely.Point(1, 1), shapely.Point(2, 2)],
+        crs="EPSG:4326",
+    )
+    pyogrio.write_dataframe(frame, path, driver="GPKG", layer="samples")
+    return path
+
+
+def _make_geotiff(path: Path) -> Path:
+    rasterio = pytest.importorskip("rasterio")
+    numpy = pytest.importorskip("numpy")
+    from rasterio.transform import from_origin
+
+    data = numpy.arange(64 * 64, dtype="float32").reshape((64, 64))
+    with rasterio.open(
+        path,
+        "w",
+        driver="GTiff",
+        width=64,
+        height=64,
+        count=1,
+        dtype="float32",
+        crs="EPSG:32637",
+        transform=from_origin(500000, 1500000, 30, 30),
+        nodata=-9999,
+        tiled=True,
+        blockxsize=16,
+        blockysize=16,
+        compress="deflate",
+    ) as dataset:
+        dataset.write(data, 1)
+        dataset.set_band_unit(1, "m")
+        dataset.update_tags(AREA_OR_POINT="Area", vertical_datum="unspecified")
+    return path
+
+
+def _make_las(path: Path) -> Path:
+    laspy = pytest.importorskip("laspy")
+    numpy = pytest.importorskip("numpy")
+    header = laspy.LasHeader(point_format=3, version="1.2")
+    header.scales = numpy.array([0.01, 0.01, 0.01])
+    header.offsets = numpy.array([500000.0, 1500000.0, 100.0])
+    data = laspy.LasData(header)
+    data.x = numpy.array([500001.0, 500002.0, 500003.0])
+    data.y = numpy.array([1500001.0, 1500002.0, 1500003.0])
+    data.z = numpy.array([101.0, 102.0, 103.0])
+    data.write(path)
+    return path
+
+
+def test_real_geopackage_layer_metadata(tmp_path):
+    path = _make_gpkg(tmp_path / "samples.gpkg")
+    report = inspect_geopackage(path)
+    assert report["sqlite_integrity"] == "passed"
+    assert report["layer_count"] == 1
+    layer = report["layers"][0]
+    assert layer["name"] == "samples"
+    assert layer["feature_count"] == 2
+    assert layer["crs"] == "EPSG:4326"
+    assert report["scientific_validation"] is False
+
+
+def test_corrupt_and_truncated_geopackage_rejected(tmp_path):
+    malformed = tmp_path / "malformed.gpkg"
+    malformed.write_bytes(b"not a sqlite database")
+    with pytest.raises(FormatValidationError):
+        inspect_geopackage(malformed)
+
+    truncated = _make_gpkg(tmp_path / "truncated.gpkg")
+    truncated.write_bytes(truncated.read_bytes()[: max(100, truncated.stat().st_size // 2)])
+    with pytest.raises(FormatValidationError):
+        inspect_geopackage(truncated)
+
+
+def test_real_geotiff_metadata_and_bounded_sample(tmp_path):
+    path = _make_geotiff(tmp_path / "terrain.tif")
+    report = inspect_geotiff(path)
+    assert (report["width"], report["height"], report["band_count"]) == (64, 64, 1)
+    assert report["crs"] == "EPSG:32637"
+    assert report["band_units"] == ["m"]
+    assert report["sample_window"] == {"width": 32, "height": 32}
+    assert report["vertical_reference"]["vertical_datum_verified"] is False
+
+
+def test_truncated_geotiff_rejected(tmp_path):
+    path = _make_geotiff(tmp_path / "truncated.tif")
+    path.write_bytes(path.read_bytes()[: max(128, path.stat().st_size // 2)])
+    with pytest.raises(FormatValidationError):
+        inspect_geotiff(path)
+
+
+def test_real_las_header_and_point_sample(tmp_path):
+    path = _make_las(tmp_path / "points.las")
+    report = inspect_las(path)
+    assert report["point_count"] == 3
+    assert report["sampled_point_count"] == 3
+    assert report["point_format_id"] == 3
+    assert report["scale"] == [0.01, 0.01, 0.01]
+    assert report["scientific_validation"] is False
+
+
+def test_truncated_las_point_records_rejected(tmp_path):
+    path = _make_las(tmp_path / "truncated.las")
+    with pytest.raises(FormatValidationError, match="extend beyond"):
+        path_size = path.stat().st_size
+        header = __import__("laspy").open(path).header
+        point_end = int(header.offset_to_point_data) + 2 * int(header.point_format.size)
+        path.write_bytes(path.read_bytes()[:point_end])
+        assert path.stat().st_size < path_size
+        inspect_las(path)
+
+
+def test_sparse_oversized_file_rejected_before_parser(tmp_path):
+    path = tmp_path / "oversized.tif"
+    with path.open("wb") as stream:
+        stream.truncate(MAX_FORMAT_FILE_BYTES + 1)
+    with pytest.raises(FormatValidationError, match="size limit"):
+        inspect_geotiff(path)
+
+
+def test_known_answer_crs_transform_and_inverse():
+    pyproj = pytest.importorskip("pyproj")
+    reference = json.loads((ROOT / "data" / "geospatial_reference.json").read_text())
+    item = reference["transform"]
+    forward = pyproj.Transformer.from_crs(
+        item["source_crs"], item["target_crs"], always_xy=True
+    )
+    actual = forward.transform(*item["input_xy"])
+    assert actual == pytest.approx(
+        item["expected_xy"], abs=item["absolute_tolerance_m"]
+    )
+
+    inverse_item = reference["inverse"]
+    inverse = pyproj.Transformer.from_crs(
+        inverse_item["source_crs"], inverse_item["target_crs"], always_xy=True
+    )
+    actual_inverse = inverse.transform(*inverse_item["input_xy"])
+    assert actual_inverse == pytest.approx(
+        inverse_item["expected_xy"], abs=inverse_item["absolute_tolerance_degrees"]
+    )
