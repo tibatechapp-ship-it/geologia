@@ -53,14 +53,14 @@ The index is stored by default at `.geologia/knowledge.sqlite3`. Ali's analysis 
 Index only UTF-8 `.txt`, `.md`, `.csv`, or `.json` text that you are legally allowed to process and have explicitly reviewed. Example:
 
 ```bash
-geologia-knowledge ./references/open_hydrogeology.md \\
-  --source-id open-hydro-001 \\
-  --title "Open hydrogeology reference" \\
-  --language en \\
-  --license-name "CC BY 4.0" \\
-  --license-status open_license \\
-  --reviewed-by "YOUR_REVIEWER" \\
-  --review-date 2026-11-21 \\
+geologia-knowledge ./references/open_hydrogeology.md \
+  --source-id open-hydro-001 \
+  --title "Open hydrogeology reference" \
+  --language en \
+  --license-name "CC BY 4.0" \
+  --license-status open_license \
+  --reviewed-by "YOUR_REVIEWER" \
+  --review-date 2026-11-21 \
   --source-url https://example.org/reference
 ```
 
