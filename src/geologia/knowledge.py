@@ -5,6 +5,7 @@ model weights, remote APIs, automatic downloads, or source-code execution.
 """
 from contextlib import closing
 from datetime import date, datetime, timezone
+from io import BytesIO
 import hashlib
 import os
 from pathlib import Path
@@ -14,11 +15,12 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
+MAX_PDF_PAGES = 500
 MAX_CHUNK_CHARS = 1600
 CHUNK_OVERLAP_CHARS = 180
 MAX_QUERY_CHARS = 500
 MAX_QUERY_TOKENS = 12
-ALLOWED_EXTENSIONS = {".txt", ".md", ".csv", ".json"}
+ALLOWED_EXTENSIONS = {".txt", ".md", ".csv", ".json", ".pdf"}
 LICENSE_STATUSES = {
     "public_domain", "open_license", "permission", "original_work"
 }
@@ -140,6 +142,7 @@ def initialize() -> None:
                 document_id TEXT NOT NULL REFERENCES knowledge_documents(id),
                 chunk_index INTEGER NOT NULL,
                 body TEXT NOT NULL,
+                source_locator TEXT NOT NULL DEFAULT '',
                 UNIQUE(document_id, chunk_index)
             );
 
@@ -153,6 +156,18 @@ def initialize() -> None:
             CREATE INDEX IF NOT EXISTS idx_knowledge_documents_doi
                 ON knowledge_documents(doi);
             """
+        )
+        chunk_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(knowledge_chunks)")
+        }
+        if "source_locator" not in chunk_columns:
+            connection.execute(
+                "ALTER TABLE knowledge_chunks ADD COLUMN source_locator TEXT NOT NULL DEFAULT ''"
+            )
+        connection.execute(
+            "UPDATE knowledge_chunks SET source_locator = "
+            "'local indexed text chunk ' || (chunk_index + 1) "
+            "WHERE source_locator = ''"
         )
         fts_existed = connection.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' "
@@ -310,11 +325,47 @@ def chunk_text(text: str) -> list[str]:
     return chunks
 
 
+def _extract_pdf_pages(raw: bytes) -> list[tuple[int, str]]:
+    """Extract text from a local PDF without OCR or network access."""
+    try:
+        from pypdf import PdfReader
+        from pypdf.errors import PdfReadError
+    except ImportError as exc:
+        raise ValueError(
+            "PDF indexing requires the optional 'pdf' extra: "
+            "python -m pip install 'geologia[pdf]'"
+        ) from exc
+
+    try:
+        reader = PdfReader(BytesIO(raw), strict=False)
+        if reader.is_encrypted:
+            raise ValueError("encrypted PDFs are not supported; provide an authorized unencrypted copy")
+        if len(reader.pages) > MAX_PDF_PAGES:
+            raise ValueError(f"PDF exceeds the {MAX_PDF_PAGES}-page indexing limit")
+        pages = []
+        for page_number, page in enumerate(reader.pages, start=1):
+            extracted = page.extract_text() or ""
+            extracted = extracted.replace("\r\n", "\n").replace("\r", "\n").strip()
+            if extracted:
+                pages.append((page_number, extracted))
+    except ValueError:
+        raise
+    except (PdfReadError, OSError, EOFError, KeyError, TypeError) as exc:
+        raise ValueError("could not safely parse or extract text from this PDF") from exc
+
+    if not pages:
+        raise ValueError(
+            "PDF contains no extractable text; scanned-image OCR is not included in the lightweight core"
+        )
+    return pages
+
+
 def ingest_document(path: str | Path, metadata: dict) -> dict:
-    """Index a locally supplied text document after explicit license review."""
+    """Index a local UTF-8 text or PDF document after explicit license review."""
     source_path = Path(path).expanduser()
-    if source_path.suffix.lower() not in ALLOWED_EXTENSIONS:
-        raise ValueError("only UTF-8 .txt, .md, .csv, and .json files can be indexed")
+    suffix = source_path.suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise ValueError("only UTF-8 .txt, .md, .csv, .json, and .pdf files can be indexed")
     if not source_path.is_file():
         raise ValueError("source file does not exist or is not a regular file")
 
@@ -323,20 +374,35 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
         raise ValueError("source file is empty")
     if len(raw) > MAX_SOURCE_BYTES:
         raise ValueError("source file exceeds the 20 MiB local indexing limit")
-    try:
-        text = raw.decode("utf-8-sig")
-    except UnicodeDecodeError as exc:
-        raise ValueError("source text must be UTF-8") from exc
-    if "\x00" in text:
-        raise ValueError("source text contains NUL bytes")
-    text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
-    if not text:
-        raise ValueError("source text contains no indexable content")
 
-    source = _validate_metadata(metadata)
-    chunks = chunk_text(text)
-    if not chunks:
+    indexed_chunks: list[tuple[str, str]] = []
+    pages_extracted = None
+    if suffix == ".pdf":
+        pages = _extract_pdf_pages(raw)
+        pages_extracted = len(pages)
+        for page_number, page_text in pages:
+            for chunk_number, body in enumerate(chunk_text(page_text), start=1):
+                indexed_chunks.append(
+                    (body, f"PDF page {page_number}, text chunk {chunk_number}")
+                )
+    else:
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise ValueError("source text must be UTF-8") from exc
+        if "\x00" in text:
+            raise ValueError("source text contains NUL bytes")
+        text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+        if not text:
+            raise ValueError("source text contains no indexable content")
+        indexed_chunks = [
+            (body, f"local indexed text chunk {index + 1}")
+            for index, body in enumerate(chunk_text(text))
+        ]
+
+    if not indexed_chunks:
         raise ValueError("source text produced no searchable chunks")
+    source = _validate_metadata(metadata)
     digest = hashlib.sha256(raw).hexdigest()
     document_id = uuid4().hex
     indexed_at = datetime.now(timezone.utc).isoformat()
@@ -390,12 +456,13 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
             ),
         )
         has_fts = _fts_available(connection)
-        for index, body in enumerate(chunks):
+        for index, (body, locator) in enumerate(indexed_chunks):
             chunk_id = uuid4().hex
             connection.execute(
-                "INSERT INTO knowledge_chunks (chunk_id, document_id, chunk_index, body) "
-                "VALUES (?, ?, ?, ?)",
-                (chunk_id, document_id, index, body),
+                "INSERT INTO knowledge_chunks "
+                "(chunk_id, document_id, chunk_index, body, source_locator) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (chunk_id, document_id, index, body, locator),
             )
             if has_fts:
                 connection.execute(
@@ -404,15 +471,18 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
                 )
         connection.commit()
 
-    return {
+    result = {
         "status": "indexed",
         "document_id": document_id,
         "source_id": source["source_id"],
         "file_sha256": digest,
-        "chunk_count": len(chunks),
+        "chunk_count": len(indexed_chunks),
         "license_status": source["license_status"],
         "language": source["language"],
     }
+    if pages_extracted is not None:
+        result["pages_extracted"] = pages_extracted
+    return result
 
 
 
