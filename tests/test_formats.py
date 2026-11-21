@@ -317,6 +317,30 @@ def test_epsg_3857_known_answers_match_independent_published_formula():
         actual_xy = transformer.transform(longitude, latitude)
         assert actual_xy == pytest.approx(independent_xy, abs=tolerance)
 
+    inverse_reference = json.loads(
+        (ROOT / "data" / "geospatial_reference.json").read_text()
+    )["inverse"]
+    easting, northing = inverse_reference["input_xy"]
+    independent_inverse = [
+        math.degrees(easting / radius),
+        math.degrees(
+            2 * math.atan(math.exp(northing / radius)) - math.pi / 2
+        ),
+    ]
+    inverse_tolerance = inverse_reference["absolute_tolerance_degrees"]
+    assert inverse_reference["expected_xy"] == pytest.approx(
+        independent_inverse, abs=inverse_tolerance
+    )
+    inverse_transformer = pyproj.Transformer.from_crs(
+        inverse_reference["source_crs"],
+        inverse_reference["target_crs"],
+        always_xy=True,
+    )
+    actual_inverse = inverse_transformer.transform(easting, northing)
+    assert actual_inverse == pytest.approx(
+        independent_inverse, abs=inverse_tolerance
+    )
+
 
 def test_declared_egm96_vertical_crs_metadata_is_reported_not_verified():
     pyproj = pytest.importorskip("pyproj")
