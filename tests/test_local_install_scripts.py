@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 ROOT = Path(__file__).parents[1]
 SCRIPTS = ROOT / "scripts"
@@ -17,6 +18,11 @@ def test_posix_launcher_is_loopback_only_and_validates_port():
     assert '--host 127.0.0.1 --port "$PORT"' in script
     assert "GEOLOGIA_PORT must be between 1 and 65535" in script
     assert ".venv/bin/geologia-api" in script
+
+
+def test_all_posix_install_and_run_scripts_parse():
+    for script in sorted(SCRIPTS.glob("*.sh")):
+        subprocess.run(["bash", "-n", str(script)], check=True, capture_output=True, text=True)
 
 
 def test_termux_bootstrap_is_explicit_and_model_free():
