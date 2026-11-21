@@ -795,7 +795,9 @@ def test_legacy_review_check_migrates_without_losing_document_chunk(tmp_path, mo
                 scientific_reviewed_by TEXT, scientific_review_date TEXT,
                 scientific_review_basis TEXT,
                 license_status TEXT NOT NULL CHECK (
-                    license_status IN ('public_domain', 'open_license', 'permission', 'original_work')
+                    license_status IN (
+                        'public_domain', 'open_license', 'permission', 'original_work'
+                    )
                 ),
                 reviewed_by TEXT NOT NULL, review_date TEXT NOT NULL,
                 language TEXT NOT NULL, filename TEXT NOT NULL,
