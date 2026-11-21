@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -195,6 +196,28 @@ def datasets_get(dataset_id: str) -> dict:
     if item is None:
         raise HTTPException(status_code=404, detail="dataset not found")
     return item
+
+
+@app.get("/api/v1/datasets/{dataset_id}/geojson")
+def dataset_geojson(dataset_id: str) -> JSONResponse:
+    """Return validated GeoJSON only; never expose the private storage path."""
+    item = store.get_dataset(dataset_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    if item["format"] not in {"geojson", "json"}:
+        raise HTTPException(status_code=415, detail="map view supports GeoJSON only")
+    content_path = store.get_dataset_content_path(dataset_id)
+    if content_path is None or not Path(content_path).is_file():
+        raise HTTPException(status_code=410, detail="dataset file is missing")
+    try:
+        payload = json.loads(Path(content_path).read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
+    try:
+        inspect_geojson(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return JSONResponse(content=payload)
 
 
 @app.post("/api/v1/datasets/{dataset_id}/inspect", status_code=200)

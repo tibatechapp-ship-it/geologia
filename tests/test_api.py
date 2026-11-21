@@ -152,6 +152,33 @@ def test_bilingual_frontend_is_served():
     assert "inspectDataset" in script_text
 
 
+def test_geojson_map_endpoint_returns_validated_data_and_hides_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Map layer"}).json()
+    payload = {
+        "type": "FeatureCollection",
+        "features": [{"type": "Feature", "properties": {"label": "site"},
+                      "geometry": {"type": "Point", "coordinates": [44.2, 15.3]}}],
+    }
+    uploaded = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=__import__("json").dumps(payload).encode(),
+        headers={"X-Dataset-Name": "Sites", "X-Filename": "sites.geojson"},
+    )
+    dataset_id = uploaded.json()["id"]
+    response = client.get(f"/api/v1/datasets/{dataset_id}/geojson")
+    assert response.status_code == 200
+    assert response.json() == payload
+    assert "content_path" not in response.text
+    csv_upload = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=b"a,b\\n1,2\\n",
+        headers={"X-Dataset-Name": "Table", "X-Filename": "table.csv"},
+    )
+    assert client.get(f"/api/v1/datasets/{csv_upload.json()['id']}/geojson").status_code == 415
+
+
 def test_geojson_inspection_computes_real_metrics_and_persists(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
