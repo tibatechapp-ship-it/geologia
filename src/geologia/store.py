@@ -88,7 +88,8 @@ def initialize() -> None:
                 conn.execute("""
                     CREATE TABLE jobs_new (
                         id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
-                        request TEXT NOT NULL, language TEXT NOT NULL CHECK(language IN ('ar','en')),
+                        request TEXT NOT NULL,
+                        language TEXT NOT NULL CHECK(language IN ('ar','en')),
                         status TEXT NOT NULL CHECK(status IN (
                             'planned','queued','running','succeeded','failed',
                             'cancel_requested','cancelled'
@@ -104,7 +105,8 @@ def initialize() -> None:
                     INSERT INTO jobs_new(
                         id, project_id, request, language, status, plan_json, created_at, updated_at
                     )
-                    SELECT id, project_id, request, language, status, plan_json, created_at, created_at
+                    SELECT id, project_id, request, language, status, plan_json,
+                           created_at, created_at
                     FROM jobs
                 """)
                 conn.execute("DROP TABLE jobs")
