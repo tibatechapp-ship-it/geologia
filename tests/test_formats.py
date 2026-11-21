@@ -188,3 +188,14 @@ def test_api_inspection_endpoint_persists_geotiff_report(tmp_path, monkeypatch):
     assert report["format"] == "geotiff"
     assert report["operation"] == "geotiff_inspection"
     assert report["scientific_interpretation"] is False
+    assert report["provenance"]["source_sha256"] == upload.json()["sha256"]
+    assert report["provenance"]["parser"] == "rasterio"
+    provenance = TestClient(app).get(
+        f"/api/v1/datasets/{dataset_id}/provenance"
+    )
+    assert provenance.status_code == 200
+    audit = provenance.json()
+    assert audit["chain_integrity"] == "verified"
+    assert [event["event_type"] for event in audit["events"]] == [
+        "dataset_ingested", "dataset_inspected"
+    ]
