@@ -58,6 +58,8 @@ See [DATA_VALIDATION.md](docs/DATA_VALIDATION.md) for supported validation profi
 
 See [JOB_LIFECYCLE.md](docs/JOB_LIFECYCLE.md) for the persistent job state machine, cancellation semantics, retry bounds, and worker execution boundary.
 
+See [WORKER_ARCHITECTURE.md](docs/WORKER_ARCHITECTURE.md) and [SECURITY_THREAT_MODEL.md](docs/SECURITY_THREAT_MODEL.md) for the proposed isolated-worker design and its security gates. These are design documents; no worker or engine execution is implemented.
+
 See [the full-history engineering audit](docs/ENGINEERING_AUDIT.md) for verified fixes, known blockers, and the ordered remediation roadmap.
 
 ## Scientific and security honesty
