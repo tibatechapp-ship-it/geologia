@@ -38,7 +38,7 @@ def test_workspace_create_upload_inspect_plan_and_language(app_url, browser_page
     expect(page.locator("#datasetCount")).to_have_text("1")
     expect(page.locator("#uploadStatus")).to_contain_text("تم حفظ البيانات")
 
-    dataset.locator(".inspect-button").click()
+    dataset.locator(".inspect-button:not(.validate-button)").click()
     report = dataset.locator(".inspection-report")
     expect(report).to_be_visible()
     report_text = report.inner_text()
