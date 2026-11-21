@@ -4,10 +4,12 @@ import math
 import hashlib
 import json
 import os
+import re
 import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import uvicorn
@@ -174,6 +176,15 @@ async def dataset_upload(
     filename: str = Header(..., alias="X-Filename", min_length=1, max_length=255),
     crs: str | None = Header(None, alias="X-CRS", max_length=100),
     data_role: str | None = Header(None, alias="X-Data-Role", max_length=80),
+    source_url: str | None = Header(None, alias="X-Source-URL", max_length=2048),
+    source_title: str | None = Header(None, alias="X-Source-Title", max_length=300),
+    source_creator: str | None = Header(None, alias="X-Source-Creator", max_length=300),
+    source_publisher: str | None = Header(None, alias="X-Source-Publisher", max_length=300),
+    source_doi: str | None = Header(None, alias="X-Source-DOI", max_length=255),
+    source_license: str | None = Header(None, alias="X-Source-License", max_length=300),
+    source_citation: str | None = Header(None, alias="X-Source-Citation", max_length=2000),
+    source_version: str | None = Header(None, alias="X-Source-Version", max_length=200),
+    source_accessed_at: str | None = Header(None, alias="X-Source-Accessed-At", max_length=10),
 ) -> dict:
     if store.get_project(project_id) is None:
         raise HTTPException(status_code=404, detail="project not found")
@@ -185,6 +196,38 @@ async def dataset_upload(
         )
     if data_role and data_role not in ALLOWED_DATA_ROLES:
         raise HTTPException(status_code=422, detail="unknown dataset data role")
+    external_source = {
+        "status": "user_supplied_not_verified",
+        "url": source_url.strip() if source_url and source_url.strip() else None,
+        "title": source_title.strip() if source_title and source_title.strip() else None,
+        "creator": source_creator.strip() if source_creator and source_creator.strip() else None,
+        "publisher": source_publisher.strip() if source_publisher and source_publisher.strip() else None,
+        "doi": source_doi.strip() if source_doi and source_doi.strip() else None,
+        "license": source_license.strip() if source_license and source_license.strip() else None,
+        "citation": source_citation.strip() if source_citation and source_citation.strip() else None,
+        "version": source_version.strip() if source_version and source_version.strip() else None,
+        "accessed_at": source_accessed_at.strip() if source_accessed_at and source_accessed_at.strip() else None,
+    }
+    source_fields = [key for key, value in external_source.items() if key not in {"status"} and value]
+    if source_url and source_url.strip():
+        parsed_source = urlsplit(source_url.strip())
+        if parsed_source.scheme not in {"http", "https"} or not parsed_source.hostname:
+            raise HTTPException(status_code=422, detail="source URL must be an absolute HTTP(S) URL")
+        if parsed_source.username or parsed_source.password:
+            raise HTTPException(status_code=422, detail="source URL must not contain embedded credentials")
+    if source_doi and source_doi.strip() and not re.fullmatch(
+        r"10\\.\\d{4,9}/\\S+", source_doi.strip(), flags=re.IGNORECASE
+    ):
+        raise HTTPException(status_code=422, detail="source DOI must use the standard 10.xxxx/... form")
+    if source_accessed_at and source_accessed_at.strip():
+        try:
+            from datetime import date
+            date.fromisoformat(source_accessed_at.strip())
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="source accessed-at must be YYYY-MM-DD") from exc
+    if not source_fields:
+        external_source["status"] = "not_provided"
+
     safe_name = Path(filename.replace("\\", "/")).name
     suffix = Path(safe_name).suffix.lower()
     if suffix not in ALLOWED_FORMATS:
@@ -220,10 +263,11 @@ async def dataset_upload(
                 tmp.write(chunk)
         if size == 0:
             raise HTTPException(status_code=422, detail="empty dataset")
-        summary = {"validation": "stored_only"}
+        summary = {"validation": "stored_only", "external_source": external_source}
         effective_crs = crs.strip() if crs and crs.strip() else None
         if suffix in {".geojson", ".json"}:
             summary = _geojson_summary(temporary_path)
+            summary["external_source"] = external_source
             if effective_crs:
                 from geologia.geospatial import validate_geojson_crs
 
@@ -258,6 +302,7 @@ async def dataset_upload(
                 summary = inspect_csv(temporary_path)
             except ValueError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
+            summary["external_source"] = external_source
             summary["validation"] = "csv_structural_only"
             if summary["ragged_row_count"]:
                 summary["warnings"] = ["rows_have_inconsistent_column_counts"]
@@ -369,6 +414,7 @@ def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
             "target_crs": info["target_crs"],
             "axis_order": info["axis_order"],
             "source_dataset_sha256": item["sha256"],
+            "external_source": item["summary"].get("external_source", {"status": "not_provided"}),
             "tool_versions": info["tool_versions"],
             "operation_description": info["operation_description"],
             "operation_definition": info["operation_definition"],
