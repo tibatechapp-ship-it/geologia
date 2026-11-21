@@ -210,3 +210,33 @@ def save_dataset_inspection(dataset_id: str, report: dict[str, Any]) -> None:
             "UPDATE datasets SET status=?, summary_json=? WHERE id=?",
             ("inspected_structural_metrics", json.dumps(summary, ensure_ascii=False), dataset_id),
         )
+
+
+def save_dataset_validation(dataset_id: str, report: dict[str, Any]) -> None:
+    """Persist a validation report separately from structural inspection metrics."""
+    initialize()
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT summary_json FROM datasets WHERE id=?", (dataset_id,)
+        ).fetchone()
+        if row is None:
+            return
+        summary = json.loads(row["summary_json"])
+        summary["validation_report"] = report
+        status = (
+            "validation_passed"
+            if report.get("validation_status") == "passed"
+            else "validation_failed"
+        )
+        conn.execute(
+            "UPDATE datasets SET status=?, summary_json=? WHERE id=?",
+            (status, json.dumps(summary, ensure_ascii=False), dataset_id),
+        )
+
+
+def get_dataset_validation(dataset_id: str) -> dict[str, Any] | None:
+    """Return the last persisted validation report, if one exists."""
+    item = get_dataset(dataset_id)
+    if item is None:
+        return None
+    return item["summary"].get("validation_report")
