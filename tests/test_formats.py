@@ -1,3 +1,4 @@
+import math
 """Real parser-backed format fixtures and known-answer geospatial references."""
 from __future__ import annotations
 
@@ -110,6 +111,7 @@ def test_real_geotiff_metadata_and_bounded_sample(tmp_path):
     assert report["coordinate_units"] == ["metre", "metre"]
     assert report["sample_window"] == {"width": 32, "height": 32}
     assert report["vertical_reference"]["vertical_datum_verified"] is False
+    assert report["vertical_reference"]["vertical_metadata_values"]["vertical_datum"] == "unspecified"
 
 
 def test_truncated_geotiff_rejected(tmp_path):
@@ -290,3 +292,45 @@ def test_geotiff_metadata_output_is_bounded(tmp_path):
     report = inspect_geotiff(path)
     assert len(report["metadata"]) <= 128
     assert report["metadata_truncated"] is True
+
+
+def test_epsg_3857_known_answers_match_independent_published_formula():
+    pyproj = pytest.importorskip("pyproj")
+    reference = json.loads((ROOT / "data" / "reference_projection.json").read_text())
+    transformer = pyproj.Transformer.from_crs(
+        reference["source_crs"], reference["target_crs"], always_xy=True
+    )
+    radius = reference["sphere_radius_m"]
+    tolerance = reference["absolute_tolerance_m"
+]
+    for point in reference["points"]:
+        longitude, latitude = point["input_xy"]
+        longitude_radians = math.radians(longitude)
+        latitude_radians = math.radians(latitude)
+        independent_xy = [
+            radius * longitude_radians,
+            radius * math.log(math.tan(math.pi / 4 + latitude_radians / 2)),
+        ]
+        assert point["expected_xy"] == pytest.approx(independent_xy, abs=tolerance)
+        actual_xy = transformer.transform(longitude, latitude)
+        assert actual_xy == pytest.approx(independent_xy, abs=tolerance)
+
+
+def test_declared_egm96_vertical_crs_metadata_is_reported_not_verified():
+    pyproj = pytest.importorskip("pyproj")
+    from geologia.formats import _vertical_reference
+
+    reference = json.loads((ROOT / "data" / "vertical_crs_reference.json").read_text())
+    compound = pyproj.CRS.from_epsg(reference["compound_crs"])
+    report = _vertical_reference(compound)
+    expected_code = reference["expected_vertical_crs"].split(":")[1]
+    component = next(
+        item for item in report["vertical_crs_components"]
+        if item["code"] == expected_code
+    )
+    assert component["name"] == reference["expected_vertical_name"]
+    assert component["datum_name"] == reference["expected_vertical_datum"]
+    assert component["axis_units"] == [reference["expected_vertical_unit"]]
+    assert component["axis_directions"] == [reference["expected_vertical_axis_direction"]]
+    assert report["vertical_datum_verified"] is reference["expected_verified"]
+    assert report["vertical_transformation_performed"] is False
