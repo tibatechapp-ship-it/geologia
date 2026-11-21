@@ -237,7 +237,9 @@ def inspect_las(path: Path) -> dict[str, Any]:
                 math.isfinite(float(value)) and float(value) != 0
                 for value in header.scales
             ) or not all(math.isfinite(float(value)) for value in header.offsets):
-                raise FormatValidationError("LAS scale/offset values must be finite and scales non-zero")
+                raise FormatValidationError(
+                    "LAS scale/offset values must be finite and scales non-zero"
+                )
             expected_end = point_offset + count * record_length
             if expected_end > size:
                 raise FormatValidationError("LAS point records extend beyond end of file")
