@@ -147,6 +147,9 @@ def test_bilingual_frontend_is_served():
     assert script.status_code == 200
     assert "agentName" in script.text
     assert "المهندس الجمهوري" in home.text
+    script_text = script.text
+    assert '/api/v1/datasets/"+encodeURIComponent(d.id)+"/inspect' in script_text
+    assert "inspectDataset" in script_text
 
 
 def test_geojson_inspection_computes_real_metrics_and_persists(tmp_path, monkeypatch):
