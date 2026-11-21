@@ -324,3 +324,22 @@ def test_source_locator_schema_migrates_existing_text_chunks(tmp_path, monkeypat
         ).fetchone()
     assert row["source_locator"] == "local indexed text chunk 1"
 
+def test_pdf_extraction_rejects_single_page_text_beyond_limit(local_index, monkeypatch):
+    source = local_index / "large_page.pdf"
+    _write_text_pdf(source, ["A" * 120])
+    monkeypatch.setattr(knowledge, "MAX_PDF_PAGE_TEXT_CHARS", 100)
+    with pytest.raises(ValueError, match="page 1 exceeds"):
+        knowledge.ingest_document(
+            source, metadata(source_id="pdf-large-page-001")
+        )
+
+
+def test_pdf_extraction_rejects_total_text_beyond_limit(local_index, monkeypatch):
+    source = local_index / "many_pages.pdf"
+    _write_text_pdf(source, ["A" * 40, "B" * 40, "C" * 40])
+    monkeypatch.setattr(knowledge, "MAX_PDF_PAGE_TEXT_CHARS", 100)
+    monkeypatch.setattr(knowledge, "MAX_PDF_EXTRACTED_CHARS", 90)
+    with pytest.raises(ValueError, match="total extracted-text"):
+        knowledge.ingest_document(
+            source, metadata(source_id="pdf-total-text-001")
+        )
