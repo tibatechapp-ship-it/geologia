@@ -21,6 +21,7 @@ Object.assign(i18n.ar,{
  claimNoClaims:"لا توجد ادعاءات مسجلة بعد.",claimEvidenceTitle:"الأدلة المرتبطة",
  claimValidationLabel:"التحقق العلمي: لم يُنفّذ",claimPageLabel:"صفحة",claimSourceKind:"نوع المصدر",
  claimReviewStatus:"حالة المراجعة العلمية",claimLocator:"موضع المصدر",
+ scientificReviewBasis:"مرجع التحقق من المراجعة",
  relationLabels:{supports:"يدعم",contradicts:"يعارض",contextualizes:"يضع في سياق",unclear:"غير واضح"}
 });
 Object.assign(i18n.en,{
@@ -37,6 +38,7 @@ Object.assign(i18n.en,{
  claimNoClaims:"No claims recorded yet.",claimEvidenceTitle:"Linked evidence",
  claimValidationLabel:"Scientific validation: not performed",claimPageLabel:"Page",claimSourceKind:"Source type",
  claimReviewStatus:"Scientific review",claimLocator:"Source locator",
+ scientificReviewBasis:"Scientific review basis",
  relationLabels:{supports:"Supports",contradicts:"Contradicts",contextualizes:"Contextualizes",unclear:"Unclear"}
 });
 const $=id=>document.getElementById(id);
@@ -157,6 +159,7 @@ async function loadClaimDetail(){
    card.append(claimText("small","claim-evidence-meta",[e.title,e.source_kind,e.scientific_review_status,e.source_locator].filter(Boolean).join(" · ")));
    card.append(claimText("p","claim-evidence-rationale",e.rationale));
    const link=claimLink(e.source_url,tr("source"));if(link)card.append(link);
+   const reviewBasis=claimLink(e.scientific_review_basis,tr("scientificReviewBasis"));if(reviewBasis)card.append(reviewBasis);
    $("claimEvidenceLinked").append(card);
   });
  }catch(err){feedback("claimStatus",err.message,true)}
@@ -169,6 +172,7 @@ function renderClaimSearchResults(results){
   card.append(claimText("h4","claim-evidence-heading",item.title||item.source_id||tr("source")));
   card.append(claimText("p","claim-search-excerpt",item.excerpt||""));
   card.append(claimText("small","claim-evidence-meta",[item.source_kind,item.scientific_review_status,item.citation_locator,item.chunk_id].filter(Boolean).join(" · ")));
+  const reviewBasis=claimLink(item.scientific_review_basis,tr("scientificReviewBasis"));if(reviewBasis)card.append(reviewBasis);
   const form=claimText("form","claim-link-form","");
   const relationLabel=claimText("label","",tr("claimEvidenceRelation"));const relation=claimText("select","","");
   ["supports","contradicts","contextualizes","unclear"].forEach(value=>{const option=claimText("option","",i18n[lang].relationLabels?.[value]||value);option.value=value;relation.append(option)});
