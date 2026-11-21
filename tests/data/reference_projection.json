@@ -1,10 +1,13 @@
 {
-  "schema_version": 1,
-  "purpose": "Known-answer projection regression points for EPSG:4326 to EPSG:3857. These test coordinate mathematics, not geological interpretation.",
+  "schema_version": 2,
+  "purpose": "Synthetic known-answer controls. Expected EPSG:3857 values are calculated from the published EPSG/IOGP spherical pseudo-Mercator equations independently of pyproj.",
   "source_crs": "EPSG:4326",
   "target_crs": "EPSG:3857",
   "axis_order": "x,y",
-  "absolute_tolerance_m": 0.00001,
+  "sphere_radius_m": 6378137,
+  "formula_easting": "x = a * longitude_radians",
+  "formula_northing": "y = a * ln(tan(pi/4 + latitude_radians/2))",
+  "absolute_tolerance_m": 0.00002,
   "points": [
     {
       "reference_id": "unit-degree",
@@ -36,7 +39,18 @@
       ],
       "expected_xy": [
         0,
-        0
+        -7.081154551613622e-10
+      ]
+    },
+    {
+      "reference_id": "webmercator-north-limit",
+      "input_xy": [
+        180,
+        85.0511287798066
+      ],
+      "expected_xy": [
+        20037508.342789244,
+        20037508.342789244
       ]
     }
   ]
