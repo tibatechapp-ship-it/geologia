@@ -28,3 +28,13 @@ Data readiness is marked `not_assessed` in this case. A missing domain is not tr
 Dataset upload may include `X-Data-Role`. When a request is classified, the API compares required input roles with role-tagged datasets in the project and records available/missing roles. A role is user-supplied metadata, not proof of file contents.
 
 Even if every required role is present, execution remains blocked until a scientific engine is integrated, pinned, tested, and reviewed. Plans are not scientific results, drilling recommendations, resource estimates, or professional certification.
+
+## Multilingual routing extension
+
+The deterministic intent catalog now recognizes geoscience terms in Arabic, English, Russian, and Chinese for groundwater/hydrology, 3D geology, seismology, mineral exploration, remote sensing, and GIS.
+
+- Matching is Unicode-normalized, case-insensitive, and phrase-boundary-aware.
+- Russian terms include common topic phrases; Chinese terms include domain-specific contiguous phrases.
+- The original matched terms are returned as routing evidence in their source script.
+- Domain labels and heuristic confidence are translated in the Arabic/English plan interface.
+- This is a curated keyword lexicon, not general multilingual understanding. Unsupported wording still triggers clarification, and confidence remains heuristic—not calibrated.
