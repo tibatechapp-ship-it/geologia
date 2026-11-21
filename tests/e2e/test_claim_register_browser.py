@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import socket
 import subprocess
@@ -11,7 +12,7 @@ from urllib.request import urlopen
 import pytest
 
 playwright_sync = pytest.importorskip("playwright.sync_api")
-from playwright.sync_api import sync_playwright
+sync_playwright = playwright_sync.sync_playwright
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -141,11 +142,22 @@ def test_browser_claim_to_evidence_workflow(tmp_path, monkeypatch):
 
             linked = page.locator("#claimEvidenceLinked .claim-evidence-card")
             linked.wait_for(state="visible", timeout=10000)
-            assert "supports" in linked.inner_text()
             assert "Groundwater recharge may raise measured aquifer water levels" in linked.inner_text()
+            assert "The excerpt describes recharge" in linked.inner_text()
             basis = linked.locator('a[href="https://example.org/review-record"]')
             basis.wait_for(state="visible")
             assert basis.get_attribute("rel") == "noopener noreferrer"
+            with urlopen(base_url + "/api/v1/knowledge/claims?limit=100", timeout=2) as response:
+                register = json.loads(response.read())
+            saved_claim = next(
+                item for item in register["claims"]
+                if item["statement"] == claim_statement
+            )
+            detail_url = base_url + "/api/v1/knowledge/claims/" + saved_claim["claim_id"]
+            with urlopen(detail_url, timeout=2) as response:
+                detail = json.loads(response.read())
+            assert detail["evidence_annotations"][0]["relation"] == "supports"
+            assert detail["evidence_annotations"][0]["recorded_by"] == "browser evidence reviewer"
             assert page_errors == []
             browser.close()
     finally:
