@@ -199,3 +199,15 @@ def test_api_inspection_endpoint_persists_geotiff_report(tmp_path, monkeypatch):
     assert [event["event_type"] for event in audit["events"]] == [
         "dataset_ingested", "dataset_inspected"
     ]
+    from geologia import store
+
+    with store.connect() as connection:
+        connection.execute(
+            "UPDATE provenance_events SET payload_json='{}' WHERE dataset_id=? "
+            "AND event_type='dataset_inspected'",
+            (dataset_id,),
+        )
+    tampered = TestClient(app).get(
+        f"/api/v1/datasets/{dataset_id}/provenance"
+    ).json()
+    assert tampered["chain_integrity"] == "failed"
