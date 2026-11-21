@@ -135,6 +135,17 @@ def _validate_metadata(metadata: dict) -> dict:
     license_status = _required_text(metadata, "license_status")
     if license_status not in LICENSE_STATUSES:
         raise ValueError("license_status must represent a reviewed lawful source")
+    if license_status == "open_license":
+        compact_license = re.sub(r"[\\s-]+", "", license_name.casefold())
+        if (
+            "noncommercial" in compact_license
+            or "noderivatives" in compact_license
+            or re.search(r"ccby(?:nc|nd)", compact_license)
+        ):
+            raise ValueError(
+                "non-commercial or no-derivatives terms are not eligible for "
+                "open_license ingestion; obtain explicit permission or keep metadata only"
+            )
     reviewed_by = _required_text(metadata, "reviewed_by")
     review_date = _required_text(metadata, "review_date")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", review_date):
