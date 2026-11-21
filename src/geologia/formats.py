@@ -258,11 +258,19 @@ def inspect_las(path: Path) -> dict[str, Any]:
                 sampled = len(points)
                 break
             crs = header.parse_crs()
+            evlrs = list(header.evlrs or [])
+            if len(header.vlrs) + len(evlrs) > MAX_LAS_VLRS:
+                raise FormatValidationError("LAS contains too many variable-length records")
             vlrs = [{
                 "user_id": str(vlr.user_id),
                 "record_id": int(vlr.record_id),
                 "description": str(vlr.description),
             } for vlr in header.vlrs]
+            extended_vlrs = [{
+                "user_id": str(vlr.user_id),
+                "record_id": int(vlr.record_id),
+                "description": str(vlr.description),
+            } for vlr in evlrs]
             report = {
                 "format": "las",
                 "validation": "header_point_bounds_and_sample",
@@ -279,6 +287,8 @@ def inspect_las(path: Path) -> dict[str, Any]:
                 "coordinate_units": _crs_axis_units(crs),
                 "vlr_count": len(vlrs),
                 "vlrs": vlrs,
+                "evlr_count": len(extended_vlrs),
+                "evlrs": extended_vlrs,
                 "vertical_reference": _vertical_reference(crs),
                 "scientific_validation": False,
             }
