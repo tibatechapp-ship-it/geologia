@@ -147,7 +147,7 @@ def test_bilingual_frontend_is_served():
     script = client.get("/app.js")
     assert script.status_code == 200
     assert "agentName" in script.text
-    assert "المهندس الجمهوري" in home.text
+    assert "علي الگوموري" in home.text
     script_text = script.text
     assert '/api/v1/datasets/"+encodeURIComponent(d.id)+"/inspect' in script_text
     assert "inspectDataset" in script_text
