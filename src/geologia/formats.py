@@ -139,7 +139,7 @@ def inspect_geopackage(path: Path) -> dict[str, Any]:
                 "crs": crs,
                 "coordinate_units": _crs_axis_units(crs),
                 "srs_id": next((row[2] for row in contents if row[0] == name), None),
-                "vertical_reference": _vertical_reference(None),
+                "vertical_reference": _vertical_reference(crs),
             })
             try:
                 sample = pyogrio.read_dataframe(Path(path), layer=name, max_features=1000)
@@ -152,7 +152,7 @@ def inspect_geopackage(path: Path) -> dict[str, Any]:
         raise FormatValidationError("GeoPackage layers cannot be inspected") from exc
     return {
         "format": "gpkg",
-        "validation": "container_and_layer_metadata",
+        "validation": "container_layer_metadata_and_feature_sample",
         "file_size_bytes": size,
         "sqlite_integrity": "passed",
         "layer_count": len(layers),
