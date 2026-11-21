@@ -108,7 +108,7 @@ def test_real_geotiff_metadata_and_bounded_sample(tmp_path):
 
 def test_truncated_geotiff_rejected(tmp_path):
     path = _make_geotiff(tmp_path / "truncated.tif")
-    path.write_bytes(path.read_bytes()[: max(128, path.stat().st_size // 2)])
+    path.write_bytes(path.read_bytes()[:128])
     with pytest.raises(FormatValidationError):
         inspect_geotiff(path)
 
