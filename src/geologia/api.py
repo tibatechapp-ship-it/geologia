@@ -370,6 +370,7 @@ def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
             "source_dataset_sha256": item["sha256"],
             "tool_versions": info["tool_versions"],
             "operation_description": info["operation_description"],
+            "operation_definition": info["operation_definition"],
             "operation_accuracy_m": info["operation_accuracy_m"],
             "scientific_interpretation": False,
         }
