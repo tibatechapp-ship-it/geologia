@@ -35,7 +35,7 @@ The runnable application source is committed to the default branch `main`.
 - One-file portable desktop binaries built and smoke-tested on Windows x64, Linux x64, and macOS ARM64; artifacts are available from the linked GitHub Actions run.
 - Ali agent status endpoint and explicit model-independent runtime contract.
 - Local SQLite knowledge retrieval foundation with FTS5/token-scan fallback, explicit license-reviewed ingestion, SHA-256 deduplication, and source-attributed chunks; no model or auto-download.
-- Built-in 12-note bilingual GEOLOGIA core pack, auto-seeded locally on first search/status; no external publication text copied.
+- Built-in 24-note four-language GEOLOGIA core pack, auto-seeded locally on first search/status; no external publication text copied.
 - Crossref metadata discovery expanded to English, Arabic, Russian, and Chinese query groups; publication language is retained and all candidates remain human-review-only.
 - Portable desktop artifacts are published by the main-branch build workflow; they are unsigned executables, not native installers.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
@@ -50,7 +50,7 @@ The runnable application source is committed to the default branch `main`.
 - No production deployment or production authentication/authorization; keep the API bound to localhost.
 - No scientific engine is integrated or certified; `engines_integrated` remains 0.
 - GeoPackage, GeoTIFF, and LAS are stored only. CSV receives structural inspection; it is not scientifically interpreted.
-- The index auto-seeds 12 original GEOLOGIA-authored Arabic/English core checklists; the external source corpus remains empty until explicit license-reviewed ingestion. No PDF extraction or automatic full-text download.
+- The index auto-seeds 24 original GEOLOGIA-authored Arabic/English/Russian/Chinese core checklists; the external source corpus remains empty until explicit license-reviewed ingestion. No PDF extraction or automatic full-text download.
 - No worker queue, isolated engine containers, or LLM provider integration.
 - Engine license reviews are pending individually; the platform license does not relicense third-party engines.
 - GeoJSON checks are structural only, not complete OGC conformance, topology, or scientific validation.
