@@ -86,6 +86,7 @@ function renderPlan(plan){
  const boundary=planSection(output,tr("scientificBoundary"));
  boundary.append(planElement("p","plan-domain-meta",tr("noEngine")));
 }
-\n$("jobForm").addEventListener("submit",async e=>{e.preventDefault();if(!activeProject){feedback("jobStatus",tr("needProject"),true);return}feedback("jobStatus",tr("loading"));try{const job=await api("/api/v1/projects/"+encodeURIComponent(activeProject)+"/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request:$("analysisRequest").value.trim(),language:lang})});currentPlan=job.plan;renderPlan(currentPlan);feedback("jobStatus",tr("planDone"))}catch(err){feedback("jobStatus",err.message,true)}});
+
+$("jobForm").addEventListener("submit",async e=>{e.preventDefault();if(!activeProject){feedback("jobStatus",tr("needProject"),true);return}feedback("jobStatus",tr("loading"));try{const job=await api("/api/v1/projects/"+encodeURIComponent(activeProject)+"/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({request:$("analysisRequest").value.trim(),language:lang})});currentPlan=job.plan;renderPlan(currentPlan);feedback("jobStatus",tr("planDone"))}catch(err){feedback("jobStatus",err.message,true)}});
 async function start(){setLang("ar");initMap();await loadHealth();await loadProjects()}
 start();
