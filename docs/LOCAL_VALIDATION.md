@@ -8,19 +8,22 @@ The runnable application source is committed to the default branch `main`.
 
 ## Latest verified CI
 
-- Main-branch run [#44939490958](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44939490958) passed after the PWA merge.
-- PWA PR validation [#44939426012](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44939426012) passed on commit `66f0b6cbe4e9d8cb6d00e2d0938ca128c82a773c`: Python 3.12, 3.14, and 3.15; 45 tests passed on Python 3.12, Ruff and compile checks passed.
-- A first intermediate commit in the PWA branch failed because the new test arrived before the HTML manifest link; the link was added, and the final PR head passed. The failure was not hidden.
+- Main-branch run [#44940098319](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44940098319) passed after Ali Algomori's agent-core merge: Python 3.12, 3.14, and 3.15; 60 tests passed on Python 3.12, Ruff and compile checks passed.
+- PWA PR #10 validation [#44939426012](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44939426012) passed all three Python versions; 45 tests passed on Python 3.12.
+- Local installer PR #11 validation [#44939710621](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44939710621) passed all three Python versions; 51 tests passed on Python 3.12, including Bash syntax validation.
+- Ali agent PR #12 validation [#44940027519](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44940027519) passed all three Python versions; 60 tests passed on Python 3.12.
 
 ## Implemented
 
 - Phase 1: FastAPI, SQLite projects/jobs, deterministic plan records.
 - Phase 2: bounded streaming dataset intake, generated storage paths, SHA-256, strict JSON and structural GeoJSON validation.
-- Phase 3: deterministic domain routing, specialist role labels, and required-role coverage reporting that explicitly does not claim content validation.
+- Phase 3: Ali Algomori deterministic local agent with Arabic/English evidence routing, heuristic confidence, multi-domain plans, and clarification instead of a silent GIS fallback.
 - Phase 4: bilingual Arabic RTL / English LTR frontend for projects, dataset intake, and plan display.
 - Phase 5: CRS inspection and GeoJSON reprojection using optional pyproj; derived datasets are stored without overwriting source datasets.
 - Installable PWA manifest, SVG icon, service worker, and static-shell offline fallback; API responses are not cached by the service worker.
 - Local installer and loopback launcher scripts for POSIX systems, Termux bootstrap, and Windows PowerShell.
+- Ali agent status endpoint and explicit model-independent runtime contract.
+- Local SQLite knowledge retrieval foundation with FTS5/token-scan fallback, explicit license-reviewed ingestion, SHA-256 deduplication, and source-attributed chunks; no model or auto-download.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
 - Full-history findings and remaining blockers: [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md).
@@ -33,6 +36,7 @@ The runnable application source is committed to the default branch `main`.
 - No production deployment or production authentication/authorization; keep the API bound to localhost.
 - No scientific engine is integrated or certified; `engines_integrated` remains 0.
 - GeoPackage, GeoTIFF, and LAS are stored only. CSV receives structural inspection; it is not scientifically interpreted.
+- The local knowledge index starts empty; source discovery metadata is not an ingested corpus. Only explicitly reviewed UTF-8 text is indexed; no PDF extraction or automatic full-text download.
 - No worker queue, isolated engine containers, or LLM provider integration.
 - Engine license reviews are pending individually; the platform license does not relicense third-party engines.
 - GeoJSON checks are structural only, not complete OGC conformance, topology, or scientific validation.
