@@ -50,7 +50,7 @@ bash scripts/install-local.sh --gis
 
 The index is stored by default at `.geologia/knowledge.sqlite3`. Ali's analysis plans retrieve up to three matching local text chunks with source and license metadata. Retrieval is deterministic and does not call a model.
 
-On the first knowledge status/search request, GEOLOGIA automatically indexes **24 original multilingual core checklists** across groundwater, GIS/CRS, 3D geology, seismology, remote sensing, and mineral exploration. These are GEOLOGIA-authored process notes, not copied publications. You can also run `geologia-knowledge --seed-core` explicitly. This core pack is local and model-free.
+On the first knowledge status/search request, GEOLOGIA automatically indexes **24 original multilingual core checklists** across groundwater, GIS/CRS, 3D geology, seismology, remote sensing, and mineral exploration. These are GEOLOGIA-authored process notes, not copied publications. You can also run `geologia-knowledge --seed-core` explicitly. This core pack is local and model-free. Chinese queries use deterministic bigram indexing in SQLite FTS; no embedding model is required.
 
 Index only UTF-8 `.txt`, `.md`, `.csv`, or `.json` text that you are legally allowed to process and have explicitly reviewed. Example:
 
