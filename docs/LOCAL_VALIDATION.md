@@ -83,3 +83,8 @@ CI for the new format-validation job is pending. No scientific engine is integra
 ## Scientific reference controls — follow-up
 
 See [SCIENTIFIC_REFERENCE_REVIEW.md](SCIENTIFIC_REFERENCE_REVIEW.md). Added tests independently compute EPSG:3857 coordinates from the published formula and recognize declared EGM96 vertical CRS metadata through compound EPSG:9707. The latest changes require a fresh CI run; no green status is claimed until it completes.
+
+
+## Source citation UI — pending current-head validation
+
+The workspace now has an expandable bilingual source citation form for dataset uploads, displays source citation status in the dataset list, and sends the optional source metadata headers to the API. The Playwright upload scenario supplies a source URL, citation, and access date and asserts the citation/status are visible. Current-head CI must pass before treating this UI addition as verified.
