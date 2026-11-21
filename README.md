@@ -67,6 +67,12 @@ Do not expose this development API publicly. The bundled development CLI now rej
 
 Development baseline: Python 3.14.x. Python 3.12 and 3.15 are included in CI compatibility coverage. Python 3.15 CI success does not imply Termux/Android compatibility. See [Phase 1](docs/PHASE1.md), [Phase 2](docs/PHASE2.md), [Phase 3](docs/PHASE3.md), and [Phase 4](docs/PHASE4.md).
 
+## Authoritative geoid and CRS references
+
+The scientific reference registry is maintained in [`tests/data/reference_sources.json`](tests/data/reference_sources.json), with the geoid model inventory and acceptance gates in [`tests/data/geoid_model_reference.json`](tests/data/geoid_model_reference.json) and the review in [`docs/SCIENTIFIC_REFERENCE_REVIEW.md`](docs/SCIENTIFIC_REFERENCE_REVIEW.md).
+
+The vertical model references distinguish legacy global **EGM96** (15 arc-minute grid; EPSG:5773 vertical CRS / EPSG:5171 geoid datum) from NGA's published **EGM2008** (2.5 arc-minute grid; EPSG:3855). NGA is the primary model source; OSGeo PROJ-data is cited only as secondary converted-grid distribution metadata. The reference registry is not a claim that a grid is bundled or applied. GEOLOGIA still has no vertical transformation and no independent numerical height known-answer fixture.
+
 ## License
 
 Original GEOLOGIA platform code is licensed under **AGPL-3.0-only**; see [LICENSE](LICENSE). Third-party engine licenses are separate and must be verified before each adapter is distributed. The registry's `license_status: unverified` is deliberate until that review is complete.
