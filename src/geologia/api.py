@@ -423,6 +423,33 @@ def dataset_validate(dataset_id: str) -> dict:
     if content_path is None or not Path(content_path).is_file():
         raise HTTPException(status_code=410, detail="dataset file is missing")
     path = Path(content_path)
+    digest = hashlib.sha256()
+    actual_size = 0
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            actual_size += len(chunk)
+            digest.update(chunk)
+    if actual_size != item["size_bytes"] or digest.hexdigest() != item["sha256"]:
+        report = {
+            "validation_level": "integrity",
+            "validation_status": "failed",
+            "profile": None,
+            "checks": [{"code": "dataset.integrity.sha256", "status": "failed"}],
+            "errors": [{
+                "code": "dataset.integrity.sha256_mismatch",
+                "message": "Stored dataset bytes no longer match the recorded size and SHA-256.",
+            }],
+            "error_count": 1,
+            "warnings": [],
+            "warning_count": 0,
+            "scientific_interpretation": False,
+        }
+        report["dataset_id"] = dataset_id
+        report["source_sha256"] = item["sha256"]
+        report["source_size_bytes"] = item["size_bytes"]
+        report["validated_at"] = store.utc_now()
+        store.save_dataset_validation(dataset_id, report)
+        return report
     if item["format"] == "csv":
         report = validate_csv_file(path, item["data_role"])
     elif item["format"] in {"geojson", "json"}:
@@ -439,6 +466,9 @@ def dataset_validate(dataset_id: str) -> dict:
             detail="validation profiles currently support CSV and GeoJSON only",
         )
     report["dataset_id"] = dataset_id
+    report["source_sha256"] = item["sha256"]
+    report["source_size_bytes"] = item["size_bytes"]
+    report["validated_at"] = store.utc_now()
     store.save_dataset_validation(dataset_id, report)
     return report
 
