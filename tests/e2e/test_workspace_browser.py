@@ -98,5 +98,5 @@ def test_malformed_csv_is_rejected_during_inspection(app_url, browser_page):
     validation_report = dataset.locator(".validation-report")
     expect(validation_report).to_be_visible()
     expect(validation_report).to_contain_text('"validation_status": "failed"')
-    expect(validation_report).to_contain_text("profile.timestamp.invalid")
+    expect(validation_report).to_contain_text("csv.parse")
     expect(page.locator("#uploadStatus")).to_have_class("feedback error")
