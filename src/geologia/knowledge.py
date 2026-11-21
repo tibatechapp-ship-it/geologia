@@ -372,11 +372,17 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
     if not source_path.is_file():
         raise ValueError("source file does not exist or is not a regular file")
 
-    raw = source_path.read_bytes()
-    if not raw:
-        raise ValueError("source file is empty")
+    try:
+        if source_path.stat().st_size > MAX_SOURCE_BYTES:
+            raise ValueError("source file exceeds the 20 MiB local indexing limit")
+        with source_path.open("rb") as source_file:
+            raw = source_file.read(MAX_SOURCE_BYTES + 1)
+    except OSError as exc:
+        raise ValueError("could not read the local source file") from exc
     if len(raw) > MAX_SOURCE_BYTES:
         raise ValueError("source file exceeds the 20 MiB local indexing limit")
+    if not raw:
+        raise ValueError("source file is empty")
 
     indexed_chunks: list[tuple[str, str]] = []
     pages_extracted = None
