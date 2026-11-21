@@ -16,6 +16,7 @@ gis = ["pyproj>=3.6,<4"]
 
 [project.scripts]
 geologia-api = "geologia.api:run"
+geologia-knowledge = "geologia.knowledge_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
