@@ -32,6 +32,7 @@ The runnable application source is committed to the default branch `main`.
 - Ali agent status endpoint and explicit model-independent runtime contract.
 - Local SQLite knowledge retrieval foundation with FTS5/token-scan fallback, explicit license-reviewed ingestion, SHA-256 deduplication, and source-attributed chunks; no model or auto-download.
 - Built-in 12-note bilingual GEOLOGIA core pack, auto-seeded locally on first search/status; no external publication text copied.
+- Crossref metadata discovery expanded to English, Arabic, Russian, and Chinese query groups; publication language is retained and all candidates remain human-review-only.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
 - Full-history findings and remaining blockers: [ENGINEERING_AUDIT.md](ENGINEERING_AUDIT.md).
