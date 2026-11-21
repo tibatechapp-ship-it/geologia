@@ -136,4 +136,12 @@ The retrieval endpoints are:
 
 Analysis plans report retrieval status and source metadata, but do not convert retrieved text into a validated scientific conclusion. A citation points to a local indexed text chunk; original page/section locators are not inferred.
 
-**Current corpus status:** the index is empty until an operator explicitly ingests a lawful local document. The institution catalog remains discovery metadata and the approved bibliographic registry is still empty; no full-text publications have been automatically downloaded or ingested.
+**Current corpus status:** the index automatically seeds 12 original GEOLOGIA-authored Arabic/English checklists on first search/status. The external research corpus remains empty until an operator explicitly ingests lawful local text. The institution catalog remains discovery metadata and the approved bibliographic registry is still empty; no full-text publications have been automatically downloaded or ingested.
+
+## 11. Built-in core knowledge pack
+
+The package contains 12 original GEOLOGIA-authored checklists: six domains in Arabic and English (groundwater, GIS/CRS, 3D geology, seismology, remote sensing, and mineral exploration). The local index seeds them on first search/status and deduplicates by stable source ID. The notes are licensed as repository original content and link to authoritative source pages; they do not reproduce external publication text.
+
+This is **retrieval memory**, not neural training. The agent retrieves relevant local chunks and their source metadata; it does not infer a scientific result from a checklist. External documents remain subject to explicit license review and ingestion.
+
+See [ALI_SOURCE_LICENSE_MATRIX.md](ALI_SOURCE_LICENSE_MATRIX.md) for the reviewed international source families and ingestion restrictions.
