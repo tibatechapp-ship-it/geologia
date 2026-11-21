@@ -63,6 +63,7 @@ def test_safe_geojson_upload_and_metadata(tmp_path, monkeypatch):
     assert item["status"] == "stored_not_analyzed"
     assert item["summary"]["feature_count"] == 1
     assert item["crs"] == "EPSG:4326"
+    assert item["data_role"] is None
     assert len(item["sha256"]) == 64
     assert "content_path" not in item
     assert client.get(f"/api/v1/datasets/{item['id']}").json()["id"] == item["id"]
@@ -112,3 +113,27 @@ def test_input_validation(tmp_path, monkeypatch):
     assert client.post(
         "/api/v1/projects", json={"name": "Valid", "language": "fr"}
     ).status_code == 422
+
+def test_data_role_drives_readiness_but_never_enables_execution(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Readiness"}).json()
+    uploaded = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=b"raster placeholder bytes",
+        headers={
+            "X-Dataset-Name": "Elevation", "X-Filename": "elevation.tif",
+            "X-Data-Role": "dem", "X-CRS": "EPSG:4326",
+        },
+    )
+    assert uploaded.status_code == 201
+    assert uploaded.json()["data_role"] == "dem"
+    job = client.post(
+        f"/api/v1/projects/{project['id']}/jobs",
+        json={"request": "Groundwater study", "language": "en"},
+    ).json()
+    readiness = job["plan"]["data_readiness"]
+    assert "dem" in readiness["available_inputs"]
+    assert "dem" not in readiness["missing_inputs"]
+    assert readiness["data_complete"] is False
+    assert readiness["execution_allowed"] is False

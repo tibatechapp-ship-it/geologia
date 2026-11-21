@@ -10,6 +10,8 @@ The planned chief agent is **المهندس الجمهوري**. The current API 
 - SQLite-backed projects, jobs, and dataset metadata.
 - Streaming dataset intake with a 50 MiB limit, filename sanitization, SHA-256, and generated storage paths.
 - Structural-only GeoJSON validation; other supported formats are stored but not analyzed.
+- Role-tagged datasets and a missing-input readiness report in every analysis plan.
+- Chief-agent identity and specialist-role routing by deterministic rules (not an LLM).
 - Deterministic Arabic/English plan routing.
 - Registry with 30 catalog cards, all explicitly `planned` and `license_status: unverified`.
 - CI on Python 3.10 and 3.12, including Ruff, compile, and pytest.
@@ -47,4 +49,4 @@ The 30 registry entries are catalog references, not integrations. Health reports
 
 Do not expose this development API publicly without authentication, authorization, quotas, private storage, isolated workers, and monitoring. Spatial analysis, raster/vector processing, frontend, and engine adapters are not implemented yet.
 
-See [Phase 1](docs/PHASE1.md) and [Phase 2](docs/PHASE2.md).
+See [Phase 1](docs/PHASE1.md), [Phase 2](docs/PHASE2.md), and [Phase 3](docs/PHASE3.md).

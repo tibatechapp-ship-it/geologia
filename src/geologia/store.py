@@ -54,12 +54,15 @@ def initialize() -> None:
             id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
             name TEXT NOT NULL, format TEXT NOT NULL, original_filename TEXT NOT NULL,
             content_path TEXT NOT NULL, sha256 TEXT NOT NULL, size_bytes INTEGER NOT NULL,
-            crs TEXT, status TEXT NOT NULL, summary_json TEXT NOT NULL,
+            crs TEXT, data_role TEXT, status TEXT NOT NULL, summary_json TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_datasets_project_created
             ON datasets(project_id, created_at DESC);
         """)
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(datasets)")}
+        if "data_role" not in columns:
+            conn.execute("ALTER TABLE datasets ADD COLUMN data_role TEXT")
 
 
 def create_project(name: str, description: str, language: str) -> dict[str, Any]:
@@ -127,20 +130,23 @@ def _job_row(row: sqlite3.Row) -> dict[str, Any]:
 
 def create_dataset(project_id: str, *, name: str, file_format: str,
                    original_filename: str, content_path: str, sha256: str,
-                   size_bytes: int, crs: str | None, summary: dict) -> dict[str, Any]:
+                   size_bytes: int, crs: str | None, data_role: str | None,
+                   summary: dict) -> dict[str, Any]:
     item = {
         "id": str(uuid4()), "project_id": project_id, "name": name,
         "format": file_format, "original_filename": original_filename,
         "sha256": sha256, "size_bytes": size_bytes, "crs": crs,
-        "status": "stored_not_analyzed", "summary": summary, "created_at": utc_now(),
+        "data_role": data_role, "status": "stored_not_analyzed",
+        "summary": summary, "created_at": utc_now(),
     }
     initialize()
     with connect() as conn:
         conn.execute(
             "INSERT INTO datasets(id,project_id,name,format,original_filename,content_path,"
-            "sha256,size_bytes,crs,status,summary_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            "sha256,size_bytes,crs,data_role,status,summary_json,created_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (item["id"], project_id, name, file_format, original_filename, content_path,
-             sha256, size_bytes, crs, item["status"],
+             sha256, size_bytes, crs, data_role, item["status"],
              json.dumps(summary, ensure_ascii=False), item["created_at"]),
         )
     return item
@@ -153,6 +159,16 @@ def list_datasets(project_id: str) -> list[dict[str, Any]]:
             "SELECT * FROM datasets WHERE project_id=? ORDER BY created_at DESC", (project_id,)
         ).fetchall()
     return [_dataset_row(row) for row in rows]
+
+
+def list_dataset_roles(project_id: str) -> list[str]:
+    initialize()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT data_role FROM datasets WHERE project_id=? AND data_role IS NOT NULL",
+            (project_id,),
+        ).fetchall()
+    return sorted(row["data_role"] for row in rows)
 
 
 def get_dataset(dataset_id: str) -> dict[str, Any] | None:

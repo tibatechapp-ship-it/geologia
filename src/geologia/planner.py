@@ -1,4 +1,4 @@
-"""Deterministic, plan-only routing. This module never executes engines."""
+"""Deterministic, plan-only routing. No model or scientific engine is invoked."""
 INTENTS = [
     {"domain": "hydrology", "engines": ["modflow6", "pastas"],
      "inputs": ["well_logs", "water_levels_timeseries", "recharge_estimate", "dem", "geology_map"],
@@ -19,6 +19,14 @@ INTENTS = [
      "inputs": ["aoi_boundary", "data_layers", "crs_definition"],
      "keywords": ["خريطة", "طبقات", "gis", "map", "layers"]},
 ]
+AGENT_ROLES = {
+    "hydrology": ("groundwater_specialist", "وكيل المياه الجوفية", "Groundwater specialist"),
+    "geology3d": ("geology3d_specialist", "وكيل النمذجة ثلاثية الأبعاد", "3D geology specialist"),
+    "seismology": ("seismology_specialist", "وكيل الزلازل", "Seismology specialist"),
+    "exploration": ("mineral_exploration_specialist", "وكيل استكشاف المعادن", "Mineral exploration specialist"),
+    "remote_sensing": ("remote_sensing_specialist", "وكيل الاستشعار عن بعد", "Remote sensing specialist"),
+    "gis": ("gis_specialist", "وكيل نظم المعلومات الجغرافية", "GIS specialist"),
+}
 GATES = [
     "data_sufficiency", "crs_and_units", "engine_execution_evidence",
     "warnings_review", "reproducibility", "uncertainty", "independent_review",
@@ -31,6 +39,7 @@ def build_plan(request: str, language: str = "ar") -> dict:
     if not matched:
         matched = [next(item for item in INTENTS if item["domain"] == "gis")]
     steps, required = [], set()
+    assignments = []
     for item in matched:
         steps.append({
             "domain": item["domain"], "candidate_engines": item["engines"],
@@ -38,6 +47,8 @@ def build_plan(request: str, language: str = "ar") -> dict:
             "execution": "not_started",
         })
         required.update(item["inputs"])
+        role = AGENT_ROLES[item["domain"]]
+        assignments.append({"role_id": role[0], "name_ar": role[1], "name_en": role[2]})
     disclaimer = (
         "هذه خطة فقط؛ لم تُنفّذ محركات ولم تُحسب نتائج علمية. "
         "لا توصية بالحفر أو تأكيد مورد دون بيانات كافية ومراجعة علمية."
@@ -47,6 +58,8 @@ def build_plan(request: str, language: str = "ar") -> dict:
     )
     return {
         "plan_only": True, "no_results_computed": True, "language": language,
+        "chief_agent": {"name_ar": "المهندس الجمهوري", "name_en": "Chief Geoscience Agent"},
+        "agent_assignments": assignments,
         "matched_domains": [step["domain"] for step in steps], "steps": steps,
         "required_inputs": sorted(required), "scientific_gates": GATES,
         "disclaimer": disclaimer,
