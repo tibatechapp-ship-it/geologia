@@ -124,7 +124,7 @@ def test_open_license_ingestion_rejects_noncommercial_and_no_derivatives_terms(
         )
 
 
-def test_core_seed_pack_is_bilingual_local_and_idempotent(tmp_path, monkeypatch):
+def test_core_seed_pack_is_four_language_local_and_idempotent(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "core.sqlite3"))
     monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
     monkeypatch.delenv("GEOLOGIA_DISABLE_CORE_SEED", raising=False)
