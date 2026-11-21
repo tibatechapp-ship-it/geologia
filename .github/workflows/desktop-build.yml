@@ -1,0 +1,55 @@
+name: GEOLOGIA Desktop Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/geologia/desktop.py"
+      - "scripts/geologia_desktop.py"
+      - "pyproject.toml"
+      - ".github/workflows/desktop-build.yml"
+  pull_request:
+    paths:
+      - "src/geologia/desktop.py"
+      - "scripts/geologia_desktop.py"
+      - "pyproject.toml"
+      - ".github/workflows/desktop-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Portable desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install package and packager
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[build]"
+      - name: Build one-file desktop executable
+        run: python -m PyInstaller --noconfirm --clean --onefile --name geologia-desktop --collect-all geologia scripts/geologia_desktop.py
+      - name: Smoke test executable
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./dist/geologia-desktop.exe --version
+          else
+            ./dist/geologia-desktop --version
+          fi
+      - name: Upload portable executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: geologia-desktop-${{ runner.os }}-${{ runner.arch }}
+          path: dist/geologia-desktop*
+          if-no-files-found: error
+          retention-days: 30
