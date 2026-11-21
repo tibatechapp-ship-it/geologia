@@ -1043,7 +1043,7 @@ def list_claims(limit: int = 20, offset: int = 0) -> dict:
             FROM knowledge_claims c
             LEFT JOIN knowledge_claim_evidence e ON e.claim_id = c.claim_id
             GROUP BY c.claim_id
-            ORDER BY c.created_at DESC, c.claim_id
+            ORDER BY c.created_at DESC, c.rowid DESC
             LIMIT ? OFFSET ?
             """,
             (limit, offset),
