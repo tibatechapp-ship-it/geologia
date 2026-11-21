@@ -239,7 +239,7 @@ def test_geotiff_declared_pixel_bomb_rejected_before_sample(tmp_path):
     with rasterio.open(
         path, "w", driver="GTiff", width=100001, height=1000, count=1,
         dtype="uint8", transform=from_origin(0, 0, 1, 1), tiled=True,
-        blockxsize=256, blockysize=256,
+        blockxsize=256, blockysize=256, SPARSE_OK="TRUE",
     ):
         pass
     with pytest.raises(FormatValidationError, match="dimensions exceed"):
