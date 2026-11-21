@@ -44,11 +44,14 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 
 ## Verified by GitHub Actions
 
-The latest fully green code validation is [Run #51](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490), on commit `41609ccfac282f32d702436a8ca4f1f54570f658`:
+The latest full validation for this phase is [Run #60](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44917359033), on commit `0b68dabdc85eae893243abf1534db84b833f7009`:
+- Python 3.12, 3.14, and 3.15 all passed.
+- The dedicated Chromium/Playwright browser job passed: 2 end-to-end tests.
+- The browser job starts a real Uvicorn process with isolated SQLite and upload directories; it does not mock the API.
 - Python 3.12, 3.14, and 3.15 all passed.
 - Editable install with development and GIS extras passed.
 - JavaScript syntax check, Ruff, compileall, and pytest passed.
-- The run reported 32 passing tests per Python version.
+- The core run reported 32 passing tests per Python version.
 - One upstream deprecation warning remains in Starlette's TestClient use of AnyIO's deprecated `BlockingPortal` alias. No application startup deprecation or Node 20 action warning remains.
 
 This run includes the strict JSON handling, normalized-input validation, readiness semantics, lifespan modernization, current GitHub Actions, and engineering-audit documentation.
@@ -75,8 +78,8 @@ This run includes the strict JSON handling, normalized-input validation, readine
 - No provenance model yet records software versions, exact transformation parameters, input snapshots, and reproducible run artifacts for scientific computations.
 
 ### Frontend and test coverage
-- CI checks JavaScript syntax but does not run browser-based end-to-end tests.
-- The map view depends on externally hosted map assets/tiles; local data storage does not imply a fully offline map experience.
+- A first Chromium/Playwright end-to-end suite now covers project creation, CSV upload and structural inspection, plan creation, Arabic/English direction switching, and graceful operation when the external Leaflet CDN is unavailable.
+- The map view still depends on externally hosted map assets/tiles; local data storage does not imply a fully offline map experience. Successful Leaflet rendering and interactive map behavior still need a dedicated browser test with a controlled local map asset.
 - No accessibility audit, cross-browser/mobile interaction suite, or performance budget has been completed.
 
 ### Platform support
@@ -86,7 +89,7 @@ This run includes the strict JSON handling, normalized-input validation, readine
 ## Ordered next work
 
 1. Close the current CI run and fix every lint, test, packaging, or runtime failure before adding features.
-2. Add browser-level tests for project creation, upload, language switching, map rendering, inspection, and reprojection.
+2. Extend browser-level tests to cover successful Leaflet rendering, map interactions, CRS reprojection, mobile viewport behavior, and accessibility.
 3. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
 4. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
 5. Build a typed data-validation layer for GeoJSON, CSV, GeoPackage, GeoTIFF, and LAS; never infer scientific validity from filenames or role tags.
