@@ -66,7 +66,7 @@ def _connect() -> sqlite3.Connection:
 
 
 FTS_SCHEMA_VERSION = "2"
-CJK_PATTERN = re.compile(r"[\\u3400-\\u4dbf\\u4e00-\\u9fff\\u3040-\\u30ff\\uac00-\\ud7af]")
+CJK_PATTERN = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
 
 
 def _cjk_bigrams(token: str) -> list[str]:
@@ -76,7 +76,7 @@ def _cjk_bigrams(token: str) -> list[str]:
 def _fts_text(text: str) -> str:
     """Add CJK bigram tokens while retaining original words for FTS matching."""
     terms = []
-    for token in re.findall(r"[\\w]+", text, flags=re.UNICODE):
+    for token in re.findall(r"[\w]+", text, flags=re.UNICODE):
         if CJK_PATTERN.search(token):
             terms.append(token)
             terms.extend(_cjk_bigrams(token))
