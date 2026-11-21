@@ -10,9 +10,9 @@ The phase 6 browser-test implementation is on branch `phase-6-browser-e2e`, pend
 
 ## Latest full validation
 
-GitHub Actions run #87 for commit `f048828256e403ba8e925a83eae717364ac5d280` completed successfully:
+GitHub Actions run #96 for commit `5051b2c49e8a525ae4c840ae471229c2b660924f` completed successfully:
 
-- Python 3.12: 43 passed, 1 optional browser-directory skip, 1 upstream warning
+- Python 3.12: 44 passed, 1 optional browser-directory skip, 1 upstream warning
 - Python 3.14: 43 passed, 1 optional browser-directory skip, 1 upstream warning
 - Python 3.15: 43 passed, 1 optional browser-directory skip, 1 upstream warning
 - JavaScript syntax check: passed
@@ -30,11 +30,11 @@ The browser tests launch a real Uvicorn process with temporary SQLite and upload
 - Rejection of malformed CSV during inspection.
 - No uncaught browser JavaScript exceptions in the main user journey.
 
-Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918428819
+Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918712001
 
 ## Implemented
 
-- Phase 7 foundation: versioned CSV/GeoJSON validation profiles, persisted reports, and a bilingual UI validation action. Details: [DATA_VALIDATION.md](DATA_VALIDATION.md).
+- Phase 7 foundation: versioned CSV/GeoJSON validation profiles, persisted reports, upload-time SHA-256 integrity verification, and a bilingual UI validation action. Details: [DATA_VALIDATION.md](DATA_VALIDATION.md).
 
 - Phase 1: FastAPI, SQLite projects/jobs, deterministic plan records.
 - Phase 2: bounded streaming dataset intake, generated storage paths, SHA-256, strict JSON and structural GeoJSON validation.
