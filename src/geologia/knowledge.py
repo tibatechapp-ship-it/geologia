@@ -479,7 +479,12 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
         )
         has_fts = _fts_available(connection)
         for index, (body, locator) in enumerate(indexed_chunks):
-            chunk_id = uuid4().hex
+            # Evidence identifiers remain stable across independent local indexes
+            # when the reviewed source artifact and extracted chunk are identical.
+            identity = (
+                f"{source['source_id']}\\0{digest}\\0{index}\\0{body}"
+            ).encode("utf-8")
+            chunk_id = hashlib.sha256(identity).hexdigest()[:32]
             connection.execute(
                 "INSERT INTO knowledge_chunks "
                 "(chunk_id, document_id, chunk_index, body, source_locator) "

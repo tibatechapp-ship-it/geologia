@@ -365,6 +365,35 @@ def test_token_scan_fallback_ranks_chunks_by_query_term_coverage(local_index, mo
     found = knowledge.search("aquifer recharge", limit=5)
     assert found["retrieval_method"] == "sqlite_token_scan"
     assert found["results"][0]["source_id"] == "rank-multi-001"
+def test_evidence_chunk_ids_are_stable_across_local_indexes(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "stable-source.txt"
+    source.write_text(
+        "Groundwater recharge and aquifer storage evidence.",
+        encoding="utf-8",
+    )
+    ids = []
+    for index_name in ("first.sqlite3", "second.sqlite3"):
+        monkeypatch.setenv(
+            "GEOLOGIA_KNOWLEDGE_DB_PATH", str(tmp_path / index_name)
+        )
+        monkeypatch.setenv("GEOLOGIA_DISABLE_CORE_SEED", "1")
+        knowledge.ingest_document(
+            source,
+            metadata(source_id="stable-evidence-001", title="Stable evidence"),
+        )
+        with closing(knowledge._connect()) as connection:
+            ids.append([
+                row["chunk_id"]
+                for row in connection.execute(
+                    "SELECT chunk_id FROM knowledge_chunks ORDER BY chunk_index"
+                )
+            ])
+    assert ids[0]
+    assert ids[0] == ids[1]
+
+
 def test_search_reports_exact_query_term_coverage_and_evidence(local_index):
     source = local_index / "coverage.txt"
     source.write_text(
