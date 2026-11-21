@@ -594,7 +594,8 @@ def test_knowledge_documents_migrate_scientific_review_columns(tmp_path, monkeyp
     with closing(knowledge._connect()) as connection:
         row = connection.execute(
             "SELECT source_kind, scientific_review_status, "
-            "scientific_reviewed_by, scientific_review_date "
+            "scientific_reviewed_by, scientific_review_date, "
+            "scientific_review_basis "
             "FROM knowledge_documents WHERE id='legacy-doc'"
         ).fetchone()
     assert row["source_kind"] == "other"
