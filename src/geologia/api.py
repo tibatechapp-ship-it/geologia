@@ -484,6 +484,11 @@ def jobs_create(project_id: str, body: JobInput) -> dict:
             "retrieval_method": retrieval["retrieval_method"],
             "model_used": False,
             "scientific_conclusion": False,
+            "evidence_summary": retrieval["evidence_summary"],
+            "evidence_interpretation": (
+                "local lexical retrieval only; not scientific confidence "
+                "or a validated scientific conclusion"
+            ),
             "results": retrieval["results"],
         }
     return store.create_job(project_id, body.request, body.language, plan)
