@@ -137,3 +137,12 @@ def test_data_role_drives_readiness_but_never_enables_execution(tmp_path, monkey
     assert "dem" not in readiness["missing_inputs"]
     assert readiness["data_complete"] is False
     assert readiness["execution_allowed"] is False
+
+
+def test_bilingual_frontend_is_served():
+    home = client.get("/")
+    assert home.status_code == 200
+    assert "GEOLOGIA" in home.text
+    script = client.get("/app.js")
+    assert script.status_code == 200
+    assert "المهندس الجمهوري" in script.text

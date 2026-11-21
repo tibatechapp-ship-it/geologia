@@ -20,7 +20,7 @@ geologia-api = "geologia.api:run"
 where = ["src"]
 
 [tool.setuptools.package-data]
-geologia = ["data/*.json"]
+geologia = ["data/*.json", "web/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

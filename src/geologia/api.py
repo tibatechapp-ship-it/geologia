@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from geologia import __version__
@@ -235,6 +236,9 @@ def run() -> None:
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     uvicorn.run("geologia.api:app", host=args.host, port=args.port, reload=False)
+
+
+app.mount("/", StaticFiles(directory=Path(__file__).parent / "web", html=True), name="web")
 
 
 if __name__ == "__main__":
