@@ -392,3 +392,28 @@ def test_token_fallback_does_not_accept_substring_only_matches(local_index, monk
 
     found = knowledge.search("ore", limit=5)
     assert all(item["source_id"] != "substring-001" for item in found["results"])
+
+
+def test_knowledge_cli_search_returns_local_evidence_summary(local_index, capsys):
+    from geologia.knowledge_cli import main
+
+    source = local_index / "cli-search.md"
+    source.write_text(
+        "Aquifer recharge supports groundwater replenishment.",
+        encoding="utf-8",
+    )
+    knowledge.ingest_document(
+        source, metadata(source_id="cli-search-001", title="Aquifer recharge")
+    )
+
+    main(["--search", "aquifer recharge", "--limit", "3"])
+    output = capsys.readouterr().out
+    import json
+    result = json.loads(output)
+
+    assert result["count"] >= 1
+    assert result["model_used"] is False
+    assert result["evidence_summary"]["matched_query_terms"] == [
+        "aquifer", "recharge"
+    ]
+    assert result["results"][0]["source_id"] == "cli-search-001"
