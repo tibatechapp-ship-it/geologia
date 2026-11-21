@@ -111,7 +111,8 @@ def test_real_geotiff_metadata_and_bounded_sample(tmp_path):
     assert report["coordinate_units"] == ["metre", "metre"]
     assert report["sample_window"] == {"width": 32, "height": 32}
     assert report["vertical_reference"]["vertical_datum_verified"] is False
-    assert report["vertical_reference"]["vertical_metadata_values"]["vertical_datum"] == "unspecified"
+    vertical_values = report["vertical_reference"]["vertical_metadata_values"]
+    assert vertical_values["vertical_datum"] == "unspecified"
 
 
 def test_truncated_geotiff_rejected(tmp_path):
