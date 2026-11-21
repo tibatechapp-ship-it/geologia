@@ -110,3 +110,8 @@ The current PR branch adds optional parser-backed inspectors for GeoPackage (SQL
 The branch also adds a known-answer EPSG:4326 ↔ EPSG:3857 transformation fixture with tolerances; records source SHA-256, declared CRS, parser/Python/GEOLOGIA versions and inspection time; records pyproj operation details for reprojection; and appends dataset ingestion/inspection/derivation events to a project-scoped SHA-256 chain. The chain detects accidental or unsophisticated modification but is not an external immutable audit system.
 
 This work remains in draft PR #7. GitHub Actions run [#44931186563](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44931186563) completed successfully on commit `dba5a29`: Python 3.12/3.14/3.15, browser end-to-end, and parser-backed format validation all passed. The specialized format test module reported 14 passed. This is software/file-structure evidence only, not scientific certification.
+
+
+## Scientific reference review — follow-up
+
+A dedicated [scientific reference review](SCIENTIFIC_REFERENCE_REVIEW.md) records authoritative EPSG/IOGP/OGC sources, synthetic control-point provenance, the independent EPSG:3857 equation oracle, and an EPSG:9707/EPSG:5773 vertical CRS metadata control. The vertical inspector now exposes declared vertical CRS components (authority/code, datum name, units, axis direction) and bounded vertical metadata values. It explicitly does not verify actual dataset height datum or perform vertical transformation. The newly added tests are pending CI for this latest commit; do not call this phase accepted until that run is green.
