@@ -597,7 +597,7 @@ def search(query: str, limit: int = 5) -> dict:
             try:
                 rows = connection.execute(
                     """
-                    SELECT c.chunk_id, c.document_id, c.chunk_index, c.body,
+                    SELECT c.chunk_id, c.document_id, c.chunk_index, c.body, c.source_locator,
                            d.source_id, d.title, d.author, d.publisher, d.source_url,
                            d.doi, d.license_name, d.license_status, d.reviewed_by,
                            d.review_date, d.language, d.file_sha256,
@@ -626,7 +626,7 @@ def search(query: str, limit: int = 5) -> dict:
                 parameters.extend([token, token])
             rows = connection.execute(
                 f"""
-                SELECT c.chunk_id, c.document_id, c.chunk_index, c.body,
+                SELECT c.chunk_id, c.document_id, c.chunk_index, c.body, c.source_locator,
                        d.source_id, d.title, d.author, d.publisher, d.source_url,
                        d.doi, d.license_name, d.license_status, d.reviewed_by,
                        d.review_date, d.language, d.file_sha256
@@ -659,9 +659,8 @@ def search(query: str, limit: int = 5) -> dict:
             "language": row["language"],
             "file_sha256": row["file_sha256"],
             "chunk_number": row["chunk_index"] + 1,
-            "citation_locator": (
-                f"local indexed text chunk {row['chunk_index'] + 1}; "
-                "original page/section locator is not inferred"
+            "citation_locator": row["source_locator"] or (
+                f"local indexed text chunk {row['chunk_index'] + 1}"
             ),
             "excerpt": _excerpt(row["body"], tokens),
         })
