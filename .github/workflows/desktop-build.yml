@@ -6,6 +6,7 @@ on:
     paths:
       - "src/geologia/desktop.py"
       - "scripts/geologia_desktop.py"
+      - "scripts/smoke_desktop.py"
       - "pyproject.toml"
       - ".github/workflows/desktop-build.yml"
   pull_request:
@@ -45,6 +46,14 @@ jobs:
             ./dist/geologia-desktop.exe --version
           else
             ./dist/geologia-desktop --version
+          fi
+      - name: Smoke test packaged HTTP server and web assets
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            python scripts/smoke_desktop.py dist/geologia-desktop.exe
+          else
+            python scripts/smoke_desktop.py dist/geologia-desktop
           fi
       - name: Upload portable executable
         uses: actions/upload-artifact@v4
