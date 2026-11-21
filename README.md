@@ -73,6 +73,8 @@ The scientific reference registry is maintained in [`tests/data/reference_source
 
 The vertical model references distinguish legacy global **EGM96** (15 arc-minute grid; EPSG:5773 vertical CRS / EPSG:5171 geoid datum) from NGA's published **EGM2008** (2.5 arc-minute grid; EPSG:3855). NGA is the primary model source; OSGeo PROJ-data is cited only as secondary converted-grid distribution metadata. The reference registry is not a claim that a grid is bundled or applied. GEOLOGIA still has no vertical transformation and no independent numerical height known-answer fixture.
 
+The scientific reference registry also identifies GeographicLib's 500,000-point `GeoidHeights.dat.gz` dataset as a potential cross-implementation EGM numerical oracle. Its published SHA-256 is recorded, but the artifact has not yet been downloaded/verified or sampled into CI; it is not field-survey validation. See [scientific reference review](docs/SCIENTIFIC_REFERENCE_REVIEW.md).
+
 ## License
 
 Original GEOLOGIA platform code is licensed under **AGPL-3.0-only**; see [LICENSE](LICENSE). Third-party engine licenses are separate and must be verified before each adapter is distributed. The registry's `license_status: unverified` is deliberate until that review is complete.
