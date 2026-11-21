@@ -17,7 +17,7 @@ def test_english_routing_is_case_and_punctuation_insensitive():
 
 
 def test_request_can_route_to_multiple_specialists():
-    result = classify_request("Map groundwater and inspect seismic ground motion")
+    result = classify_request("Groundwater and inspect seismic ground motion")
     assert result["matched_domains"] == ["hydrology", "seismology"]
 
 
