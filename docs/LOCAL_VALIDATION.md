@@ -2,7 +2,7 @@
 
 Updated: 2026-11-21
 
-Current implementation branches: `phase-6-browser-e2e` and `phase-7-data-validation`. Phase 7 review: [PR #4](https://github.com/tibatechapp-ship-it/geologia/pull/4).
+Current implementation branches: `phase-6-browser-e2e`, `phase-7-data-validation`, and `phase-8-job-lifecycle`. Phase 7 review: [PR #4](https://github.com/tibatechapp-ship-it/geologia/pull/4).
 
 ## Source on GitHub
 
@@ -42,7 +42,8 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918712001
 - Phase 4: bilingual Arabic RTL / English LTR frontend for projects, dataset intake, and plan display.
 - Phase 5: CRS inspection and GeoJSON reprojection using optional pyproj; derived datasets are stored without overwriting source datasets.
 - Phase 6: real Chromium/Playwright end-to-end coverage for key workspace flows.
-- Phase 7 foundation: versioned CSV/GeoJSON validation profiles, persisted reports, and a bilingual UI validation action. Details: [DATA_VALIDATION.md](DATA_VALIDATION.md).
+- Phase 7 foundation: versioned CSV/GeoJSON validation profiles, persisted reports, upload-time SHA-256 integrity verification, and a bilingual UI validation action. Details: [DATA_VALIDATION.md](DATA_VALIDATION.md).
+- Phase 8 foundation: durable job state transitions, bounded retry attempts, atomic cancellation semantics, event history, and legacy SQLite migration. Details: [JOB_LIFECYCLE.md](JOB_LIFECYCLE.md).
 - Development CLI rejects non-loopback bind addresses.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
@@ -54,7 +55,7 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918712001
 - No production deployment or production authentication/authorization; keep the API bound to localhost.
 - No scientific engine is integrated or certified; `engines_integrated` remains 0.
 - GeoPackage, GeoTIFF, and LAS are stored only. CSV receives structural inspection; it is not scientifically interpreted.
-- No worker queue, isolated engine containers, or LLM provider integration.
+- No queue consumer, worker process, isolated engine containers, or LLM provider integration. Job lifecycle state is persisted, but jobs are not executed.
 - Engine license reviews are pending individually; the platform license does not relicense third-party engines.
 - GeoJSON checks are structural only, not complete OGC conformance, topology, or scientific validation.
 - Successful Leaflet rendering, map interaction, CRS reprojection through the browser, accessibility, and mobile browser behavior still require end-to-end coverage.
