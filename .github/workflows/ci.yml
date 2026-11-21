@@ -36,10 +36,12 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.56.1-noble
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.14"
-          cache: pip
+      - name: Install Python runtime in Playwright container
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 python3-venv
+          python3 -m venv /tmp/geologia-venv
+          echo "/tmp/geologia-venv/bin" >> "$GITHUB_PATH"
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev,gis]"
       - run: npm install --no-package-lock
