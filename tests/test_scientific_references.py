@@ -74,6 +74,9 @@ def test_geoid_numerical_reference_dataset_is_pinned_and_scientifically_scoped()
         "e0b9804694b3eac78ffd0b3df9cffd30a134d72007276e732ff72f9651bc9995"
     )
     assert "NGA harmonic-synthesis programs" in dataset["oracle_method"]
-    assert any("Not an independent field survey" in limitation for limitation in dataset["limitations"])
+    assert any(
+        "Not an independent field survey" in limitation
+        for limitation in dataset["limitations"]
+    )
     assert registry["status"]["numerical_reference_dataset_identified"] is True
     assert registry["status"]["numerical_known_answer_points_bundled"] is False
