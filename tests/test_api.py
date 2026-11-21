@@ -172,7 +172,11 @@ def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
     upload = client.post(
         f"/api/v1/projects/{project['id']}/datasets",
         content=__import__("json").dumps(payload).encode(),
-        headers={"X-Dataset-Name": "Point", "X-Filename": "point.geojson"},
+        headers={
+            "X-Dataset-Name": "Point", "X-Filename": "point.geojson",
+            "X-Source-URL": "https://epsg.io/4326",
+            "X-Source-Citation": "EPSG registry 4326",
+        },
     )
     dataset_id = upload.json()["id"]
     response = client.post(
@@ -195,12 +199,14 @@ def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
     assert derived["summary"]["source_dataset_sha256"] == upload.json()["sha256"]
     assert derived["summary"]["tool_versions"]["pyproj"]
     assert derived["summary"]["operation_definition"]
+    assert derived["summary"]["external_source"]["url"] == "https://epsg.io/4326"
     provenance = client.get(
         f"/api/v1/datasets/{derived['id']}/provenance"
     ).json()
     assert provenance["chain_integrity"] == "verified"
     assert provenance["events"][0]["event_type"] == "dataset_derived"
     assert provenance["events"][0]["payload"]["source_dataset_id"] == dataset_id
+    assert provenance["events"][0]["payload"]["external_source"]["citation"] == "EPSG registry 4326"
     assert client.get(f"/api/v1/datasets/{dataset_id}/geojson").json() == payload
     stored_derived = client.get(f"/api/v1/datasets/{derived['id']}/geojson")
     assert stored_derived.status_code == 200
