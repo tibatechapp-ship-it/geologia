@@ -17,6 +17,10 @@ The planned chief agent is **المهندس الجمهوري**. The current API 
 - Registry with 30 catalog cards, all explicitly `planned` and `license_status: unverified`.
 - Python 3.12+ is required. CI tests Python 3.12, 3.14, and 3.15, including GIS dependencies, Ruff, JavaScript syntax, compile, and pytest. Python 3.14 remains the practical local baseline where Python 3.15 is not yet available (including the current Termux validation target).
 
+## Contact
+
+For platform inquiries and project communication: [aigeologia@gmail.com](mailto:aigeologia@gmail.com).
+
 ## Quick start
 
 ```bash
