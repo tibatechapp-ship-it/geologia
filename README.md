@@ -12,7 +12,7 @@ The local, model-independent chief geoscience agent is **Ali Algomori (علي ا
 - Structural GeoJSON validation and deterministic inspection; CSV structural inspection. Neither produces geological interpretation.
 - Role-tagged datasets and a missing-input readiness report in every analysis plan.
 - Bilingual Arabic RTL / English LTR web workspace for projects, dataset intake, maps, and plan display.
-- Chief-agent identity and specialist-role routing by deterministic rules (not an LLM).
+- Ali Algomori model-independent agent: deterministic intent classification, visible keyword evidence, heuristic confidence, and specialist-role routing.
 - Deterministic Arabic/English plan routing.
 - Installable PWA shell with manifest, vector icon, and offline static-shell caching; API data is deliberately not cached. See [PWA installation and limits](docs/INSTALLABLE_APP.md).
 - Local installation and loopback-only launch scripts for Linux/macOS, Windows PowerShell, and Termux. See [Local installation](docs/LOCAL_INSTALL.md).
@@ -72,7 +72,7 @@ This provides an installable web app shell, **not a native APK/MSI/DMG/AppImage*
 
 - `GET /api/v1/crs/inspect?crs=EPSG:4326` (requires optional `gis` extra)
 - `POST /api/v1/datasets/{dataset_id}/reproject` with `{"target_crs":"EPSG:3857"}` (GeoJSON only; creates a derived dataset and preserves the source)
-- `GET /health`
+- `GET /api/v1/agent/status` (local agent identity, capabilities, and model/engine limits)\n- `GET /health`
 - `GET /api/v1/engines` and `GET /api/v1/engines/{engine_id}`
 - `GET /api/v1/projects`, `POST /api/v1/projects`
 - `GET /api/v1/projects/{project_id}`
