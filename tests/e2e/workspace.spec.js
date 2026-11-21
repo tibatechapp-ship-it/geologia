@@ -41,6 +41,10 @@ test("uploads GeoJSON and displays a structural inspection report", async ({ pag
   };
 
   await page.locator("#datasetName").fill("Groundwater stations");
+  await page.locator(".source-details summary").click();
+  await page.locator("#sourceUrl").fill("https://epsg.io/4326");
+  await page.locator("#sourceCitation").fill("EPSG reference fixture");
+  await page.locator("#sourceAccessedAt").fill("2026-11-21");
   await page.locator("#fileInput").setInputFiles({
     name: "stations.geojson",
     mimeType: "application/geo+json",
@@ -49,6 +53,8 @@ test("uploads GeoJSON and displays a structural inspection report", async ({ pag
   await page.locator("#datasetForm button[type=submit]").click();
 
   await expect(page.locator("#uploadStatus")).toContainText("تم حفظ البيانات");
+  await expect(page.locator(".dataset-item")).toContainText("EPSG reference fixture");
+  await expect(page.locator(".dataset-item")).toContainText("غير متحقق منها");
   const inspectButton = page.getByRole("button", { name: "فحص GeoJSON" });
   await expect(inspectButton).toBeVisible();
   await inspectButton.click();
