@@ -78,3 +78,8 @@ The branch adds optional `formats` dependencies and parser-backed inspection for
 The branch includes real parser-generated fixtures, malformed/truncated-file cases, file/raster/point sample limits, and a known-answer CRS transformation with declared tolerance. Dataset provenance records the source SHA-256 and declared CRS; inspection records parser/Python/GEOLOGIA versions and UTC time; reprojection records source hash, source/target CRS, axis order, pyproj version, operation description, and reported accuracy. A project-scoped SHA-256 event chain is exposed at `GET /api/v1/datasets/{id}/provenance`; it is tamper-evident, not tamper-proof.
 
 CI for the new format-validation job is pending. No scientific engine is integrated, and these checks are not a scientific certification.
+
+
+## Scientific reference controls — follow-up
+
+See [SCIENTIFIC_REFERENCE_REVIEW.md](SCIENTIFIC_REFERENCE_REVIEW.md). Added tests independently compute EPSG:3857 coordinates from the published formula and recognize declared EGM96 vertical CRS metadata through compound EPSG:9707. The latest changes require a fresh CI run; no green status is claimed until it completes.
