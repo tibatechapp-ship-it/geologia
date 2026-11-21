@@ -77,7 +77,7 @@ function renderPlan(plan){
    card.append(planElement("h4","plan-reference-title",item.title||item.source_id||tr("source")));
    card.append(planElement("p","plan-domain-meta",[item.author,item.publisher,item.language,item.license_name].filter(Boolean).join(" · ")));
    card.append(planElement("p","plan-reference-excerpt",item.excerpt||""));
-   card.append(planElement("small","plan-domain-meta",tr("chunk")+" "+(item.chunk_number||"—")+" · SHA-256 "+(item.file_sha256||"—")));
+   card.append(planElement("small","plan-domain-meta",(item.citation_locator||tr("chunk")+" "+(item.chunk_number||"—"))+" · SHA-256 "+(item.file_sha256||"—")));
    const url=safeCitationUrl(item.source_url);
    if(url){const link=planElement("a","plan-reference-link",tr("source")+" ↗");link.href=url;link.target="_blank";link.rel="noopener noreferrer";card.append(link)}
    section.append(card);
