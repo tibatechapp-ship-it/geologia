@@ -25,14 +25,39 @@ MAX_PER_QUERY = int(os.environ.get("RESEARCH_MAX_PER_QUERY", "30"))
 MAX_ITEMS = 500
 API = "https://api.crossref.org/works"
 
-QUERIES = (
-    "geological mapping machine learning",
-    "geoscience remote sensing satellite",
-    "geological hazards monitoring technology",
-    "mineral exploration geophysics artificial intelligence",
-    "hydrogeology groundwater modeling",
-    "planetary geology remote sensing",
-    "geospatial earth observation geology",
+QUERY_GROUPS = {
+    "en": (
+        "geological mapping machine learning",
+        "geoscience remote sensing satellite",
+        "geological hazards monitoring technology",
+        "mineral exploration geophysics artificial intelligence",
+        "hydrogeology groundwater modeling",
+        "planetary geology remote sensing",
+        "geospatial earth observation geology",
+    ),
+    "ar": (
+        "الجيولوجيا المياه الجوفية الهيدروجيولوجيا",
+        "الاستشعار عن بعد علوم الأرض",
+        "الجيوفيزياء استكشاف المعادن",
+        "الزلازل المخاطر الجيولوجية",
+    ),
+    "ru": (
+        "геология гидрогеология подземные воды",
+        "геологическое картирование дистанционное зондирование",
+        "геофизика разведка полезных ископаемых",
+        "сейсмология геологические опасности",
+    ),
+    "zh": (
+        "地质 水文地质 地下水",
+        "地质制图 遥感 地球科学",
+        "地球物理 矿产勘查",
+        "地震 地质灾害",
+    ),
+}
+QUERIES = tuple(
+    (language, query)
+    for language, query_list in QUERY_GROUPS.items()
+    for query in query_list
 )
 
 TOPIC_TERMS = {
@@ -42,12 +67,27 @@ TOPIC_TERMS = {
     "landslide", "seismic", "remote sensing", "satellite", "earth observation",
     "geospatial", "gis", "digital elevation", "borehole", "reservoir",
     "subsurface", "planetary", "lithology", "sediment", "mapping",
+    "جيولوجيا", "الجيولوجيا", "علوم الأرض", "الهيدروجيولوجيا", "المياه الجوفية",
+    "استشعار عن بعد", "الجيوفيزياء", "زلزال", "زلازل", "معادن", "تعدين",
+    "طبقات", "تكتونية", "جيومورفولوجيا", "جيوكيمياء", "آبار", "رسوبيات",
+    "геология", "геологический", "геонаука", "гидрогеология", "подземные воды",
+    "геофизика", "землетрясение", "сейсмический", "минерал", "рудный",
+    "геохимия", "тектоника", "стратиграфия", "дистанционное зондирование",
+    "геоморфология", "скважина", "осадочный", "地质", "地球科学", "水文地质",
+    "地下水", "地球物理", "地震", "矿产", "矿物", "地球化学", "构造", "地层",
+    "遥感", "地貌", "钻孔", "沉积", "地质图", "地质勘查", "矿产勘查", "地质灾害",
 }
 TECH_TERMS = {
     "machine learning", "deep learning", "artificial intelligence", "neural",
     "computer vision", "automation", "digital twin", "inversion", "sensor",
     "hyperspectral", "sar", "lidar", "insar", "foundation model",
     "data assimilation", "simulation", "numerical modeling", "workflow",
+    "تعلم الآلة", "التعلم العميق", "الذكاء الاصطناعي", "الرؤية الحاسوبية",
+    "التوأم الرقمي", "النمذجة العددية", "الأقمار الصناعية", "تحليل البيانات", "محاكاة",
+    "машинное обучение", "глубокое обучение", "искусственный интеллект",
+    "компьютерное зрение", "цифровой двойник", "численное моделирование",
+    "спутниковый", "гиперспектральный", "机器学习", "深度学习", "人工智能",
+    "计算机视觉", "数字孪生", "数值模拟", "卫星", "高光谱", "反演", "数据融合",
 }
 
 
@@ -72,7 +112,9 @@ def date_from_crossref(item: dict) -> str | None:
     return None
 
 
-def make_candidate(item: dict, query: str, cutoff: datetime) -> dict | None:
+def make_candidate(
+    item: dict, query: str, cutoff: datetime, query_language: str = "en"
+) -> dict | None:
     title = clean_text((item.get("title") or [""])[0])
     abstract = clean_text(item.get("abstract", ""))
     doi = clean_text(item.get("DOI", "")).lower()
@@ -105,6 +147,8 @@ def make_candidate(item: dict, query: str, cutoff: datetime) -> dict | None:
         "candidate_id": "cr-" + stable,
         "provider": "Crossref",
         "doi": doi,
+        "publication_language": clean_text(item.get("language", "")).lower() or "und",
+        "discovery_language": query_language,
         "title": title,
         "authors": authors,
         "publication": container,
@@ -126,14 +170,14 @@ def make_candidate(item: dict, query: str, cutoff: datetime) -> dict | None:
     }
 
 
-def fetch_query(query: str, cutoff: datetime) -> list[dict]:
+def fetch_query(query: str, cutoff: datetime, query_language: str = "en") -> list[dict]:
     params = {
         "query.bibliographic": query,
         "filter": "from-pub-date:" + cutoff.date().isoformat(),
         "rows": str(MAX_PER_QUERY),
         "sort": "published",
         "order": "desc",
-        "select": "DOI,title,author,container-title,published,published-online,published-print,created,abstract,URL",
+        "select": "DOI,title,author,container-title,published,published-online,published-print,created,abstract,URL,language",
     }
     url = API + "?" + urlencode(params)
     request = Request(url, headers={
@@ -145,7 +189,7 @@ def fetch_query(query: str, cutoff: datetime) -> list[dict]:
     records = payload.get("message", {}).get("items", [])
     result = []
     for item in records:
-        candidate = make_candidate(item, query, cutoff)
+        candidate = make_candidate(item, query, cutoff, query_language)
         if candidate:
             result.append(candidate)
     return result
@@ -161,11 +205,16 @@ def build_inbox(previous: dict | None = None) -> dict:
     }
     errors = []
     fresh = []
-    for query in QUERIES:
+    for query_language, query in QUERIES:
         try:
-            fresh.extend(fetch_query(query, cutoff))
+            fresh.extend(fetch_query(query, cutoff, query_language))
         except Exception as exc:  # retain partial results; surface provider failures
-            errors.append({"provider": "Crossref", "query": query, "error": str(exc)[:300]})
+            errors.append({
+                "provider": "Crossref",
+                "query": query,
+                "query_language": query_language,
+                "error": str(exc)[:300],
+            })
         time.sleep(1.0)
 
     for item in fresh:
@@ -199,6 +248,8 @@ def build_inbox(previous: dict | None = None) -> dict:
             "no_automatic_scientific_claim_approval": True,
             "no_automatic_application_code_changes": True,
             "human_review_and_pull_request_required": True,
+            "multilingual_queries_enabled": True,
+            "discovery_languages": ["en", "ar", "ru", "zh"],
         },
         "candidates": candidates,
     }
