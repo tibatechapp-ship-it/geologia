@@ -86,7 +86,7 @@ def test_unprofiled_geojson_reports_structural_level_only():
 def test_water_level_profile_rejects_nonfinite_measurements(tmp_path):
     path = tmp_path / "nonfinite-water-levels.csv"
     path.write_text(
-        "timestamp,water_level_m\\n2026-01-01,NaN\\n2026-01-02,Infinity\\n",
+        "timestamp,water_level_m\n2026-01-01,NaN\n2026-01-02,Infinity\n",
         encoding="utf-8",
     )
     report = validate_csv_file(path, "water_levels_timeseries")
