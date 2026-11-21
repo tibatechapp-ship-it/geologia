@@ -145,4 +145,5 @@ def test_bilingual_frontend_is_served():
     assert "GEOLOGIA" in home.text
     script = client.get("/app.js")
     assert script.status_code == 200
-    assert "المهندس الجمهوري" in script.text
+    assert "agentName" in script.text
+    assert "المهندس الجمهوري" in home.text
