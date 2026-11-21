@@ -49,7 +49,8 @@ Default SQLite path: `.geologia/geologia.sqlite3`. Set `GEOLOGIA_DB_PATH` to mov
 - `POST /api/v1/projects/{project_id}/datasets`
 - `GET /api/v1/projects/{project_id}/datasets`
 - `GET /api/v1/datasets/{dataset_id}`
-- `POST /api/v1/datasets/{dataset_id}/inspect` (GeoJSON/CSV structural metrics only)
+- `POST /api/v1/datasets/{dataset_id}/inspect` (GeoJSON/CSV structural metrics; GeoPackage, GeoTIFF, and LAS require the optional `formats` extra)
+- `GET /api/v1/datasets/{dataset_id}/provenance` (dataset events and project-wide SHA-256 chain verification)
 - `POST /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/jobs/{job_id}`
@@ -69,3 +70,17 @@ Development baseline: Python 3.14.x. Python 3.12 and 3.15 are included in CI com
 ## License
 
 Original GEOLOGIA platform code is licensed under **AGPL-3.0-only**; see [LICENSE](LICENSE). Third-party engine licenses are separate and must be verified before each adapter is distributed. The registry's `license_status: unverified` is deliberate until that review is complete.
+
+## Optional GeoPackage, GeoTIFF, and LAS inspection
+
+Install the specialized parsers:
+
+```bash
+python -m pip install -e ".[gis,formats]"
+```
+
+Upload remains a bounded storage operation. Then call `POST /api/v1/datasets/{dataset_id}/inspect` to run parser-backed structural checks. GeoPackage inspection checks SQLite integrity and required metadata tables, reads layer metadata, and decodes a bounded feature sample. GeoTIFF inspection checks dimensions, CRS, coordinate units, transform, bounds, band units, nodata and metadata, and reads a bounded raster sample. LAS inspection checks header and point-record extent consistency, coordinate scales/offsets, declared CRS/VLR metadata, and a bounded point sample.
+
+The inspectors enforce resource limits and report source SHA-256, parser/tool versions, and inspection time. Known-answer reprojection fixtures test EPSG:4326 ↔ EPSG:3857 output against expected coordinates and tolerances. Dataset ingestion, inspection, and derivation events are recorded in a project-scoped SHA-256 chain, available through `GET /api/v1/datasets/{dataset_id}/provenance`. The chain is tamper-evident, not tamper-proof.
+
+These checks do **not** verify geological validity, measurement suitability, topology, or vertical datum correctness. Vertical CRS and datum metadata may be reported when declared, but no vertical transformation or datum verification is performed. See [the engineering audit](docs/ENGINEERING_AUDIT.md).
