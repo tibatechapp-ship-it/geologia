@@ -9,7 +9,7 @@ from geologia.knowledge import ingest_document, seed_core_knowledge
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Index local UTF-8 text or PDF geoscience sources; " 
+            "Index local UTF-8 text or PDF geoscience sources; "
             "no remote sources are downloaded."
         )
     )
