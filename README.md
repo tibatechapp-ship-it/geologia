@@ -11,7 +11,7 @@ The local, model-independent chief geoscience agent is **Ali Algomori (علي ا
 - Streaming dataset intake with a 50 MiB limit, filename sanitization, SHA-256, and generated storage paths.
 - Structural GeoJSON validation and deterministic inspection; CSV structural inspection. Neither produces geological interpretation.
 - Role-tagged datasets and a missing-input readiness report in every analysis plan.
-- Bilingual Arabic RTL / English LTR web workspace for projects, dataset intake, maps, and plan display.
+- Bilingual Arabic RTL / English LTR workspace with readable plan cards, specialist routing evidence, missing-input readiness, and locally retrieved references with license metadata and safe HTTPS citations.
 - Ali Algomori model-independent agent: deterministic intent classification, visible keyword evidence, heuristic confidence, and specialist-role routing.
 - Local scientific text retrieval using SQLite/FTS5 (with a token-scan fallback), reviewed source metadata, chunk hashes, and citations; no embeddings or automatic source downloads.
 - Deterministic Arabic/English plan routing.
