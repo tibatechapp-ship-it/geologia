@@ -872,6 +872,25 @@ def status() -> dict:
             "SELECT count(*) FROM knowledge_chunks"
         ).fetchone()[0]
         backend = "sqlite_fts5" if _fts_available(connection) else "sqlite_token_scan"
+    return {
+        "storage": "local_sqlite",
+        "document_count": documents,
+        "chunk_count": chunks,
+        "retrieval_method": backend,
+        "model_required": False,
+        "network_required": False,
+        "automatic_downloads_enabled": False,
+        "license_review_required_for_ingestion": True,
+        "core_seed_count": len(CORE_SEEDS),
+        "core_seeded_count": (
+            len(seed_result.get("source_ids", []))
+            if not seed_result.get("disabled")
+            else 0
+        ),
+        "core_seeded_automatically": os.environ.get("GEOLOGIA_DISABLE_CORE_SEED") != "1",
+    }
+
+
 def create_claim(statement: str, created_by: str) -> dict:
     """Record a human-authored claim for evidence mapping, not scientific validation."""
     statement = " ".join((statement or "").split())
@@ -1004,20 +1023,41 @@ def get_claim(claim_id: str) -> dict | None:
     }
 
 
+
+def list_claims(limit: int = 20, offset: int = 0) -> dict:
+    """List recorded claims with evidence counts; never infer scientific validity."""
+    if not isinstance(limit, int) or not 1 <= limit <= 100:
+        raise ValueError("limit must be between 1 and 100")
+    if not isinstance(offset, int) or offset < 0:
+        raise ValueError("offset must be zero or greater")
+    initialize()
+    with closing(_connect()) as connection:
+        total = connection.execute(
+            "SELECT count(*) FROM knowledge_claims"
+        ).fetchone()[0]
+        rows = connection.execute(
+            """
+            SELECT c.claim_id, c.statement, c.created_by, c.created_at,
+                   count(e.annotation_id) AS evidence_count
+            FROM knowledge_claims c
+            LEFT JOIN knowledge_claim_evidence e ON e.claim_id = c.claim_id
+            GROUP BY c.claim_id
+            ORDER BY c.created_at DESC, c.claim_id
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        ).fetchall()
     return {
-        "storage": "local_sqlite",
-        "document_count": documents,
-        "chunk_count": chunks,
-        "retrieval_method": backend,
-        "model_required": False,
-        "network_required": False,
-        "automatic_downloads_enabled": False,
-        "license_review_required_for_ingestion": True,
-        "core_seed_count": len(CORE_SEEDS),
-        "core_seeded_count": (
-            len(seed_result.get("source_ids", []))
-            if not seed_result.get("disabled")
-            else 0
-        ),
-        "core_seeded_automatically": os.environ.get("GEOLOGIA_DISABLE_CORE_SEED") != "1",
+        "count": len(rows),
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "scientific_validation": "not_performed",
+        "claims": [
+            {
+                **dict(row),
+                "scientific_validation": "not_performed",
+            }
+            for row in rows
+        ],
     }
