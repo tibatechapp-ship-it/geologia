@@ -24,6 +24,12 @@ app = FastAPI(
 )
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 ALLOWED_FORMATS = {".geojson", ".json", ".gpkg", ".tif", ".tiff", ".csv", ".las"}
+ALLOWED_DATA_ROLES = {
+    "dem", "geology_map", "recharge_estimate", "water_levels_timeseries", "well_logs",
+    "structural_orientations", "contacts", "waveforms_or_catalog", "station_metadata",
+    "geochemistry_samples", "geophysics_surveys", "aoi_boundary", "data_layers",
+    "crs_definition", "imagery", "ground_control_points",
+}
 
 
 class ProjectInput(BaseModel):
@@ -112,9 +118,12 @@ async def dataset_upload(
     dataset_name: str = Header(..., alias="X-Dataset-Name", min_length=2, max_length=120),
     filename: str = Header(..., alias="X-Filename", min_length=1, max_length=255),
     crs: str | None = Header(None, alias="X-CRS", max_length=100),
+    data_role: str | None = Header(None, alias="X-Data-Role", max_length=80),
 ) -> dict:
     if store.get_project(project_id) is None:
         raise HTTPException(status_code=404, detail="project not found")
+    if data_role and data_role not in ALLOWED_DATA_ROLES:
+        raise HTTPException(status_code=422, detail="unknown dataset data role")
     safe_name = Path(filename.replace("\\", "/")).name
     suffix = Path(safe_name).suffix.lower()
     if suffix not in ALLOWED_FORMATS:
@@ -158,7 +167,8 @@ async def dataset_upload(
             item = store.create_dataset(
                 project_id, name=dataset_name.strip(), file_format=suffix.lstrip("."),
                 original_filename=clean_filename, content_path=str(final_path),
-                sha256=digest.hexdigest(), size_bytes=size, crs=effective_crs, summary=summary,
+                sha256=digest.hexdigest(), size_bytes=size, crs=effective_crs,
+                data_role=data_role, summary=summary,
             )
         except Exception:
             final_path.unlink(missing_ok=True)
@@ -190,6 +200,16 @@ def jobs_create(project_id: str, body: JobInput) -> dict:
     if store.get_project(project_id) is None:
         raise HTTPException(status_code=404, detail="project not found")
     plan = build_plan(body.request, body.language)
+    available = store.list_dataset_roles(project_id)
+    required = plan["required_inputs"]
+    missing = sorted(set(required) - set(available))
+    plan["data_readiness"] = {
+        "available_inputs": available,
+        "missing_inputs": missing,
+        "data_complete": not missing,
+        "execution_allowed": False,
+        "execution_blocked_reason": "No scientific engine is integrated or certified.",
+    }
     return store.create_job(project_id, body.request, body.language, plan)
 
 
