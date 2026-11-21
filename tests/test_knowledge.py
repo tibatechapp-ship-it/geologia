@@ -343,3 +343,25 @@ def test_pdf_extraction_rejects_total_text_beyond_limit(local_index, monkeypatch
         knowledge.ingest_document(
             source, metadata(source_id="pdf-total-text-001")
         )
+
+def test_token_scan_fallback_ranks_chunks_by_query_term_coverage(local_index, monkeypatch):
+    multi = local_index / "multi.txt"
+    single = local_index / "single.txt"
+    multi.write_text(
+        "Aquifer recharge is an important groundwater process.",
+        encoding="utf-8",
+    )
+    single.write_text(
+        "Aquifer properties are measured in field surveys.", encoding="utf-8"
+    )
+    knowledge.ingest_document(
+        multi, metadata(source_id="rank-multi-001", title="Multi term")
+    )
+    knowledge.ingest_document(
+        single, metadata(source_id="rank-single-001", title="Single term")
+    )
+    monkeypatch.setattr(knowledge, "_fts_available", lambda _connection: False)
+
+    found = knowledge.search("aquifer recharge", limit=5)
+    assert found["retrieval_method"] == "sqlite_token_scan"
+    assert found["results"][0]["source_id"] == "rank-multi-001"
