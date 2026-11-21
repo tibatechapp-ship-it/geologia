@@ -339,7 +339,9 @@ def _extract_pdf_pages(raw: bytes) -> list[tuple[int, str]]:
     try:
         reader = PdfReader(BytesIO(raw), strict=False)
         if reader.is_encrypted:
-            raise ValueError("encrypted PDFs are not supported; provide an authorized unencrypted copy")
+            raise ValueError(
+                "encrypted PDFs are not supported; provide an authorized unencrypted copy"
+            )
         if len(reader.pages) > MAX_PDF_PAGES:
             raise ValueError(f"PDF exceeds the {MAX_PDF_PAGES}-page indexing limit")
         pages = []
@@ -355,7 +357,8 @@ def _extract_pdf_pages(raw: bytes) -> list[tuple[int, str]]:
 
     if not pages:
         raise ValueError(
-            "PDF contains no extractable text; scanned-image OCR is not included in the lightweight core"
+            "PDF contains no extractable text; scanned-image OCR is not included " 
+            "in the lightweight core"
         )
     return pages
 
