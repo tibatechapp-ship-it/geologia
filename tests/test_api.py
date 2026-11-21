@@ -208,7 +208,8 @@ def test_csv_inspection_streams_structure_and_persists(tmp_path, monkeypatch):
     assert report["ragged_row_count"] == 1
     assert report["blank_row_count"] == 1
     assert report["scientific_interpretation"] is False
-    assert client.get(f"/api/v1/datasets/{dataset_id}").json()["status"] == "inspected_structural_metrics"
+    status = client.get(f"/api/v1/datasets/{dataset_id}").json()["status"]
+    assert status == "inspected_structural_metrics"
 
 
 def test_geojson_inspection_rejects_non_finite_coordinates():
