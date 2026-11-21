@@ -255,7 +255,7 @@ def _write_text_pdf(path, page_texts):
         page[NameObject("/Resources")] = DictionaryObject({
             NameObject("/Font"): DictionaryObject({NameObject("/F1"): font_ref})
         })
-        escaped = text.replace("\\\\", "\\\\\\\\").replace("(", "\\\\(").replace(")", "\\\\)")
+        escaped = text
         stream = DecodedStreamObject()
         stream.set_data(
             f"BT /F1 12 Tf 50 700 Td ({escaped}) Tj ET".encode("ascii")
