@@ -10,7 +10,7 @@ The phase 6 browser-test implementation is on branch `phase-6-browser-e2e`, pend
 
 ## Latest full validation
 
-GitHub Actions run #83 for commit `87ed6657d0b24611dc54fc180cd5609f701fcadd` completed successfully:
+GitHub Actions run #87 for commit `f048828256e403ba8e925a83eae717364ac5d280` completed successfully:
 
 - Python 3.12: 43 passed, 1 optional browser-directory skip, 1 upstream warning
 - Python 3.14: 43 passed, 1 optional browser-directory skip, 1 upstream warning
@@ -30,7 +30,7 @@ The browser tests launch a real Uvicorn process with temporary SQLite and upload
 - Rejection of malformed CSV during inspection.
 - No uncaught browser JavaScript exceptions in the main user journey.
 
-Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918264983
+Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918428819
 
 ## Implemented
 
