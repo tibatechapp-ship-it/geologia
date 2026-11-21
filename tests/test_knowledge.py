@@ -188,6 +188,7 @@ def test_knowledge_cli_can_seed_core_pack(tmp_path, monkeypatch, capsys):
     assert '"external_downloads": 0' in output
     assert knowledge.status()["document_count"] == 24
 
+
 def test_cjk_bigrams_enable_chinese_text_retrieval(local_index):
     source = local_index / "chinese_geo.txt"
     source.write_text("地质灾害遥感监测与机器学习。地下水资源评价。", encoding="utf-8")
@@ -220,7 +221,7 @@ def test_fts_v2_rebuilds_legacy_index_and_preserves_chunks(local_index):
         connection.commit()
 
     knowledge.initialize()
-    with knowledge._connect() as connection:
+    with closing(knowledge._connect()) as connection:
         assert knowledge._fts_available(connection)
         assert connection.execute(
             "SELECT value FROM knowledge_meta WHERE key = 'fts_schema_version'"
