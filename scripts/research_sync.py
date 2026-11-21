@@ -164,7 +164,8 @@ def make_candidate(
             "Verify publication and source identity",
             "Check methods, data, uncertainty, and validation",
             "Check license and reuse rights; open access is not itself a license",
-            "Keep full text metadata-only under non-commercial/no-derivatives terms unless permission is recorded",
+            "Keep full text metadata-only under non-commercial/no-derivatives terms "
+            "unless permission is recorded",
             "Decide whether to add a stable reference to GEOLOGIA",
             "Only after review, propose any code or knowledge-base change",
         ],
@@ -178,11 +179,17 @@ def fetch_query(query: str, cutoff: datetime, query_language: str = "en") -> lis
         "rows": str(MAX_PER_QUERY),
         "sort": "published",
         "order": "desc",
-        "select": "DOI,title,author,container-title,published,published-online,published-print,created,abstract,URL,language",
+        "select": (
+            "DOI,title,author,container-title,published,published-online,"
+            "published-print,created,abstract,URL,language"
+        ),
     }
     url = API + "?" + urlencode(params)
     request = Request(url, headers={
-        "User-Agent": "GEOLOGIA-ResearchSync/0.1 (metadata-only; contact: maintainer via repository)",
+        "User-Agent": (
+            "GEOLOGIA-ResearchSync/0.1 "
+            "(metadata-only; contact: maintainer via repository)"
+        ),
         "Accept": "application/json",
     })
     with urlopen(request, timeout=30) as response:
