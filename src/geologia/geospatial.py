@@ -34,7 +34,9 @@ def inspect_crs(value: str) -> dict[str, Any]:
     }
 
 
-def reproject_geojson(payload: dict[str, Any], source: str, target: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def reproject_geojson(
+    payload: dict[str, Any], source: str, target: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
     CRS, Transformer, ProjError = _pyproj()
     try:
         source_crs = CRS.from_user_input(source)
