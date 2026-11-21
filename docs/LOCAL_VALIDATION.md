@@ -36,6 +36,7 @@ The runnable application source is committed to the default branch `main`.
 - Ali agent status endpoint and explicit model-independent runtime contract.
 - Local SQLite knowledge retrieval foundation with FTS5/token-scan fallback, explicit license-reviewed ingestion, SHA-256 deduplication, and source-attributed chunks; no model or auto-download.
 - Built-in 24-note four-language GEOLOGIA core pack, auto-seeded locally on first search/status; no external publication text copied.
+- CJK-aware FTS v2 indexes deterministic Chinese/Japanese/Korean bigrams and rebuilds from preserved chunks; no embeddings or model dependency.
 - Crossref metadata discovery expanded to English, Arabic, Russian, and Chinese query groups; publication language is retained and all candidates remain human-review-only.
 - Portable desktop artifacts are published by the main-branch build workflow; they are unsigned executables, not native installers.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
