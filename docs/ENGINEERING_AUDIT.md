@@ -56,6 +56,9 @@ The latest full validation for this phase is [Run #60](https://github.com/tibate
 
 This run includes the strict JSON handling, normalized-input validation, readiness semantics, lifespan modernization, current GitHub Actions, and engineering-audit documentation.
 
+9. The platform had no explicit role-aware data validation report beyond generic structural inspection.
+   - Added versioned v1 profiles for groundwater-level CSV time series and AOI GeoJSON boundaries, persisted reports, and exposed validation through the API and bilingual UI. The profiles are intentionally narrow and do not claim scientific validity.
+
 ## Known blockers — do not represent as production-ready
 
 ### Security and operations
@@ -71,6 +74,8 @@ This run includes the strict JSON handling, normalized-input validation, readine
 - No scientific engine is integrated, certified, or executed.
 - A role tag is user-supplied metadata, not proof that the file contains the required scientific data.
 - GeoJSON validation is structural, not a complete OGC conformance suite, topology validator, or scientific-quality review.
+- CSV schema validation currently has only one narrow groundwater-level profile; water-level datum, calibration, time-zone policy, duplicates, physical plausibility, and uncertainty are not validated.
+- AOI validation requires polygon/multipolygon geometry but does not validate topology or scientific suitability.
 - CRS values supplied in upload headers are trusted declarations; they are not inferred from coordinate values.
 - Reprojection supports GeoJSON vector geometry only. Raster GeoTIFF and GeoPackage are accepted for storage but not processed.
 - Z and additional ordinates are preserved, not transformed using a vertical CRS.
@@ -92,7 +97,7 @@ This run includes the strict JSON handling, normalized-input validation, readine
 2. Extend browser-level tests to cover successful Leaflet rendering, map interactions, CRS reprojection, mobile viewport behavior, and accessibility.
 3. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
 4. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
-5. Build a typed data-validation layer for GeoJSON, CSV, GeoPackage, GeoTIFF, and LAS; never infer scientific validity from filenames or role tags.
+5. Expand versioned data profiles with explicit units, coordinate reference semantics, and known-answer fixtures; add real GeoPackage, GeoTIFF, and LAS parsers only with format-specific tests. Never infer scientific validity from filenames or role tags.
 6. Introduce a durable job queue and isolated workers only after job state transitions, cancellation, retries, timeouts, resource limits, and provenance are specified and tested.
 7. Integrate scientific engines one at a time, with pinned versions, license review, published benchmark datasets, known-answer tests, uncertainty reporting, and independent scientific review.
 8. Verify Termux separately on the user's device; record exact commands, package versions, and outputs.
