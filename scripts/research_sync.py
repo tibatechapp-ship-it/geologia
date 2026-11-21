@@ -55,7 +55,7 @@ def clean_text(value: object) -> str:
     if not isinstance(value, str):
         return ""
     value = re.sub(r"<[^>]+>", " ", value)
-    return re.sub(r"\\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def date_from_crossref(item: dict) -> str | None:
