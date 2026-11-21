@@ -217,41 +217,6 @@ def test_api_inspection_endpoint_persists_geotiff_report(tmp_path, monkeypatch):
     ).json()
     assert tampered["chain_integrity"] == "failed"
 
-def test_geopackage_missing_metadata_tables_rejected(tmp_path):
-    import sqlite3
-
-    path = tmp_path / "fake.gpkg"
-    with sqlite3.connect(path) as connection:
-        connection.execute("CREATE TABLE unrelated(value TEXT)")
-    with pytest.raises(FormatValidationError, match="metadata tables"):
-        inspect_geopackage(path)
-
-
-def test_geotiff_declared_pixel_bomb_rejected_before_sample(tmp_path):
-    rasterio = pytest.importorskip("rasterio")
-    from rasterio.transform import from_origin
-
-    path = tmp_path / "oversized-dimensions.tif"
-    with rasterio.open(
-        path, "w", driver="GTiff", width=100001, height=1000, count=1,
-        dtype="uint8", transform=from_origin(0, 0, 1, 1), tiled=True,
-        blockxsize=256, blockysize=256,
-    ):
-        pass
-    with pytest.raises(FormatValidationError, match="dimensions exceed"):
-        inspect_geotiff(path)
-
-
-def test_las_forged_point_count_rejected(tmp_path):
-    import struct
-
-    path = _make_las(tmp_path / "forged-count.las")
-    content = bytearray(path.read_bytes())
-    # LAS 1.2 legacy point count is a uint32 at byte offset 107.
-    content[107:111] = struct.pack("<I", 0xFFFFFFFF)
-    path.write_bytes(content)
-    with pytest.raises(FormatValidationError, match="extend beyond"):
-        inspect_las(path)
 
 def test_geopackage_missing_metadata_tables_rejected(tmp_path):
     import sqlite3
