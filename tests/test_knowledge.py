@@ -630,7 +630,9 @@ def test_claim_evidence_rejects_missing_claim_chunk_and_duplicate(local_index):
     source = local_index / "evidence-2.txt"
     source.write_text("A measured geological observation for testing.", encoding="utf-8")
     knowledge.ingest_document(source, metadata())
-    chunk_id = knowledge.search("measured geological observation", limit=1)["results"][0]["chunk_id"]
+    chunk_id = knowledge.search(
+        "measured geological observation", limit=1
+    )["results"][0]["chunk_id"]
     claim = knowledge.create_claim("A testable geological statement.", "researcher")
     with pytest.raises(ValueError, match="claim_id does not exist"):
         knowledge.annotate_claim_evidence(
@@ -660,7 +662,9 @@ def test_claim_api_requires_explicit_relation_and_returns_unvalidated_claim(
     source = tmp_path / "api-evidence.md"
     source.write_text("Groundwater recharge can affect observed water levels.", encoding="utf-8")
     knowledge.ingest_document(source, metadata(source_id="api-claim-source"))
-    chunk_id = knowledge.search("groundwater recharge water levels", limit=1)["results"][0]["chunk_id"]
+    chunk_id = knowledge.search(
+        "groundwater recharge water levels", limit=1
+    )["results"][0]["chunk_id"]
     client = TestClient(app)
     created = client.post(
         "/api/v1/knowledge/claims",
@@ -670,12 +674,18 @@ def test_claim_api_requires_explicit_relation_and_returns_unvalidated_claim(
     claim_id = created.json()["claim_id"]
     bad = client.post(
         f"/api/v1/knowledge/claims/{claim_id}/evidence",
-        json={"chunk_id": chunk_id, "relation": "proves", "rationale": "It proves it.", "recorded_by": "analyst"},
+        json={
+            "chunk_id": chunk_id, "relation": "proves",
+            "rationale": "It proves it.", "recorded_by": "analyst",
+        },
     )
     assert bad.status_code == 422
     linked = client.post(
         f"/api/v1/knowledge/claims/{claim_id}/evidence",
-        json={"chunk_id": chunk_id, "relation": "contextualizes", "rationale": "Relevant context only.", "recorded_by": "analyst"},
+        json={
+            "chunk_id": chunk_id, "relation": "contextualizes",
+            "rationale": "Relevant context only.", "recorded_by": "analyst",
+        },
     )
     assert linked.status_code == 201
     fetched = client.get(f"/api/v1/knowledge/claims/{claim_id}")
@@ -695,7 +705,9 @@ def test_claim_register_lists_claims_with_pagination_and_evidence_counts(local_i
     source = local_index / "claim-list-source.md"
     source.write_text("A local evidence passage for a claim register.", encoding="utf-8")
     knowledge.ingest_document(source, metadata(source_id="claim-list-source"))
-    chunk_id = knowledge.search("evidence passage claim register", limit=1)["results"][0]["chunk_id"]
+    chunk_id = knowledge.search(
+        "evidence passage claim register", limit=1
+    )["results"][0]["chunk_id"]
     first = knowledge.create_claim("First geological statement.", "researcher")
     second = knowledge.create_claim("Second geological statement.", "researcher")
     knowledge.annotate_claim_evidence(
