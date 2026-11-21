@@ -136,7 +136,7 @@ def _validate_metadata(metadata: dict) -> dict:
     if license_status not in LICENSE_STATUSES:
         raise ValueError("license_status must represent a reviewed lawful source")
     if license_status == "open_license":
-        compact_license = re.sub(r"[\\s-]+", "", license_name.casefold())
+        compact_license = re.sub(r"[\s-]+", "", license_name.casefold())
         if (
             "noncommercial" in compact_license
             or "noderivatives" in compact_license
