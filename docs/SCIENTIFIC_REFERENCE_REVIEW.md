@@ -45,3 +45,7 @@ A CRS identifier is not proof that a dataset's height values actually use that d
 - Geological interpretation, measurement quality, and uncertainty propagation: not implemented.
 
 Do not enable GemPy or MODFLOW based on these tests. Their prerequisite remains a validated, source-traceable data contract and independently reviewed domain datasets.
+
+## External dataset citation capture
+
+Dataset upload accepts optional source citation headers: URL, title, creator, publisher, DOI, license, citation, version, and access date. URL validation permits absolute HTTP(S) URLs without embedded credentials; DOI syntax and ISO access dates are checked. The service does not fetch these URLs and does not certify the source, license, citation, or supplied metadata. They are labeled `user_supplied_not_verified`, stored in the dataset summary, included in the ingestion event hash, and copied to derived reprojection lineage. Missing source information is explicitly recorded as `not_provided`.
