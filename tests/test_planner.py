@@ -1,3 +1,5 @@
+import pytest
+
 from geologia.planner import agent_status, build_plan, classify_request
 
 
