@@ -681,3 +681,38 @@ def test_claim_api_requires_explicit_relation_and_returns_unvalidated_claim(
     fetched = client.get(f"/api/v1/knowledge/claims/{claim_id}")
     assert fetched.status_code == 200
     assert fetched.json()["scientific_validation"] == "not_performed"
+
+
+def test_knowledge_status_returns_database_counts(local_index):
+    result = knowledge.status()
+    assert result["storage"] == "local_sqlite"
+    assert result["document_count"] == 0
+    assert result["chunk_count"] == 0
+    assert result["model_required"] is False
+
+
+def test_claim_register_lists_claims_with_pagination_and_evidence_counts(local_index):
+    source = local_index / "claim-list-source.md"
+    source.write_text("A local evidence passage for a claim register.", encoding="utf-8")
+    knowledge.ingest_document(source, metadata(source_id="claim-list-source"))
+    chunk_id = knowledge.search("evidence passage claim register", limit=1)["results"][0]["chunk_id"]
+    first = knowledge.create_claim("First geological statement.", "researcher")
+    second = knowledge.create_claim("Second geological statement.", "researcher")
+    knowledge.annotate_claim_evidence(
+        first["claim_id"], chunk_id, "contextualizes", "Provides background context.", "reviewer"
+    )
+    listed = knowledge.list_claims(limit=1, offset=0)
+    assert listed["total"] == 2
+    assert listed["count"] == 1
+    assert listed["scientific_validation"] == "not_performed"
+    assert listed["claims"][0]["claim_id"] == second["claim_id"]
+    next_page = knowledge.list_claims(limit=1, offset=1)
+    assert next_page["claims"][0]["claim_id"] == first["claim_id"]
+    assert next_page["claims"][0]["evidence_count"] == 1
+
+
+def test_claim_register_validates_pagination(local_index):
+    with pytest.raises(ValueError, match="limit must be between"):
+        knowledge.list_claims(limit=101)
+    with pytest.raises(ValueError, match="offset must be zero"):
+        knowledge.list_claims(offset=-1)
