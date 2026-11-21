@@ -27,6 +27,7 @@ The runnable application source is committed to the default branch `main`.
 - Phase 5: CRS inspection and GeoJSON reprojection using optional pyproj; derived datasets are stored without overwriting source datasets.
 - Installable PWA manifest, SVG icon, service worker, and static-shell offline fallback; API responses are not cached by the service worker.
 - Local installer and loopback launcher scripts for POSIX systems, Termux bootstrap, and Windows PowerShell.
+- Termux:Widget one-tap shortcut with background start, health/status, and guarded stop scripts; physical Android testing remains outstanding.
 - One-file portable desktop binaries built and smoke-tested on Windows x64, Linux x64, and macOS ARM64; artifacts are available from the linked GitHub Actions run.
 - Ali agent status endpoint and explicit model-independent runtime contract.
 - Local SQLite knowledge retrieval foundation with FTS5/token-scan fallback, explicit license-reviewed ingestion, SHA-256 deduplication, and source-attributed chunks; no model or auto-download.
