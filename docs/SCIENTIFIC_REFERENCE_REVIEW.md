@@ -69,3 +69,17 @@ This change adds source-grounded model metadata and a checklist, **not** a grid 
 
 The acceptance checklist also records the vertical sign convention to verify for the chosen operation (commonly `h = H + N` for ellipsoidal height, orthometric height, and geoid undulation) and requires operation-specific evidence; this formula must not be generalized to unrelated national vertical datums without checking their definitions.
 
+## Numerical geoid reference dataset identified
+
+A published numerical regression dataset is now registered in `tests/data/geoid_model_reference.json`:
+
+- [GeographicLib `GeoidHeights.dat.gz`](https://sourceforge.net/projects/geographiclib/files/testdata/GeoidHeights.dat.gz/download)
+- Reference documentation: [GeographicLib geoid test data](https://geographiclib.sourceforge.io/C++/doc/geoid.html#testgeoid)
+- 500,000 geographic points; columns include latitude, longitude, EGM84, EGM96, and EGM2008 geoid heights.
+- The publisher's download listing reports SHA-256 `e0b9804694b3eac78ffd0b3df9cffd30a134d72007276e732ff72f9651bc9995`; verify this against the downloaded compressed artifact before parsing.
+- GeographicLib documentation states that the values were computed using NGA harmonic-synthesis programs compiled with gfortran on Linux, and that coordinates are exact to 1e-6 degrees with model values accurate to 1 micrometre.
+
+This is a **cross-implementation numerical reference**, not an independent field survey and not independent of NGA's model coefficients/conventions. It is suitable for checking a separate implementation's model-value calculation once a point row is pinned; it does not by itself validate a grid interpolation method, datum-operation direction, national vertical datum, or real-world survey accuracy.
+
+The compressed dataset has been identified and its published digest recorded, but it has **not been downloaded, digest-verified in our build environment, sampled into a checked-in known-answer fixture, or executed in CI**. The status remains explicit in the registry. The next numerical step is to obtain the exact artifact, verify the SHA-256, select and record a small reproducible subset with exact row indices/model column/tolerance, and compare it against a separate implementation. No vertical conversion is enabled by this reference registration.
+
