@@ -223,7 +223,9 @@ def validate_geojson_payload(payload: Any, data_role: str | None) -> dict[str, A
         if polygon_count == 0 or other_count or metrics["null_geometry_count"]:
             errors.append({
                 "code": "profile.aoi.polygon_required",
-                "message": "AOI boundary datasets must contain polygon or multipolygon features only.",
+                "message": (
+                    "AOI boundary datasets must contain polygon or multipolygon features only."
+                ),
             })
         checks.append({
             "code": "profile.aoi.polygon_required",
