@@ -240,11 +240,15 @@ async def dataset_upload(
             detail="source DOI must use the standard 10.xxxx/... form",
         )
     if external_source["accessed_at"]:
+        if not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", external_source["accessed_at"]):
+            raise HTTPException(
+                status_code=422, detail="source accessed-at must be YYYY-MM-DD"
+            )
         try:
             date.fromisoformat(external_source["accessed_at"])
         except ValueError as exc:
             raise HTTPException(
-                status_code=422, detail="source accessed-at must be YYYY-MM-DD"
+                status_code=422, detail="source accessed-at must be a valid calendar date"
             ) from exc
     if not source_fields:
         external_source["status"] = "not_provided"
