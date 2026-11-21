@@ -65,14 +65,35 @@ def _connect() -> sqlite3.Connection:
     return connection
 
 
+FTS_SCHEMA_VERSION = "2"
+CJK_PATTERN = re.compile(r"[\\u3400-\\u4dbf\\u4e00-\\u9fff\\u3040-\\u30ff\\uac00-\\ud7af]")
+
+
+def _cjk_bigrams(token: str) -> list[str]:
+    return [token[index:index + 2] for index in range(len(token) - 1)]
+
+
+def _fts_text(text: str) -> str:
+    """Add CJK bigram tokens while retaining original words for FTS matching."""
+    terms = []
+    for token in re.findall(r"[\\w]+", text, flags=re.UNICODE):
+        if CJK_PATTERN.search(token):
+            terms.append(token)
+            terms.extend(_cjk_bigrams(token))
+        else:
+            terms.append(token)
+    return " ".join(terms)
+
+
 def _fts_available(connection: sqlite3.Connection) -> bool:
     return connection.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'knowledge_fts'"
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+        "AND name = 'knowledge_fts_v2'"
     ).fetchone() is not None
 
 
 def initialize() -> None:
-    """Create the local knowledge schema; FTS5 is optional with a safe fallback."""
+    """Create local schema and migrate the optional FTS index to CJK-aware v2."""
     with closing(_connect()) as connection:
         connection.executescript(
             """
@@ -107,21 +128,61 @@ def initialize() -> None:
                 UNIQUE(document_id, chunk_index)
             );
 
+            CREATE TABLE IF NOT EXISTS knowledge_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_document
                 ON knowledge_chunks(document_id);
             CREATE INDEX IF NOT EXISTS idx_knowledge_documents_doi
                 ON knowledge_documents(doi);
             """
         )
+        fts_existed = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'knowledge_fts_v2'"
+        ).fetchone() is not None
         try:
             connection.execute(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts "
+                "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts_v2 "
                 "USING fts5(chunk_id UNINDEXED, title, body, tokenize='unicode61')"
             )
         except sqlite3.OperationalError:
-            # Some mobile/system SQLite builds omit FTS5. The local token-scan
-            # fallback remains functional and does not add a runtime dependency.
-            pass
+            # Some mobile/system SQLite builds omit FTS5; token scan remains usable.
+            connection.commit()
+            return
+
+        version = connection.execute(
+            "SELECT value FROM knowledge_meta WHERE key = 'fts_schema_version'"
+        ).fetchone()
+        if not fts_existed or not version or version["value"] != FTS_SCHEMA_VERSION:
+            connection.execute("DELETE FROM knowledge_fts_v2")
+            chunks = connection.execute(
+                """
+                SELECT c.chunk_id, d.title, c.body
+                FROM knowledge_chunks c
+                JOIN knowledge_documents d ON d.id = c.document_id
+                ORDER BY d.title, c.chunk_index
+                """
+            ).fetchall()
+            connection.executemany(
+                "INSERT INTO knowledge_fts_v2 (chunk_id, title, body) VALUES (?, ?, ?)",
+                [
+                    (row["chunk_id"], _fts_text(row["title"]), _fts_text(row["body"]))
+                    for row in chunks
+                ],
+            )
+            connection.execute(
+                "INSERT OR REPLACE INTO knowledge_meta (key, value) "
+                "VALUES ('fts_schema_version', ?)",
+                (FTS_SCHEMA_VERSION,),
+            )
+        old_fts = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'knowledge_fts'"
+        ).fetchone()
+        if old_fts:
+            connection.execute("DROP TABLE knowledge_fts")
         connection.commit()
 
 
