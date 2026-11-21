@@ -161,6 +161,26 @@ def initialize() -> None:
                 value TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS knowledge_claims (
+                claim_id TEXT PRIMARY KEY,
+                statement TEXT NOT NULL CHECK (length(statement) BETWEEN 8 AND 2000),
+                created_by TEXT NOT NULL CHECK (length(created_by) BETWEEN 1 AND 200),
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS knowledge_claim_evidence (
+                annotation_id TEXT PRIMARY KEY,
+                claim_id TEXT NOT NULL REFERENCES knowledge_claims(claim_id) ON DELETE CASCADE,
+                chunk_id TEXT NOT NULL REFERENCES knowledge_chunks(chunk_id) ON DELETE RESTRICT,
+                relation TEXT NOT NULL CHECK (
+                    relation IN ('supports', 'contradicts', 'contextualizes', 'unclear')
+                ),
+                rationale TEXT NOT NULL CHECK (length(rationale) BETWEEN 1 AND 2000),
+                recorded_by TEXT NOT NULL CHECK (length(recorded_by) BETWEEN 1 AND 200),
+                recorded_at TEXT NOT NULL,
+                UNIQUE(claim_id, chunk_id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_document
                 ON knowledge_chunks(document_id);
             CREATE INDEX IF NOT EXISTS idx_knowledge_documents_doi
@@ -852,6 +872,138 @@ def status() -> dict:
             "SELECT count(*) FROM knowledge_chunks"
         ).fetchone()[0]
         backend = "sqlite_fts5" if _fts_available(connection) else "sqlite_token_scan"
+def create_claim(statement: str, created_by: str) -> dict:
+    """Record a human-authored claim for evidence mapping, not scientific validation."""
+    statement = " ".join((statement or "").split())
+    created_by = " ".join((created_by or "").split())
+    if not 8 <= len(statement) <= 2000:
+        raise ValueError("claim statement must contain 8-2000 characters")
+    if not 1 <= len(created_by) <= 200:
+        raise ValueError("created_by must contain 1-200 characters")
+    initialize()
+    claim_id = uuid4().hex
+    created_at = datetime.now(timezone.utc).isoformat()
+    with closing(_connect()) as connection:
+        connection.execute(
+            "INSERT INTO knowledge_claims "
+            "(claim_id, statement, created_by, created_at) VALUES (?, ?, ?, ?)",
+            (claim_id, statement, created_by, created_at),
+        )
+        connection.commit()
+    return {
+        "claim_id": claim_id,
+        "statement": statement,
+        "created_by": created_by,
+        "created_at": created_at,
+        "scientific_validation": "not_performed",
+        "evidence_count": 0,
+    }
+
+
+def annotate_claim_evidence(
+    claim_id: str,
+    chunk_id: str,
+    relation: str,
+    rationale: str,
+    recorded_by: str,
+) -> dict:
+    """Attach a human-labelled evidence relation to an indexed chunk."""
+    relation = (relation or "").strip().lower()
+    if relation not in {"supports", "contradicts", "contextualizes", "unclear"}:
+        raise ValueError("relation must be supports, contradicts, contextualizes, or unclear")
+    rationale = " ".join((rationale or "").split())
+    recorded_by = " ".join((recorded_by or "").split())
+    if not 1 <= len(rationale) <= 2000:
+        raise ValueError("rationale must contain 1-2000 characters")
+    if not 1 <= len(recorded_by) <= 200:
+        raise ValueError("recorded_by must contain 1-200 characters")
+    initialize()
+    with closing(_connect()) as connection:
+        claim = connection.execute(
+            "SELECT claim_id FROM knowledge_claims WHERE claim_id = ?",
+            (claim_id,),
+        ).fetchone()
+        if claim is None:
+            raise ValueError("claim_id does not exist")
+        chunk = connection.execute(
+            "SELECT chunk_id FROM knowledge_chunks WHERE chunk_id = ?",
+            (chunk_id,),
+        ).fetchone()
+        if chunk is None:
+            raise ValueError("chunk_id does not exist in the local knowledge index")
+        annotation_id = uuid4().hex
+        recorded_at = datetime.now(timezone.utc).isoformat()
+        try:
+            connection.execute(
+                "INSERT INTO knowledge_claim_evidence "
+                "(annotation_id, claim_id, chunk_id, relation, rationale, recorded_by, recorded_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    annotation_id, claim_id, chunk_id, relation, rationale,
+                    recorded_by, recorded_at,
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            connection.rollback()
+            raise ValueError("this evidence chunk is already linked to the claim") from exc
+        connection.commit()
+        count = connection.execute(
+            "SELECT count(*) FROM knowledge_claim_evidence WHERE claim_id = ?",
+            (claim_id,),
+        ).fetchone()[0]
+    return {
+        "annotation_id": annotation_id,
+        "claim_id": claim_id,
+        "chunk_id": chunk_id,
+        "relation": relation,
+        "rationale": rationale,
+        "recorded_by": recorded_by,
+        "recorded_at": recorded_at,
+        "scientific_validation": "not_performed",
+        "claim_evidence_count": count,
+    }
+
+
+def get_claim(claim_id: str) -> dict | None:
+    """Return a claim and its explicitly recorded evidence annotations."""
+    initialize()
+    with closing(_connect()) as connection:
+        claim = connection.execute(
+            "SELECT claim_id, statement, created_by, created_at "
+            "FROM knowledge_claims WHERE claim_id = ?",
+            (claim_id,),
+        ).fetchone()
+        if claim is None:
+            return None
+        rows = connection.execute(
+            """
+            SELECT e.annotation_id, e.chunk_id, e.relation, e.rationale,
+                   e.recorded_by, e.recorded_at, c.body, c.source_locator,
+                   d.source_id, d.title, d.source_url, d.doi, d.source_kind,
+                   d.scientific_review_status, d.license_status, d.file_sha256
+            FROM knowledge_claim_evidence e
+            JOIN knowledge_chunks c ON c.chunk_id = e.chunk_id
+            JOIN knowledge_documents d ON d.id = c.document_id
+            WHERE e.claim_id = ?
+            ORDER BY e.recorded_at, e.annotation_id
+            """,
+            (claim_id,),
+        ).fetchall()
+    return {
+        "claim_id": claim["claim_id"],
+        "statement": claim["statement"],
+        "created_by": claim["created_by"],
+        "created_at": claim["created_at"],
+        "scientific_validation": "not_performed",
+        "evidence_count": len(rows),
+        "evidence_annotations": [dict(row) for row in rows],
+        "interpretation": (
+            "Human-recorded evidence relationships only; they do not establish "
+            "truth, causality, or scientific validation."
+        ),
+    }
+
+
     return {
         "storage": "local_sqlite",
         "document_count": documents,
