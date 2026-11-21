@@ -312,7 +312,11 @@ def get_dataset_provenance(dataset_id: str) -> dict[str, Any] | None:
     chain_valid = True
     selected = []
     for row in rows:
-        payload = json.loads(row["payload_json"])
+        try:
+            payload = json.loads(row["payload_json"])
+        except json.JSONDecodeError:
+            payload = {"_invalid_payload_json": True}
+            chain_valid = False
         envelope = {
             "event_id": row["event_id"],
             "project_id": row["project_id"],
