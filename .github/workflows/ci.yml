@@ -15,29 +15,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.12", "3.14"]
+        python: ["3.12", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev,gis]"
-      - run: node --check src/geologia/web/app.js
-      - run: python -m ruff check src tests
-      - run: python -m compileall -q src tests
-      - run: python -m pytest
-
-  next-python:
-    name: Experimental Python 3.15 compatibility
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.15"
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev,gis]"
