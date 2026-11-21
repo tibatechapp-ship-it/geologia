@@ -171,6 +171,6 @@ def test_knowledge_cli_can_seed_core_pack(tmp_path, monkeypatch, capsys):
     monkeypatch.delenv("GEOLOGIA_DISABLE_CORE_SEED", raising=False)
     main(["--seed-core"])
     output = capsys.readouterr().out
-    assert '"source_count": 12' in output
+    assert '"source_count": 24' in output
     assert '"external_downloads": 0' in output
     assert knowledge.status()["document_count"] == 12
