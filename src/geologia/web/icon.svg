@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
   <title id="title">GEOLOGIA</title>
   <rect width="512" height="512" rx="112" fill="#07111f"/>
   <path d="M62 322c69-34 118-29 169-78s117-90 219-66" fill="none" stroke="#3bc5e7" stroke-width="22" stroke-linecap="round"/>
