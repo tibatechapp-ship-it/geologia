@@ -556,3 +556,42 @@ def test_scientific_review_date_rejects_invalid_calendar_date(local_index):
             ),
         )
 
+
+
+def test_knowledge_documents_migrate_scientific_review_columns(tmp_path, monkeypatch):
+    db_path = tmp_path / "old-knowledge.sqlite3"
+    monkeypatch.setenv("GEOLOGIA_KNOWLEDGE_DB_PATH", str(db_path))
+    with sqlite3.connect(db_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE knowledge_documents (
+                id TEXT PRIMARY KEY, source_id TEXT NOT NULL, title TEXT NOT NULL,
+                author TEXT, publisher TEXT, source_url TEXT, doi TEXT,
+                license_name TEXT NOT NULL, license_status TEXT NOT NULL,
+                reviewed_by TEXT NOT NULL, review_date TEXT NOT NULL,
+                language TEXT NOT NULL, filename TEXT NOT NULL,
+                file_sha256 TEXT NOT NULL, indexed_at TEXT NOT NULL,
+                UNIQUE(source_id, file_sha256)
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO knowledge_documents VALUES (
+                'legacy-doc', 'legacy-source', 'Legacy source', NULL, NULL, NULL,
+                NULL, 'CC BY 4.0', 'open_license', 'license reviewer',
+                '2026-11-21', 'en', 'legacy.txt', 'abc123', '2026-11-21T00:00:00Z'
+            )
+            """
+        )
+    knowledge.initialize()
+    with closing(knowledge._connect()) as connection:
+        row = connection.execute(
+            "SELECT source_kind, scientific_review_status, "
+            "scientific_reviewed_by, scientific_review_date "
+            "FROM knowledge_documents WHERE id='legacy-doc'"
+        ).fetchone()
+    assert row["source_kind"] == "other"
+    assert row["scientific_review_status"] == "not_assessed"
+    assert row["scientific_reviewed_by"] is None
+    assert row["scientific_review_date"] is None
