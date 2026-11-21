@@ -48,6 +48,7 @@ def test_candidate_rejects_unrelated_or_old_records():
     assert research_sync.make_candidate(unrelated, "general", cutoff) is None
     assert research_sync.make_candidate(old, "geology", cutoff) is None
 
+
 def test_candidate_preserves_arabic_publication_language_and_relevance():
     cutoff = datetime(2025, 1, 1, tzinfo=timezone.utc)
     item = {
