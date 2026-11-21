@@ -23,6 +23,7 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
+      - run: node --check src/geologia/web/app.js
       - run: python -m ruff check src tests
       - run: python -m compileall -q src tests
       - run: python -m pytest
