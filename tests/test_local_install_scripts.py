@@ -50,6 +50,7 @@ def test_local_install_document_does_not_claim_native_package():
     assert "not a signed native APK" in doc
     assert "Termux has not yet been validated" in doc
 
+
 def test_termux_widget_launcher_is_local_and_health_checked():
     start = (SCRIPTS / "termux-widget-start.sh").read_text(encoding="utf-8")
     stop = (SCRIPTS / "termux-widget-stop.sh").read_text(encoding="utf-8")
@@ -58,6 +59,7 @@ def test_termux_widget_launcher_is_local_and_health_checked():
     assert "is_geologia_healthy" in start
     assert "nohup" in start
     assert "termux-open-url" in start
-    assert "tr '\\0' ' '" in stop
+    assert "/proc/$PID/cmdline" in stop
+    assert "CMDLINE=" in stop
     assert "refusing to terminate it" in stop
     assert "127.0.0.1" in status
