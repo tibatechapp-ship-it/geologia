@@ -1,6 +1,7 @@
 """Versioned, deterministic dataset checks; these checks are not scientific validation."""
 import csv
 import math
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -67,7 +68,8 @@ def validate_csv_file(path: Path, data_role: str | None) -> dict[str, Any]:
     normalized = [header.strip().casefold() for header in headers]
     if any(not header for header in normalized):
         errors.append({"code": "csv.header.empty", "message": "Column names must not be empty."})
-    duplicates = sorted({name for name in normalized if normalized.count(name) > 1})
+    header_counts = Counter(normalized)
+    duplicates = sorted(name for name, count in header_counts.items() if name and count > 1)
     if duplicates:
         errors.append({
             "code": "csv.header.duplicate",
@@ -102,6 +104,7 @@ def validate_csv_file(path: Path, data_role: str | None) -> dict[str, Any]:
             "message": "The CSV contains a header but no data rows.",
         })
 
+    rows_checked = metrics["row_count"]
     if profile:
         timestamp_candidates = [
             name for name in profile["timestamp_headers"] if name in normalized
@@ -130,6 +133,7 @@ def validate_csv_file(path: Path, data_role: str | None) -> dict[str, Any]:
         })
 
         if timestamp_candidates or measurement_index is not None:
+            rows_checked = 0
             timestamp_index = (
                 normalized.index(timestamp_candidates[0]) if timestamp_candidates else None
             )
