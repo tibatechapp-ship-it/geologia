@@ -46,28 +46,20 @@ class JobInput(BaseModel):
     language: Literal["ar", "en"] = "ar"
 
 
+class ReprojectInput(BaseModel):
+    target_crs: str = Field(..., min_length=1, max_length=200)
+
+
 def _geojson_summary(path: Path) -> dict:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
-    kind = payload.get("type") if isinstance(payload, dict) else None
-    if kind == "FeatureCollection":
-        features = payload.get("features")
-        if not isinstance(features, list):
-            raise HTTPException(
-                status_code=422, detail="FeatureCollection.features must be an array"
-            )
-        for feature in features:
-            if not isinstance(feature, dict) or feature.get("type") != "Feature":
-                raise HTTPException(status_code=422, detail="invalid GeoJSON Feature entry")
-        return {"validation": "structural_only", "feature_count": len(features)}
-    if kind == "Feature":
-        return {"validation": "structural_only", "feature_count": 1}
-    if kind in {"Point", "MultiPoint", "LineString", "MultiLineString",
-                 "Polygon", "MultiPolygon", "GeometryCollection"}:
-        return {"validation": "structural_only", "geometry_count": 1}
-    raise HTTPException(status_code=422, detail="unsupported GeoJSON object type")
+    try:
+        metrics = inspect_geojson(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"invalid GeoJSON: {exc}") from exc
+    return {"validation": "structural_only", "feature_count": metrics["feature_count"]}
 
 
 @app.on_event("startup")
@@ -196,6 +188,55 @@ def datasets_get(dataset_id: str) -> dict:
     if item is None:
         raise HTTPException(status_code=404, detail="dataset not found")
     return item
+
+
+@app.get("/api/v1/crs/inspect")
+def crs_inspection(crs: str) -> dict:
+    """Validate and normalize a user-provided CRS definition."""
+    from geologia.geospatial import inspect_crs
+
+    try:
+        return inspect_crs(crs)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/datasets/{dataset_id}/reproject")
+def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
+    """Return a reprojected GeoJSON response without overwriting the source dataset."""
+    item = store.get_dataset(dataset_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    if item["format"] not in {"geojson", "json"}:
+        raise HTTPException(status_code=415, detail="reprojection supports GeoJSON only")
+    content_path = store.get_dataset_content_path(dataset_id)
+    if content_path is None or not Path(content_path).is_file():
+        raise HTTPException(status_code=410, detail="dataset file is missing")
+    try:
+        payload = json.loads(Path(content_path).read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="GeoJSON must be valid UTF-8 JSON") from exc
+    try:
+        inspect_geojson(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"invalid GeoJSON: {exc}") from exc
+    source_crs = item["crs"] or "EPSG:4326"
+    from geologia.geospatial import reproject_geojson
+
+    try:
+        transformed, info = reproject_geojson(payload, source_crs, body.target_crs)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        "dataset_id": dataset_id,
+        "operation": "geojson_reprojection",
+        **info,
+        "geojson": transformed,
+    }
 
 
 @app.get("/api/v1/datasets/{dataset_id}/geojson")

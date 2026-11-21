@@ -152,6 +152,56 @@ def test_bilingual_frontend_is_served():
     assert "inspectDataset" in script_text
 
 
+def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    crs_response = client.get("/api/v1/crs/inspect", params={"crs": "epsg:4326"})
+    assert crs_response.status_code == 200
+    crs_info = crs_response.json()
+    assert crs_info["canonical"] == "EPSG:4326"
+    assert crs_info["is_geographic"] is True
+    assert client.get("/api/v1/crs/inspect", params={"crs": "not-a-crs"}).status_code == 422
+
+    project = client.post("/api/v1/projects", json={"name": "CRS test"}).json()
+    payload = {
+        "type": "FeatureCollection",
+        "features": [{"type": "Feature", "properties": {"id": 1},
+                      "geometry": {"type": "Point", "coordinates": [44.2, 15.3]}}],
+    }
+    upload = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=__import__("json").dumps(payload).encode(),
+        headers={"X-Dataset-Name": "Point", "X-Filename": "point.geojson"},
+    )
+    dataset_id = upload.json()["id"]
+    response = client.post(
+        f"/api/v1/datasets/{dataset_id}/reproject",
+        json={"target_crs": "EPSG:3857"},
+    )
+    assert response.status_code == 200
+    result = response.json()
+    coords = result["geojson"]["features"][0]["geometry"]["coordinates"]
+    assert abs(coords[0] - 4920321.493) < 1
+    assert abs(coords[1] - 1723798.499) < 1
+    assert result["source_crs"] == "EPSG:4326"
+    assert result["target_crs"] == "EPSG:3857"
+    assert result["stored_source_modified"] is False
+    assert client.get(f"/api/v1/datasets/{dataset_id}/geojson").json() == payload
+
+
+def test_upload_rejects_invalid_geojson_geometry(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    project = client.post("/api/v1/projects", json={"name": "Invalid geometry"}).json()
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=b'{"type":"Feature","geometry":{"type":"Point","coordinates":[1]},"properties":{}}',
+        headers={"X-Dataset-Name": "Bad point", "X-Filename": "bad.geojson"},
+    )
+    assert response.status_code == 422
+    assert "invalid GeoJSON" in response.json()["detail"]
+
+
 def test_geojson_map_endpoint_returns_validated_data_and_hides_path(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
