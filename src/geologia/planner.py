@@ -17,7 +17,7 @@ INTENTS = [
         "keywords": [
             "مياه", "المياه", "ماء", "الماء", "مياه جوفية", "المياه الجوفية",
             "جوفية", "الجوفية", "بئر", "آبار", "groundwater", "aquifer",
-            "well", "pumping", "water table", "hydrogeology",
+            "well", "pumping", "water table", "hydrogeology",\n            "гидрогеология", "подземные воды", "водоносный горизонт",\n            "скважина", "уровень воды", "地下水", "水文地质", "含水层", "水位", "水井",
         ],
     },
     {
@@ -26,7 +26,7 @@ INTENTS = [
         "inputs": ["geology_map", "structural_orientations", "contacts", "dem"],
         "keywords": [
             "ثلاثي", "طيات", "الفوالق", "فوالق", "مقطع جيولوجي", "3d",
-            "cross section", "geological model", "structural geology",
+            "cross section", "geological model", "structural geology",\n            "трехмерная геологическая модель", "3d геология", "складки", "разломы",\n            "геологический разрез", "三维地质", "地质建模", "褶皱", "断层", "地质剖面",
         ],
     },
     {
@@ -35,7 +35,7 @@ INTENTS = [
         "inputs": ["waveforms_or_catalog", "station_metadata"],
         "keywords": [
             "زلزال", "زلازل", "الزلازل", "زلزالي", "seismic", "earthquake",
-            "waveform", "ground motion",
+            "waveform", "ground motion", "землетрясение", "сейсмика", "сейсмология",\n            "сейсмические волны", "地震", "地震学", "地震波", "地震目录",
         ],
     },
     {
@@ -44,7 +44,7 @@ INTENTS = [
         "inputs": ["geochemistry_samples", "geophysics_surveys", "geology_map"],
         "keywords": [
             "ذهب", "الذهب", "معدن", "المعادن", "تنقيب", "استكشاف معدني",
-            "gold", "mineral", "minerals", "exploration", "prospectivity",
+            "gold", "mineral", "minerals", "exploration", "prospectivity",\n            "золото", "минералы", "полезные ископаемые", "геохимия", "разведка",\n            "金矿", "矿产", "矿物勘查", "地球化学", "找矿",
         ],
     },
     {
@@ -54,7 +54,7 @@ INTENTS = [
         "keywords": [
             "درون", "استشعار عن بعد", "القمر الصناعي", "الأقمار الصناعية",
             "قمر صناعي", "صور فضائية", "drone", "satellite", "remote sensing",
-            "photogrammetry",
+            "photogrammetry", "дистанционное зондирование", "спутниковые снимки",\n            "беспилотник", "фотограмметрия", "遥感", "卫星影像", "无人机", "摄影测量",
         ],
     },
     {
@@ -63,7 +63,7 @@ INTENTS = [
         "inputs": ["aoi_boundary", "data_layers", "crs_definition"],
         "keywords": [
             "خريطة", "الخريطة", "خرائط", "طبقات", "نظم المعلومات الجغرافية",
-            "gis", "map", "maps", "layers", "geographic information system",
+            "gis", "map", "maps", "layers", "geographic information system",\n            "геоинформационная система", "гис", "карта", "слои", "система координат",\n            "地理信息系统", "地图", "图层", "坐标参考系",
         ],
     },
 ]
