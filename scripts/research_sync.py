@@ -163,7 +163,8 @@ def make_candidate(
         "review_checklist": [
             "Verify publication and source identity",
             "Check methods, data, uncertainty, and validation",
-            "Check license and reuse rights",
+            "Check license and reuse rights; open access is not itself a license",
+            "Keep full text metadata-only under non-commercial/no-derivatives terms unless permission is recorded",
             "Decide whether to add a stable reference to GEOLOGIA",
             "Only after review, propose any code or knowledge-base change",
         ],
