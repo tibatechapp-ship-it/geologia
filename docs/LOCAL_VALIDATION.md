@@ -53,3 +53,20 @@ These tests are proposed on the PR branch and are **not yet verified or merged**
 - No worker queue, isolated engine containers, or LLM provider integration.
 - Engine license reviews are pending individually; the platform license does not relicense third-party engines.
 - GeoJSON checks are structural only, not complete OGC conformance, topology, or scientific validation.
+
+
+## Upload and CRS hardening — draft PR #7
+
+GitHub Actions run [#44926170500](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44926170500) passed:
+- Python 3.12, 3.14, and 3.15.
+- Ruff, compileall, JavaScript syntax validation, and pytest.
+- Playwright Chromium browser end-to-end tests.
+
+Additional API regression coverage verifies:
+- Default WGS84 GeoJSON rejects coordinates outside longitude/latitude bounds.
+- Explicit CRS values are parsed and canonicalized; coordinates are transformed to WGS84 for plausibility checks.
+- Unknown CRS declarations and obvious CRS/coordinate mismatches are rejected.
+- Malformed CSV quoting is rejected at upload; ragged rows are recorded as warnings.
+- Duplicate JSON object keys and oversized numeric coordinate values are rejected.
+
+These checks are structural and plausibility checks only. They do not infer a missing CRS, establish scientific validity, or validate GeoPackage, GeoTIFF, or LAS contents.
