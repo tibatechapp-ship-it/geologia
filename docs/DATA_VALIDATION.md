@@ -22,6 +22,8 @@ Reports include:
 - `checks`, bounded `errors`, `warnings`, and counts.
 - `scientific_interpretation: false` in every report.
 
+Before any profile runs, GEOLOGIA re-reads the stored file and verifies its byte count and SHA-256 against the values recorded at upload. A mismatch fails validation before parsing. Reports include the source digest, source size, and validation timestamp.
+
 A new validation report is stored in dataset metadata. It does not modify source file bytes. Dataset status changes to `validation_passed` or `validation_failed`.
 
 ## CSV checks
