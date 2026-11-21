@@ -64,6 +64,7 @@ def test_safe_geojson_upload_and_metadata(tmp_path, monkeypatch):
     assert item["summary"]["feature_count"] == 1
     assert item["crs"] == "EPSG:4326"
     assert item["data_role"] is None
+    assert item["summary"]["external_source"]["status"] == "not_provided"
     assert len(item["sha256"]) == 64
     assert "content_path" not in item
     assert client.get(f"/api/v1/datasets/{item['id']}").json()["id"] == item["id"]
@@ -458,6 +459,7 @@ def test_external_source_citation_is_recorded_and_marked_unverified(tmp_path, mo
         "X-Source-URL": "https://epsg.io/3857",
         "X-Source-Title": "WGS 84 / Pseudo-Mercator",
         "X-Source-Publisher": "EPSG",
+        "X-Source-DOI": "10.1234/reference-fixture",
         "X-Source-License": "EPSG terms; check source conditions",
         "X-Source-Citation": "EPSG registry entry 3857",
         "X-Source-Version": "registry snapshot",
@@ -473,6 +475,7 @@ def test_external_source_citation_is_recorded_and_marked_unverified(tmp_path, mo
     external = dataset["summary"]["external_source"]
     assert external["status"] == "user_supplied_not_verified"
     assert external["url"] == "https://epsg.io/3857"
+    assert external["doi"] == "10.1234/reference-fixture"
     assert external["citation"] == "EPSG registry entry 3857"
     audit = client.get(f"/api/v1/datasets/{dataset['id']}/provenance").json()
     event = audit["events"][0]["payload"]
