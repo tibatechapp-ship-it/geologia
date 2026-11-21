@@ -6,23 +6,33 @@ Updated: 2026-11-21
 
 The runnable application source is committed to the default branch `main`.
 
-## Latest code validation
+## Latest main-branch validation
 
-GitHub Actions run #51 for commit `41609ccfac282f32d702436a8ca4f1f54570f658` completed successfully:
+GitHub Actions run #54 for commit `29ba9f8dddef22f95c1b2049c9272ae26a2d25a5` completed successfully:
 
 - Python 3.12: passed
 - Python 3.14: passed
 - Python 3.15: passed
+- Editable install with development and GIS extras: passed
 - JavaScript syntax check: passed
 - Ruff: passed
 - `compileall`: passed
 - `pytest`: 32 passed on each Python version
 
-One upstream Starlette TestClient deprecation warning remains: AnyIO's `BlockingPortal` alias is deprecated. Application startup no longer uses FastAPI's deprecated `on_event` API. Current GitHub Actions no longer emit the Node 20 deprecation warning.
+One upstream Starlette TestClient deprecation warning remains: AnyIO's `BlockingPortal` alias is deprecated. Application startup no longer uses FastAPI's deprecated `on_event` API.
 
-Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916560490
+Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44916671711
 
-## Implemented
+## Browser end-to-end status
+
+Draft [PR #7](https://github.com/tibatechapp-ship-it/geologia/pull/7) adds a dedicated Chromium/Playwright CI job with browser scenarios for:
+- Project creation and Arabic/English language switching.
+- GeoJSON upload and structural inspection through the visible interface.
+- Analysis-plan creation while asserting that no scientific results were computed.
+
+These tests are proposed on the PR branch and are **not yet verified or merged**. The PR must remain unmerged until the Chromium job and existing Python matrix pass. Map rendering and reprojection browser scenarios remain follow-up coverage.
+
+## Implemented on main
 
 - Phase 1: FastAPI, SQLite projects/jobs, deterministic plan records.
 - Phase 2: bounded streaming dataset intake, generated storage paths, SHA-256, strict JSON and structural GeoJSON validation.
