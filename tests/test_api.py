@@ -223,7 +223,7 @@ def test_geojson_map_endpoint_returns_validated_data_and_hides_path(tmp_path, mo
     assert "content_path" not in response.text
     csv_upload = client.post(
         f"/api/v1/projects/{project['id']}/datasets",
-        content=b"a,b\\n1,2\\n",
+        content=b"a,b\n1,2\n",
         headers={"X-Dataset-Name": "Table", "X-Filename": "table.csv"},
     )
     assert client.get(f"/api/v1/datasets/{csv_upload.json()['id']}/geojson").status_code == 415

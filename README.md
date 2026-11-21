@@ -34,6 +34,9 @@ Default SQLite path: `.geologia/geologia.sqlite3`. Set `GEOLOGIA_DB_PATH` to mov
 
 ## API
 
+- `GET /api/v1/crs/inspect?crs=EPSG:4326` (requires optional `gis` extra)
+- `POST /api/v1/datasets/{dataset_id}/reproject` with `{"target_crs":"EPSG:3857"}` (GeoJSON only; response-only, source unchanged)
+
 - `GET /health`
 - `GET /api/v1/engines` and `GET /api/v1/engines/{engine_id}`
 - `GET /api/v1/projects`, `POST /api/v1/projects`
@@ -50,7 +53,7 @@ Default SQLite path: `.geologia/geologia.sqlite3`. Set `GEOLOGIA_DB_PATH` to mov
 
 The 30 registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. Jobs remain `planned`; no geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
 
-Do not expose this development API publicly without authentication, authorization, quotas, private storage, isolated workers, and monitoring. Raster processing, general vector transformations, CRS reprojection, worker isolation, and scientific engine adapters are not implemented yet. GeoJSON inspection is limited to structural counts and coordinate bounds.
+Do not expose this development API publicly without authentication, authorization, quotas, private storage, isolated workers, and monitoring. Raster processing, general vector transformations, raster reprojection, worker isolation, and scientific engine adapters are not implemented yet. GeoJSON CRS inspection and vector reprojection are available through the optional `gis` extra; see [Phase 5](docs/PHASE5.md). GeoJSON inspection is limited to structural counts and coordinate bounds.
 
 See [Phase 1](docs/PHASE1.md), [Phase 2](docs/PHASE2.md), [Phase 3](docs/PHASE3.md), and [Phase 4](docs/PHASE4.md).
 
