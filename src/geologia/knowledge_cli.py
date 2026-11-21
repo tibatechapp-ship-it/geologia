@@ -3,7 +3,7 @@ import argparse
 import json
 import sqlite3
 
-from geologia.knowledge import ingest_document, seed_core_knowledge
+from geologia.knowledge import ingest_document, search, seed_core_knowledge
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -23,6 +23,17 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Index GEOLOGIA-authored multilingual core checklists",
     )
+    parser.add_argument(
+        "--search",
+        metavar="QUERY",
+        help="Search the local knowledge index without network or model access",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=5,
+        help="Maximum local search results (1-20; default: 5)",
+    )
     parser.add_argument("--source-id", help="Stable bibliographic/source ID")
     parser.add_argument("--title")
     parser.add_argument("--language", help="Original language code (ar/en/ru/zh...)")
@@ -39,13 +50,20 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--publisher", default="")
     args = parser.parse_args(argv)
 
-    if args.seed_core:
+    if args.search is not None:
+        if args.path or args.seed_core:
+            parser.error("do not combine --search with a file path or --seed-core")
+        try:
+            result = search(args.search, limit=args.limit)
+        except (ValueError, OSError, sqlite3.Error) as exc:
+            parser.error(str(exc))
+    elif args.seed_core:
         if args.path:
             parser.error("do not provide a file path with --seed-core")
         result = seed_core_knowledge()
     else:
         if not args.path:
-            parser.error("provide a file path or use --seed-core")
+            parser.error("provide a file path, use --seed-core, or use --search QUERY")
         metadata = {
             "source_id": args.source_id,
             "title": args.title,
