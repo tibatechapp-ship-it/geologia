@@ -24,12 +24,22 @@ fi
 mkdir -p "$DATA_DIR"
 
 is_geologia_healthy() {
-  "$PYTHON_BIN" -c 'import json,sys,urllib.request; data=json.load(urllib.request.urlopen(sys.argv[1],timeout=1)); raise SystemExit(0 if data.get("service") == "geologia" else 1)' "$BASE_URL/health" >/dev/null 2>&1
+  "$PYTHON_BIN" - "$BASE_URL/health" >/dev/null 2>&1 <<'PY'
+import json
+import sys
+from urllib.request import urlopen
+
+payload = json.load(urlopen(sys.argv[1], timeout=1))
+raise SystemExit(0 if payload.get("service") == "geologia" else 1)
+PY
 }
 
 if [ -f "$PID_FILE" ]; then
   OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
-  if case "$OLD_PID" in ''|*[!0-9]*) false ;; *) true ;; esac && kill -0 "$OLD_PID" 2>/dev/null; then
+  case "$OLD_PID" in
+    ''|*[!0-9]*) OLD_PID="" ;;
+  esac
+  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
     if is_geologia_healthy; then
       echo "GEOLOGIA is already running at $BASE_URL"
       if command -v termux-open-url >/dev/null 2>&1; then
