@@ -145,6 +145,17 @@ def test_core_seed_pack_is_bilingual_local_and_idempotent(tmp_path, monkeypatch)
     assert second_status["document_count"] == len(knowledge.CORE_SEEDS)
     assert second_status["network_required"] is False
 
+    russian = knowledge.search("подземные воды", limit=10)
+    assert any(
+        item["source_id"] == "geologia-core-hydrology-ru-v1"
+        for item in russian["results"]
+    )
+    chinese = knowledge.search("地下水", limit=10)
+    assert any(
+        item["source_id"] == "geologia-core-hydrology-zh-v1"
+        for item in chinese["results"]
+    )
+
 
 def test_doi_deduplication_prevents_duplicate_bibliographic_work(local_index):
     first_source = local_index / "first.txt"
@@ -175,7 +186,7 @@ def test_knowledge_cli_can_seed_core_pack(tmp_path, monkeypatch, capsys):
     output = capsys.readouterr().out
     assert '"source_count": 24' in output
     assert '"external_downloads": 0' in output
-    assert knowledge.status()["document_count"] == 12
+    assert knowledge.status()["document_count"] == 24
 
 def test_cjk_bigrams_enable_chinese_text_retrieval(local_index):
     source = local_index / "chinese_geo.txt"
