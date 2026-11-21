@@ -2,7 +2,7 @@
 
 Updated: 2026-11-21
 
-Current implementation branches: `phase-6-browser-e2e`, `phase-7-data-validation`, and `phase-8-job-lifecycle`. Reviews: [Phase 7 PR #4](https://github.com/tibatechapp-ship-it/geologia/pull/4) and [Phase 8 PR #5](https://github.com/tibatechapp-ship-it/geologia/pull/5).
+Current branches: `phase-6-browser-e2e`, `phase-7-data-validation`, `phase-8-job-lifecycle`, and `phase-9-worker-isolation-design`. Reviews: [Phase 7 PR #4](https://github.com/tibatechapp-ship-it/geologia/pull/4) and [Phase 8 PR #5](https://github.com/tibatechapp-ship-it/geologia/pull/5).
 
 ## Source on GitHub
 
@@ -45,6 +45,7 @@ Run: https://github.com/tibatechapp-ship-it/geologia/actions/runs/44920365720
 - Phase 6: real Chromium/Playwright end-to-end coverage for key workspace flows.
 - Phase 7 foundation: versioned CSV/GeoJSON validation profiles, persisted reports, upload-time SHA-256 integrity verification, and a bilingual UI validation action. Details: [DATA_VALIDATION.md](DATA_VALIDATION.md).
 - Phase 8 foundation: durable job state transitions, bounded retry attempts, atomic cancellation semantics, event history, and legacy SQLite migration. Details: [JOB_LIFECYCLE.md](JOB_LIFECYCLE.md).
+- Phase 9 design: isolated worker architecture and security threat model. Design only; no worker implementation. See [WORKER_ARCHITECTURE.md](WORKER_ARCHITECTURE.md) and [SECURITY_THREAT_MODEL.md](SECURITY_THREAT_MODEL.md).
 - Development CLI rejects non-loopback bind addresses.
 - 30 engine catalog cards, all `planned` and `license_status: unverified`.
 - Root `LICENSE`: GNU AGPL v3.
