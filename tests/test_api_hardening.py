@@ -92,7 +92,9 @@ def test_development_cli_starts_on_loopback(monkeypatch):
 
     calls = []
     monkeypatch.setattr(sys, "argv", ["geologia-api", "--host", "127.0.0.1", "--port", "8123"])
-    monkeypatch.setattr(api_module.uvicorn, "run", lambda *args, **kwargs: calls.append((args, kwargs)))
+    monkeypatch.setattr(
+        api_module.uvicorn, "run", lambda *args, **kwargs: calls.append((args, kwargs))
+    )
     api_module.run()
     assert calls[0][1]["host"] == "127.0.0.1"
     assert calls[0][1]["port"] == 8123
