@@ -1,0 +1,335 @@
+{
+  "registry_version": "0.1.0",
+  "engines": [
+    {
+      "engine_id": "qgis",
+      "name": "QGIS",
+      "domain": "gis",
+      "capabilities": [
+        "gis_operations"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "grass",
+      "name": "GRASS GIS",
+      "domain": "gis",
+      "capabilities": [
+        "spatial_analysis"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "gmt",
+      "name": "GMT",
+      "domain": "gis",
+      "capabilities": [
+        "scientific_cartography"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "geopandas",
+      "name": "GeoPandas",
+      "domain": "gis",
+      "capabilities": [
+        "vector_analysis"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "rasterio",
+      "name": "Rasterio",
+      "domain": "gis",
+      "capabilities": [
+        "raster_io"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "gplates",
+      "name": "GPlates",
+      "domain": "gis",
+      "capabilities": [
+        "plate_reconstruction"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "gempy",
+      "name": "GemPy",
+      "domain": "geology3d",
+      "capabilities": [
+        "geological_model_3d"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "loopstructural",
+      "name": "LoopStructural",
+      "domain": "geology3d",
+      "capabilities": [
+        "structural_modelling"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "map2loop",
+      "name": "map2loop",
+      "domain": "geology3d",
+      "capabilities": [
+        "map_preprocessing"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "noddy",
+      "name": "Noddy",
+      "domain": "geology3d",
+      "capabilities": [
+        "educational_modelling"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "curlew",
+      "name": "curlew",
+      "domain": "geology3d",
+      "capabilities": [
+        "neural_field_modelling"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "rgm",
+      "name": "RGM",
+      "domain": "geology3d",
+      "capabilities": [
+        "synthetic_models"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "obspy",
+      "name": "ObsPy",
+      "domain": "seismology",
+      "capabilities": [
+        "waveform_processing"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "simpeg",
+      "name": "SimPEG",
+      "domain": "geophysics",
+      "capabilities": [
+        "geophysical_inversion"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "pygimli",
+      "name": "PyGIMLi",
+      "domain": "geophysics",
+      "capabilities": [
+        "geophysical_inversion"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "seiscomp",
+      "name": "SeisComP",
+      "domain": "seismology",
+      "capabilities": [
+        "seismic_network_ops"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "openquake",
+      "name": "OpenQuake",
+      "domain": "seismology",
+      "capabilities": [
+        "hazard_assessment"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "madagascar",
+      "name": "Madagascar",
+      "domain": "geophysics",
+      "capabilities": [
+        "seismic_processing"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "pyrocko",
+      "name": "Pyrocko",
+      "domain": "seismology",
+      "capabilities": [
+        "seismology_tools"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "modflow6",
+      "name": "MODFLOW 6",
+      "domain": "hydrology",
+      "capabilities": [
+        "groundwater_flow"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "landlab",
+      "name": "Landlab",
+      "domain": "hydrology",
+      "capabilities": [
+        "surface_processes"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "pastas",
+      "name": "Pastas",
+      "domain": "hydrology",
+      "capabilities": [
+        "well_timeseries"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "geochemistry-pi",
+      "name": "Geochemistry π",
+      "domain": "geochemistry",
+      "capabilities": [
+        "geochemistry_ml"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "geopytool",
+      "name": "GeoPyTool",
+      "domain": "geochemistry",
+      "capabilities": [
+        "geochemistry_analysis"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "eis-toolkit",
+      "name": "EIS Toolkit",
+      "domain": "exploration",
+      "capabilities": [
+        "mineral_prospectivity"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "lasio",
+      "name": "lasio",
+      "domain": "well_logs",
+      "capabilities": [
+        "well_log_io"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "striplog",
+      "name": "striplog",
+      "domain": "well_logs",
+      "capabilities": [
+        "stratigraphy"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "opendronemap",
+      "name": "OpenDroneMap",
+      "domain": "remote_sensing",
+      "capabilities": [
+        "photogrammetry"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "gisclaw",
+      "name": "GISclaw",
+      "domain": "agent_reference",
+      "capabilities": [
+        "gis_agent_reference"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    },
+    {
+      "engine_id": "bedrock-ge",
+      "name": "Bedrock-ge",
+      "domain": "engineering",
+      "capabilities": [
+        "geotechnical_integration"
+      ],
+      "status": "planned",
+      "license_status": "unverified",
+      "integration_phase": "not_started"
+    }
+  ]
+}

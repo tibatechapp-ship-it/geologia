@@ -1,4 +1,4 @@
-"""GEOLOGIA REST API: projects and durable plan records; no engine execution."""
+"""GEOLOGIA REST API: projects, plans, and transparent engine catalog."""
 import argparse
 from typing import Literal
 
@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from geologia import __version__
 from geologia import store
 from geologia.planner import build_plan
+from geologia.registry import get_engine, list_engines
 
 app = FastAPI(
     title="GEOLOGIA API",
@@ -37,6 +38,20 @@ def startup() -> None:
 def health() -> dict:
     return {"status": "ok", "service": "geologia", "version": __version__,
             "engines_integrated": 0, "execution_enabled": False}
+
+
+@app.get("/api/v1/engines")
+def engines(domain: str | None = None) -> dict:
+    items = list_engines(domain)
+    return {"count": len(items), "engines": items}
+
+
+@app.get("/api/v1/engines/{engine_id}")
+def engine_detail(engine_id: str) -> dict:
+    card = get_engine(engine_id)
+    if card is None:
+        raise HTTPException(status_code=404, detail="engine not found")
+    return card
 
 
 @app.get("/api/v1/projects")
