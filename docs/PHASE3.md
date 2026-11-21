@@ -1,18 +1,30 @@
-# Phase 3 — Chief-agent planning and data readiness
+# Phase 3 — Ali Algomori deterministic agent and data readiness
 
-The deterministic coordinator is now labeled with the chief agent's public identity,
-**المهندس الجمهوري**, and assigns domain roles by matched intent. This is a
-rule-based routing layer, not an LLM and not a claim of autonomous reasoning.
+**Ali Algomori (علي الگوموري)** is the GEOLOGIA chief geoscience agent identity. The current core is a lightweight, local, deterministic rules engine—not a trained neural model, not an LLM, and not a claim of human-like autonomous reasoning.
 
-Dataset upload may include `X-Data-Role`. Accepted roles correspond to the
-planner's required inputs. Each new job compares required inputs against role-tagged
-datasets already stored in that project and records:
+## Implemented behavior
 
-- available inputs;
-- missing inputs;
-- whether the data-role checklist is complete;
-- explicit execution block.
+- Normalizes Arabic and English requests with Unicode normalization, case folding, punctuation normalization, and whole-phrase boundaries.
+- Routes requests to one or more specialist domains using a versioned keyword catalog.
+- Records the matched terms as routing evidence for every domain.
+- Reports heuristic confidence levels (low/medium/high); these levels are not statistically calibrated.
+- Builds a plan with candidate engines and required input roles, while keeping every engine `planned` and execution disabled.
+- Exposes `GET /api/v1/agent/status` to report identity, local/model-independent runtime, capabilities, and limitations.
+- Uses no model weights, remote inference API, or network dependency for request routing.
 
-Even when the checklist is complete, execution remains blocked until a scientific
-engine is integrated, pinned, tested, and certified. A file's role is user-supplied
-metadata; it is not independently verified from its contents.
+## Clarification behavior
+
+If the request does not match a supported domain, the agent does **not** silently classify it as GIS. It returns:
+
+- `classification_status: needs_clarification`;
+- `next_action: ask_clarification`;
+- an Arabic or English clarification question;
+- no fabricated specialist, engine, or required inputs.
+
+Data readiness is marked `not_assessed` in this case. A missing domain is not treated as an empty-but-complete data checklist.
+
+## Data readiness and scientific safety
+
+Dataset upload may include `X-Data-Role`. When a request is classified, the API compares required input roles with role-tagged datasets in the project and records available/missing roles. A role is user-supplied metadata, not proof of file contents.
+
+Even if every required role is present, execution remains blocked until a scientific engine is integrated, pinned, tested, and reviewed. Plans are not scientific results, drilling recommendations, resource estimates, or professional certification.
