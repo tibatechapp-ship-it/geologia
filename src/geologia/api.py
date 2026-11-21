@@ -476,8 +476,11 @@ def jobs_create(project_id: str, body: JobInput) -> dict:
     else:
         retrieval = knowledge.search(body.request, limit=3)
         plan["knowledge_retrieval"] = {
-            "status": "local_references_found" if retrieval["count"] else
-            "no_approved_local_sources",
+            "status": (
+                "local_references_found"
+                if retrieval["count"]
+                else "no_approved_local_sources"
+            ),
             "retrieval_method": retrieval["retrieval_method"],
             "model_used": False,
             "scientific_conclusion": False,
