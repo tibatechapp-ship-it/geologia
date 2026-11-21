@@ -87,6 +87,8 @@ def initialize() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_document
                 ON knowledge_chunks(document_id);
+            CREATE INDEX IF NOT EXISTS idx_knowledge_documents_doi
+                ON knowledge_documents(doi);
             """
         )
         try:
@@ -149,7 +151,7 @@ def _validate_metadata(metadata: dict) -> dict:
         "author": (metadata.get("author") or "").strip() or None,
         "publisher": (metadata.get("publisher") or "").strip() or None,
         "source_url": source_url,
-        "doi": doi,
+        "doi": doi.lower() if doi else None,
         "license_name": license_name,
         "license_status": license_status,
         "reviewed_by": reviewed_by,
@@ -234,8 +236,14 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
     with closing(_connect()) as connection:
         connection.execute("BEGIN IMMEDIATE")
         existing = connection.execute(
-            "SELECT id FROM knowledge_documents WHERE source_id = ? AND file_sha256 = ?",
-            (source["source_id"], digest),
+            """
+            SELECT id, source_id, file_sha256, doi
+            FROM knowledge_documents
+            WHERE (source_id = ? AND file_sha256 = ?)
+               OR (? IS NOT NULL AND lower(doi) = lower(?))
+            LIMIT 1
+            """,
+            (source["source_id"], digest, source["doi"], source["doi"]),
         ).fetchone()
         if existing:
             connection.rollback()
@@ -248,6 +256,12 @@ def ingest_document(path: str | Path, metadata: dict) -> dict:
                     "SELECT count(*) FROM knowledge_chunks WHERE document_id = ?",
                     (existing["id"],),
                 ).fetchone()[0],
+                "duplicate_reason": (
+                    "source_id_and_sha256"
+                    if existing["source_id"] == source["source_id"]
+                    and existing["file_sha256"] == digest
+                    else "doi"
+                ),
             }
 
         connection.execute(
