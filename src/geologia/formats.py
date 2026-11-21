@@ -13,6 +13,7 @@ from typing import Any
 MAX_FORMAT_FILE_BYTES = 50 * 1024 * 1024
 MAX_RASTER_PIXELS = 100_000_000
 MAX_RASTER_BANDS = 256
+MAX_RASTER_BLOCK_BYTES = 64 * 1024 * 1024
 MAX_GPKG_LAYERS = 128
 LAS_SAMPLE_POINTS = 100_000
 
@@ -122,6 +123,11 @@ def inspect_geopackage(path: Path) -> dict[str, Any]:
                 "srs_id": next((row[2] for row in contents if row[0] == name), None),
                 "vertical_reference": _vertical_reference(None),
             })
+            try:
+                sample = pyogrio.read_dataframe(Path(path), layer=name, max_features=1000)
+            except Exception as exc:
+                raise FormatValidationError("GeoPackage feature sample cannot be decoded") from exc
+            layers[-1]["sample_feature_count"] = len(sample)
     except FormatValidationError:
         raise
     except Exception as exc:
@@ -149,6 +155,13 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
                 raise FormatValidationError("GeoTIFF dimensions and band count must be positive")
             if width * height > MAX_RASTER_PIXELS or bands > MAX_RASTER_BANDS:
                 raise FormatValidationError("GeoTIFF dimensions exceed inspection limits")
+            block_shapes = [tuple(shape) for shape in dataset.block_shapes]
+            if any(
+                block_height * block_width * __import__("numpy").dtype(dataset.dtypes[index]).itemsize
+                > MAX_RASTER_BLOCK_BYTES
+                for index, (block_height, block_width) in enumerate(block_shapes)
+            ):
+                raise FormatValidationError("GeoTIFF block size exceeds the memory safety limit")
             sample_width = min(width, 32)
             sample_height = min(height, 32)
             dataset.read(1, window=((0, sample_height), (0, sample_width)))
@@ -172,7 +185,7 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
                 "band_dtypes": list(dataset.dtypes),
                 "band_units": units,
                 "nodata_values": list(dataset.nodatavals),
-                "block_shapes": [list(shape) for shape in dataset.block_shapes],
+                "block_shapes": [list(shape) for shape in block_shapes],
                 "compression": [str(value.value) if value else None
                                for value in dataset.compressions],
                 "metadata": {key: str(value) for key, value in tags.items()},
