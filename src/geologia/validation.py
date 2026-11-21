@@ -113,7 +113,9 @@ def validate_csv_file(path: Path, data_role: str | None) -> dict[str, Any]:
         if not timestamp_candidates:
             errors.append({
                 "code": "profile.timestamp.missing",
-                "message": "Expected an ISO-8601 timestamp column named timestamp, datetime, or date.",
+                "message": (
+                    "Expected an ISO-8601 timestamp column named timestamp, datetime, or date."
+                ),
             })
         if measurement_index is None:
             errors.append({
@@ -122,7 +124,9 @@ def validate_csv_file(path: Path, data_role: str | None) -> dict[str, Any]:
             })
         checks.append({
             "code": "profile.required_columns",
-            "status": "failed" if not timestamp_candidates or measurement_index is None else "passed",
+            "status": (
+                "failed" if not timestamp_candidates or measurement_index is None else "passed"
+            ),
         })
 
         if timestamp_candidates and measurement_index is not None:
