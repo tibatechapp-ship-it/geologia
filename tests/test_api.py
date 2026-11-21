@@ -135,7 +135,8 @@ def test_data_role_drives_readiness_but_never_enables_execution(tmp_path, monkey
     readiness = job["plan"]["data_readiness"]
     assert "dem" in readiness["available_inputs"]
     assert "dem" not in readiness["missing_inputs"]
-    assert readiness["data_complete"] is False
+    assert readiness["required_roles_present"] is False
+    assert readiness["content_validation"] == "not_performed"
     assert readiness["execution_allowed"] is False
 
 
