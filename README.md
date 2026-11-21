@@ -13,6 +13,7 @@ The local, model-independent chief geoscience agent is **Ali Algomori (علي ا
 - Role-tagged datasets and a missing-input readiness report in every analysis plan.
 - Bilingual Arabic RTL / English LTR workspace with readable plan cards, specialist routing evidence, missing-input readiness, and locally retrieved references with license metadata and safe HTTPS citations.
 - Ali Algomori model-independent agent: deterministic Arabic/English/Russian/Chinese intent routing, visible source-script keyword evidence, heuristic confidence, and specialist-role routing.
+- Curated four-language routing regression suite with exact-domain and abstention checks; see [routing evaluation](docs/ALI_AGENT_ROUTING_EVALUATION.md).
 - Local scientific text retrieval using SQLite/FTS5 (with a token-scan fallback), reviewed source metadata, chunk hashes, and citations; no embeddings or automatic source downloads.
 - Deterministic Arabic/English plan routing.
 - Installable PWA shell with manifest, vector icon, and offline static-shell caching; API data is deliberately not cached. See [PWA installation and limits](docs/INSTALLABLE_APP.md).
