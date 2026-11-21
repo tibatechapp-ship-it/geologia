@@ -321,7 +321,7 @@ def test_declared_egm96_vertical_crs_metadata_is_reported_not_verified():
     from geologia.formats import _vertical_reference
 
     reference = json.loads((ROOT / "data" / "vertical_crs_reference.json").read_text())
-    compound = pyproj.CRS.from_epsg(reference["compound_crs"])
+    compound = pyproj.CRS.from_user_input(reference["compound_crs"])
     report = _vertical_reference(compound)
     expected_code = reference["expected_vertical_crs"].split(":")[1]
     component = next(
