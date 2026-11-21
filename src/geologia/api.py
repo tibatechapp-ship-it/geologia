@@ -81,6 +81,18 @@ class ReprojectInput(BaseModel):
     target_crs: str = Field(..., min_length=1, max_length=200)
 
 
+class ClaimInput(BaseModel):
+    statement: str = Field(..., min_length=8, max_length=2000)
+    created_by: str = Field(..., min_length=1, max_length=200)
+
+
+class ClaimEvidenceInput(BaseModel):
+    chunk_id: str = Field(..., min_length=1, max_length=64)
+    relation: Literal["supports", "contradicts", "contextualizes", "unclear"]
+    rationale: str = Field(..., min_length=1, max_length=2000)
+    recorded_by: str = Field(..., min_length=1, max_length=200)
+
+
 def _reject_json_constant(value: str) -> None:
     raise ValueError(f"non-standard JSON numeric constant: {value}")
 
@@ -142,6 +154,40 @@ def knowledge_search_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+
+
+@app.post("/api/v1/knowledge/claims", status_code=201)
+def knowledge_claim_create(body: ClaimInput) -> dict:
+    """Record a claim to organize evidence; this does not validate the claim."""
+    try:
+        return knowledge.create_claim(body.statement, body.created_by)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/knowledge/claims/{claim_id}")
+def knowledge_claim_get(claim_id: str) -> dict:
+    item = knowledge.get_claim(claim_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="claim not found")
+    return item
+
+
+@app.post("/api/v1/knowledge/claims/{claim_id}/evidence", status_code=201)
+def knowledge_claim_evidence_add(
+    claim_id: str, body: ClaimEvidenceInput
+) -> dict:
+    """Record a human-labelled relation to an exact indexed evidence chunk."""
+    try:
+        return knowledge.annotate_claim_evidence(
+            claim_id,
+            body.chunk_id,
+            body.relation,
+            body.rationale,
+            body.recorded_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/v1/engines")
