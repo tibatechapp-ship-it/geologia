@@ -520,6 +520,39 @@ def jobs_get(job_id: str) -> dict:
     return item
 
 
+@app.get("/api/v1/jobs/{job_id}/events")
+def jobs_events(job_id: str) -> dict:
+    if store.get_job(job_id) is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    events = store.list_job_events(job_id)
+    return {"count": len(events), "events": events}
+
+
+@app.post("/api/v1/jobs/{job_id}/cancel")
+def jobs_cancel(job_id: str) -> dict:
+    """Cancel a job or request cooperative cancellation from a running worker."""
+    try:
+        item = store.transition_job(job_id, "cancelled", actor="human")
+    except ValueError as exc:
+        current = store.get_job(job_id)
+        if current and current["status"] == "running":
+            try:
+                item = store.transition_job(job_id, "cancel_requested", actor="human")
+            except ValueError as transition_error:
+                raise HTTPException(status_code=409, detail=str(transition_error)) from exc
+        else:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if item is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    return {
+        "job": item,
+        "cancellation": (
+            "requested" if item["status"] == "cancel_requested" else "confirmed"
+        ),
+        "execution_stopped": item["status"] == "cancelled",
+    }
+
+
 def run() -> None:
     parser = argparse.ArgumentParser(description="Run GEOLOGIA API")
     parser.add_argument("--host", default="127.0.0.1")
