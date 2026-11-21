@@ -296,8 +296,7 @@ def test_pdf_rejects_scanned_images_without_ocr_claim(local_index):
 
 def test_source_locator_schema_migrates_existing_text_chunks(tmp_path, monkeypatch):
     db_path = tmp_path / "legacy.sqlite3"
-    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(db_path))
-    monkeypatch.delenv("GEOLOGIA_KNOWLEDGE_DB_PATH", raising=False)
+    monkeypatch.setenv("GEOLOGIA_KNOWLEDGE_DB_PATH", str(db_path))
     with sqlite3.connect(db_path) as connection:
         connection.execute("PRAGMA foreign_keys = OFF")
         connection.execute(
