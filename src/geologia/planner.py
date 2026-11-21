@@ -107,12 +107,14 @@ def agent_status() -> dict:
             "domain_routing",
             "data_role_readiness",
             "explainable_plan_generation",
+            "local_knowledge_retrieval",
         ],
         "limitations": [
             "No neural model is trained or loaded.",
             "No scientific engine is executed.",
             "Routing confidence is heuristic and not calibrated.",
             "A plan is not a scientific result or professional certification.",
+            "External sources are not downloaded automatically.",
         ],
     }
 
