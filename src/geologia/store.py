@@ -43,7 +43,9 @@ def initialize() -> None:
         CREATE TABLE IF NOT EXISTS jobs (
             id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id),
             request TEXT NOT NULL, language TEXT NOT NULL CHECK(language IN ('ar','en')),
-            status TEXT NOT NULL CHECK(status IN ('planned','queued','running','succeeded','failed')),
+            status TEXT NOT NULL CHECK(
+                status IN ('planned','queued','running','succeeded','failed')
+            ),
             plan_json TEXT NOT NULL, created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_jobs_project_created

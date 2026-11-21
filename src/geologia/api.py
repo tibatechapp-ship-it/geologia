@@ -46,7 +46,9 @@ def _geojson_summary(path: Path) -> dict:
     if kind == "FeatureCollection":
         features = payload.get("features")
         if not isinstance(features, list):
-            raise HTTPException(status_code=422, detail="FeatureCollection.features must be an array")
+            raise HTTPException(
+                status_code=422, detail="FeatureCollection.features must be an array"
+            )
         for feature in features:
             if not isinstance(feature, dict) or feature.get("type") != "Feature":
                 raise HTTPException(status_code=422, detail="invalid GeoJSON Feature entry")
@@ -131,7 +133,9 @@ async def dataset_upload(
     digest = hashlib.sha256()
     size = 0
     try:
-        with tempfile.NamedTemporaryFile(mode="wb", dir=storage, prefix=".upload-", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=storage, prefix=".upload-", delete=False
+        ) as tmp:
             temporary_path = Path(tmp.name)
             async for chunk in request.stream():
                 if not chunk:

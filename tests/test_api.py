@@ -48,7 +48,10 @@ def test_safe_geojson_upload_and_metadata(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
     project = client.post("/api/v1/projects", json={"name": "Yemen GIS"}).json()
-    geojson = b'{"type":"FeatureCollection","features":[{"type":"Feature","geometry":null,"properties":{}}]}'
+    geojson = (
+        b'{"type":"FeatureCollection","features":[{"type":"Feature",'
+        b'"geometry":null,"properties":{}}]}'
+    )
     response = client.post(
         f"/api/v1/projects/{project['id']}/datasets",
         content=geojson,
