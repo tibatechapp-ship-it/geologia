@@ -544,8 +544,10 @@ def status() -> dict:
         "automatic_downloads_enabled": False,
         "license_review_required_for_ingestion": True,
         "core_seed_count": len(CORE_SEEDS),
-        "core_seeded_count": len(seed_result.get("source_ids", []))
-        if not seed_result.get("disabled")
-        else 0,
+        "core_seeded_count": (
+            len(seed_result.get("source_ids", []))
+            if not seed_result.get("disabled")
+            else 0
+        ),
         "core_seeded_automatically": os.environ.get("GEOLOGIA_DISABLE_CORE_SEED") != "1",
     }
