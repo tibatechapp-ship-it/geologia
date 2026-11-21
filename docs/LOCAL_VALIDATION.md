@@ -70,3 +70,11 @@ Additional API regression coverage verifies:
 - Duplicate JSON object keys and oversized numeric coordinate values are rejected.
 
 These checks are structural and plausibility checks only. They do not infer a missing CRS, establish scientific validity, or validate GeoPackage, GeoTIFF, or LAS contents.
+
+## Draft PR #7 — specialized file inspection and provenance
+
+The branch adds optional `formats` dependencies and parser-backed inspection for GeoPackage, GeoTIFF, and LAS. Upload remains a bounded storage operation; explicit `POST /api/v1/datasets/{id}/inspect` performs format-specific inspection. Reports include parser metadata and state that scientific interpretation and vertical-datum verification were not performed.
+
+The branch includes real parser-generated fixtures, malformed/truncated-file cases, file/raster/point sample limits, and a known-answer CRS transformation with declared tolerance. Dataset provenance records the source SHA-256 and declared CRS; inspection records parser/Python/GEOLOGIA versions and UTC time; reprojection records source hash, source/target CRS, axis order, pyproj version, operation description, and reported accuracy. A project-scoped SHA-256 event chain is exposed at `GET /api/v1/datasets/{id}/provenance`; it is tamper-evident, not tamper-proof.
+
+CI for the new format-validation job is pending. No scientific engine is integrated, and these checks are not a scientific certification.
