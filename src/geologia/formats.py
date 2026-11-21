@@ -148,6 +148,7 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
     """Inspect TIFF raster header and read only a bounded sample window."""
     size = _check_file(Path(path))
     rasterio = _dependency("rasterio")
+    numpy = _dependency("numpy")
     try:
         with rasterio.open(Path(path), "r") as dataset:
             width, height, bands = dataset.width, dataset.height, dataset.count
@@ -157,7 +158,7 @@ def inspect_geotiff(path: Path) -> dict[str, Any]:
                 raise FormatValidationError("GeoTIFF dimensions exceed inspection limits")
             block_shapes = [tuple(shape) for shape in dataset.block_shapes]
             if any(
-                block_height * block_width * __import__("numpy").dtype(dataset.dtypes[index]).itemsize
+                block_height * block_width * numpy.dtype(dataset.dtypes[index]).itemsize
                 > MAX_RASTER_BLOCK_BYTES
                 for index, (block_height, block_width) in enumerate(block_shapes)
             ):
