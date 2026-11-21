@@ -52,3 +52,20 @@ Do not enable GemPy or MODFLOW based on these tests. Their prerequisite remains 
 ## External dataset citation capture
 
 The web upload form exposes an expandable citation section; dataset upload also accepts optional source citation headers: URL, title, creator, publisher, DOI, license, citation, version, and access date. URL validation permits absolute HTTP(S) URLs without embedded credentials; DOI syntax and ISO access dates are checked. The service does not fetch these URLs and does not certify the source, license, citation, or supplied metadata. They are labeled `user_supplied_not_verified`, stored in the dataset summary, included in the ingestion event hash, and copied to derived reprojection lineage. Missing source information is explicitly recorded as `not_provided`.
+
+## Real geoid model references (expanded)
+
+The model registry in `tests/data/geoid_model_reference.json` now records real, authoritative geoid model sources:
+
+- **NGA Office of Geomatics** is the primary source for Earth Gravitational Model definitions, coefficients, and downloadable/interpolatable grids ([NGA EGM portal](https://earth-info.nga.mil/geograv)).
+- **EGM96** is the legacy global model with a published 15 arc-minute interpolation grid; the associated vertical CRS is EPSG:5773 and the geoid datum is EPSG:5171 ([NGA model downloads](https://earth-info.nga.mil/index.php?action=geoid&dir=wgs84), [EPSG:5773](https://epsg.io/5773), [EPSG:5171](https://epsg.io/5171-datum)).
+- **EGM2008** is NGA's currently published model at this review and has a published 2.5 arc-minute global interpolation grid; its vertical CRS is EPSG:3855 ([NGA WGS 84 model page](https://earth-info.nga.mil/?action=wgs84&dir=wgs84), [EPSG:3855](https://epsg.io/3855)). Do not silently replace a dataset declared as EGM96 with EGM2008.
+- The [OSGeo PROJ-data NGA grid inventory](https://github.com/OSGeo/PROJ-data/blob/master/us_nga/us_nga_README.txt) is used only as secondary distribution metadata for converted grid format and the public-domain statement for the listed converted NGA files. NGA remains the primary model authority.
+- NOAA's [EGM96 geoid paper](https://www.ngs.noaa.gov/PUBS_LIB/EGM96_GEOID_PAPER/egm96_geoid_paper.html) documents an important scientific caveat: geopotential coefficients alone do not uniquely define a geoid undulation; the model's conventions and realization must be specified.
+
+### Status after this reference expansion
+
+This change adds source-grounded model metadata and a checklist, **not** a grid file or numerical height-transformation test. No EGM grid is bundled, sampled, or applied. No known-answer height point is asserted. The next implementation gate is to pin a traceable grid artifact by filename, version, SHA-256, license evidence, grid geometry, and tide/model conventions, then validate grid-node and interior interpolation against independent published values. Missing grid, outside coverage, nodata, or unavailable operation must fail explicitly rather than fall back silently.
+
+The acceptance checklist also records the vertical sign convention to verify for the chosen operation (commonly `h = H + N` for ellipsoidal height, orthometric height, and geoid undulation) and requires operation-specific evidence; this formula must not be generalized to unrelated national vertical datums without checking their definitions.
+
