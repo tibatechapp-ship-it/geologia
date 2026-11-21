@@ -68,15 +68,15 @@ This run validates the current main-branch code, including strict JSON handling,
 - No scientific engine is integrated, certified, or executed.
 - A role tag is user-supplied metadata, not proof that the file contains the required scientific data.
 - GeoJSON validation is structural, not a complete OGC conformance suite, topology validator, or scientific-quality review.
-- CRS values supplied in upload headers are trusted declarations; they are not inferred from coordinate values.
+- GeoJSON upload now canonicalizes an explicitly declared horizontal CRS and checks that transformed coordinates fall within Earth longitude/latitude bounds; this is a plausibility check, not CRS inference or scientific validation. When no CRS header is supplied, GeoJSON is treated as WGS84 and checked against longitude/latitude bounds. Other formats still retain user-declared CRS metadata without content-level CRS verification.
 - Reprojection supports GeoJSON vector geometry only. Raster GeoTIFF and GeoPackage are accepted for storage but not processed.
 - Z and additional ordinates are preserved, not transformed using a vertical CRS.
-- CSV inspection reports table structure only; it does not validate domain-specific units, schema, or measurements.
+- CSV upload now rejects invalid UTF-8 and malformed quoting, and records header/row structure plus ragged-row warnings. CSV checks do not validate domain-specific units, schema, or measurements.
 - No provenance model yet records software versions, exact transformation parameters, input snapshots, and reproducible run artifacts for scientific computations.
 
 ### Frontend and test coverage
 - Main currently has API-level frontend checks and JavaScript syntax validation, but no merged browser-based end-to-end suite.
-- Draft PR #7 adds Playwright coverage for project creation, language switching, GeoJSON upload/inspection, and plan-only behavior. Its Chromium CI result must pass before it is considered verified.
+- Draft PR #7 adds Playwright coverage for project creation, language switching, GeoJSON upload/inspection, and plan-only behavior. Its latest CI run #44925167509 passed all four jobs, including the Chromium browser suite.
 - The map view depends on externally hosted map assets/tiles; local data storage does not imply a fully offline map experience.
 - No accessibility audit, cross-browser/mobile interaction suite, or performance budget has been completed.
 
@@ -86,7 +86,7 @@ This run validates the current main-branch code, including strict JSON handling,
 
 ## Ordered next work
 
-1. Complete and verify the browser-level test suite, then add map rendering and reprojection interaction coverage.
+1. Extend browser coverage to map rendering and reprojection interaction after the current API-level upload validation changes pass CI.
 2. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
 3. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
 4. Build a typed data-validation layer for GeoJSON, CSV, GeoPackage, GeoTIFF, and LAS; never infer scientific validity from filenames or role tags.
