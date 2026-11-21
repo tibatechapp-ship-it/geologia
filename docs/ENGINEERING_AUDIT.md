@@ -44,7 +44,7 @@ The engine registry is a catalogue only. All 30 entries remain `planned` and `li
 
 ## Verified by GitHub Actions
 
-The latest full validation is [Run #83](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918264983), on commit `87ed6657d0b24611dc54fc180cd5609f701fcadd`:
+The latest full validation is [Run #87](https://github.com/tibatechapp-ship-it/geologia/actions/runs/44918428819), on commit `f048828256e403ba8e925a83eae717364ac5d280`:
 - Python 3.12, 3.14, and 3.15 all passed: 43 tests passed in each matrix job (one optional browser-directory skip and one upstream deprecation warning).
 - The dedicated Chromium/Playwright browser job passed: 2 end-to-end tests.
 - Browser tests start a real Uvicorn process with isolated SQLite and upload directories; the API is not mocked.
