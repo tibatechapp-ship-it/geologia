@@ -55,11 +55,12 @@ def test_job_state_machine_rejects_illegal_transitions_and_retry_overflow(
         store.transition_job(job["id"], "succeeded", actor="worker")
 
     for attempt in range(3):
-        store.transition_job(job["id"], "queued", actor="system")
+        if attempt == 0:
+            store.transition_job(job["id"], "queued", actor="system")
+        else:
+            store.transition_job(job["id"], "queued", actor="human")
         store.transition_job(job["id"], "running", actor="worker")
         store.transition_job(job["id"], "failed", actor="worker")
-        if attempt < 2:
-            store.transition_job(job["id"], "queued", actor="human")
 
     with pytest.raises(ValueError, match="retry limit"):
         store.transition_job(job["id"], "queued", actor="human")
