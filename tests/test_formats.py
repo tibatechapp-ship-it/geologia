@@ -1,7 +1,7 @@
-import math
 """Real parser-backed format fixtures and known-answer geospatial references."""
 from __future__ import annotations
 
+import math
 import json
 from pathlib import Path
 
@@ -301,8 +301,7 @@ def test_epsg_3857_known_answers_match_independent_published_formula():
         reference["source_crs"], reference["target_crs"], always_xy=True
     )
     radius = reference["sphere_radius_m"]
-    tolerance = reference["absolute_tolerance_m"
-]
+    tolerance = reference["absolute_tolerance_m"]
     for point in reference["points"]:
         longitude, latitude = point["input_xy"]
         longitude_radians = math.radians(longitude)
