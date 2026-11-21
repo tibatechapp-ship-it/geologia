@@ -233,7 +233,7 @@ async def dataset_upload(
                 detail="source URL must not contain embedded credentials",
             )
     if external_source["doi"] and not re.fullmatch(
-        r"10\\.\\d{4,9}/\\S+", external_source["doi"], flags=re.IGNORECASE
+        r"10\.\d{4,9}/\S+", external_source["doi"], flags=re.IGNORECASE
     ):
         raise HTTPException(
             status_code=422,
