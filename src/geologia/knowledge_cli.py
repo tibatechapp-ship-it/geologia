@@ -8,17 +8,20 @@ from geologia.knowledge import ingest_document, seed_core_knowledge
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Index local UTF-8 geoscience text; no remote sources are downloaded."
+        description=(
+            "Index local UTF-8 text or PDF geoscience sources; "
+            "no remote sources are downloaded."
+        )
     )
     parser.add_argument(
         "path",
         nargs="?",
-        help="Local .txt, .md, .csv, or .json file to ingest",
+        help="Local .txt, .md, .csv, .json, or .pdf file to ingest (.pdf requires the pdf extra)",
     )
     parser.add_argument(
         "--seed-core",
         action="store_true",
-        help="Index GEOLOGIA-authored bilingual core checklists",
+        help="Index GEOLOGIA-authored multilingual core checklists",
     )
     parser.add_argument("--source-id", help="Stable bibliographic/source ID")
     parser.add_argument("--title")

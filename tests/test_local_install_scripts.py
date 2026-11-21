@@ -8,8 +8,8 @@ SCRIPTS = ROOT / "scripts"
 def test_posix_installer_requires_supported_python_and_keeps_gis_optional():
     script = (SCRIPTS / "install-local.sh").read_text(encoding="utf-8")
     assert "sys.version_info >= (3, 12)" in script
-    assert 'pip install -e .' in script
-    assert "pip install -e '.[gis]'" in script
+    assert "pip install -e '.[pdf]'" in script
+    assert "pip install -e '.[pdf,gis]'" in script
     assert "Unknown option" in script
 
 
@@ -40,7 +40,9 @@ def test_windows_installer_and_launcher_bind_to_loopback():
     installer = (SCRIPTS / "install-windows.ps1").read_text(encoding="utf-8")
     launcher = (SCRIPTS / "start-windows.ps1").read_text(encoding="utf-8")
     assert "sys.version_info >= (3,12)" in installer
-    assert ".[gis]" in installer
+    assert ".[pdf,gis]" in installer
+    assert '{ $PackageSpec }' not in installer
+    assert 'else { ".[pdf]" }' in installer
     assert "--host 127.0.0.1 --port $Port" in launcher
     assert "ValidateRange(1, 65535)" in launcher
 

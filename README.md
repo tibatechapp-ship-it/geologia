@@ -53,7 +53,7 @@ The index is stored by default at `.geologia/knowledge.sqlite3`. Ali's analysis 
 
 On the first knowledge status/search request, GEOLOGIA automatically indexes **24 original multilingual core checklists** across groundwater, GIS/CRS, 3D geology, seismology, remote sensing, and mineral exploration. These are GEOLOGIA-authored process notes, not copied publications. You can also run `geologia-knowledge --seed-core` explicitly. This core pack is local and model-free. Chinese queries use deterministic bigram indexing in SQLite FTS; no embedding model is required.
 
-Index only UTF-8 `.txt`, `.md`, `.csv`, or `.json` text that you are legally allowed to process and have explicitly reviewed. Example:
+Index locally supplied UTF-8 `.txt`, `.md`, `.csv`, or `.json` text, or text-based `.pdf` files that you are legally allowed to process and have explicitly reviewed. The installer includes the lightweight `pypdf` extra. PDF indexing is limited to 20 MiB and 500 pages, preserves PDF page locators, and does not perform OCR on scanned-image PDFs. Example:
 
 ```bash
 geologia-knowledge ./references/open_hydrogeology.md \
@@ -75,7 +75,7 @@ The institution catalog and Crossref candidate inbox are discovery/metadata only
 python3.14 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev,gis]"
+python -m pip install -e ".[dev,gis,pdf]"
 python -m ruff check src tests
 python -m compileall -q src tests
 python -m pytest

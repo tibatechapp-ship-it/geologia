@@ -40,9 +40,9 @@ fi
 
 "$VENV_PYTHON" -m pip install --upgrade pip
 if [ "$WITH_GIS" -eq 1 ]; then
-  "$VENV_PYTHON" -m pip install -e '.[gis]'
+  "$VENV_PYTHON" -m pip install -e '.[pdf,gis]'
 else
-  "$VENV_PYTHON" -m pip install -e .
+  "$VENV_PYTHON" -m pip install -e '.[pdf]'
 fi
 
 echo

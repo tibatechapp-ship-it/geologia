@@ -51,7 +51,7 @@ The runnable application source is committed to the default branch `main`.
 - No production deployment or production authentication/authorization; keep the API bound to localhost.
 - No scientific engine is integrated or certified; `engines_integrated` remains 0.
 - GeoPackage, GeoTIFF, and LAS are stored only. CSV receives structural inspection; it is not scientifically interpreted.
-- The index auto-seeds 24 original GEOLOGIA-authored Arabic/English/Russian/Chinese core checklists; the external source corpus remains empty until explicit license-reviewed ingestion. No PDF extraction or automatic full-text download.
+- The index auto-seeds 24 original GEOLOGIA-authored Arabic/English/Russian/Chinese core checklists; the external source corpus remains empty until explicit license-reviewed ingestion. Local text-based PDF extraction is available through optional pypdf with a 20 MiB / 500-page cap and page locators; scanned-image OCR and automatic full-text downloads are not implemented.
 - No worker queue, isolated engine containers, or LLM provider integration.
 - Engine license reviews are pending individually; the platform license does not relicense third-party engines.
 - GeoJSON checks are structural only, not complete OGC conformance, topology, or scientific validation.

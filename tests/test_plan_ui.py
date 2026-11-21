@@ -22,6 +22,7 @@ def test_plan_renderer_uses_text_nodes_and_validates_external_citations():
 def test_plan_renderer_exposes_scientific_limits_and_retrieval():
     script = (WEB / "app.js").read_text(encoding="utf-8")
     assert "knowledgeEvidence" in script
+    assert "item.citation_locator" in script
     assert "scientificBoundary" in script
     assert "requiredInputs" in script
     assert "routeEvidence" in script
