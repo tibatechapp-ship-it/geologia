@@ -86,6 +86,7 @@ def test_real_geopackage_layer_metadata(tmp_path):
     assert layer["crs"] == "EPSG:4326"
     assert layer["coordinate_units"] == ["degree", "degree"]
     assert layer["vertical_reference"]["vertical_datum_verified"] is False
+    assert layer["vertical_reference"]["vertical_crs_parse_status"] == "no_vertical_component_in_crs"
     assert report["scientific_validation"] is False
 
 
@@ -333,4 +334,5 @@ def test_declared_egm96_vertical_crs_metadata_is_reported_not_verified():
     assert component["axis_units"] == [reference["expected_vertical_unit"]]
     assert component["axis_directions"] == [reference["expected_vertical_axis_direction"]]
     assert report["vertical_datum_verified"] is reference["expected_verified"]
+    assert report["vertical_crs_parse_status"] == "vertical_component_found"
     assert report["vertical_transformation_performed"] is False
