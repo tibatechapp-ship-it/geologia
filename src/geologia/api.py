@@ -21,6 +21,7 @@ from geologia import store
 from geologia.planner import build_plan
 from geologia.registry import get_engine, list_engines
 from geologia.vector import inspect_csv, inspect_geojson
+from geologia.validation import validate_csv_file, validate_geojson_payload
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -409,6 +410,48 @@ def dataset_inspect(dataset_id: str) -> dict:
         "scientific_interpretation": False,
     })
     store.save_dataset_inspection(dataset_id, report)
+    return report
+
+
+@app.post("/api/v1/datasets/{dataset_id}/validate", status_code=200)
+def dataset_validate(dataset_id: str) -> dict:
+    """Run deterministic structural checks and supported versioned schema profiles."""
+    item = store.get_dataset(dataset_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    content_path = store.get_dataset_content_path(dataset_id)
+    if content_path is None or not Path(content_path).is_file():
+        raise HTTPException(status_code=410, detail="dataset file is missing")
+    path = Path(content_path)
+    if item["format"] == "csv":
+        report = validate_csv_file(path, item["data_role"])
+    elif item["format"] in {"geojson", "json"}:
+        try:
+            payload = _read_json(path)
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=422, detail="GeoJSON must be valid UTF-8 JSON with finite numbers"
+            ) from exc
+        report = validate_geojson_payload(payload, item["data_role"])
+    else:
+        raise HTTPException(
+            status_code=415,
+            detail="validation profiles currently support CSV and GeoJSON only",
+        )
+    report["dataset_id"] = dataset_id
+    store.save_dataset_validation(dataset_id, report)
+    return report
+
+
+@app.get("/api/v1/datasets/{dataset_id}/validation", status_code=200)
+def dataset_validation_get(dataset_id: str) -> dict:
+    """Read the latest persisted validation report without re-running checks."""
+    item = store.get_dataset(dataset_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    report = store.get_dataset_validation(dataset_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="dataset has not been validated")
     return report
 
 
