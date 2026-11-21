@@ -106,6 +106,7 @@ def reproject_geojson(
         else:
             raise ValueError("unsupported GeoJSON type for reprojection")
         output.pop("bbox", None)
+        output.pop("crs", None)
         return output
 
     transformed = transform_object(payload)

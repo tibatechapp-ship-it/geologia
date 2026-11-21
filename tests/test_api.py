@@ -180,14 +180,14 @@ def test_crs_inspection_and_reprojection_preserve_source(tmp_path, monkeypatch):
     )
     assert response.status_code == 201
     result = response.json()
-    coords = result["dataset"]["summary"]["coordinate_count"]
-    assert coords == 1
-    assert abs(coords[0] - 4920321.493) < 1
-    assert abs(coords[1] - 1723798.499) < 1
+    derived = result["dataset"]
+    assert derived["summary"]["coordinate_count"] == 1
+    bbox = derived["summary"]["bbox_xy"]
+    assert abs(bbox[0] - 4920321.493) < 1
+    assert abs(bbox[1] - 1723798.499) < 1
     assert result["source_crs"] == "EPSG:4326"
     assert result["target_crs"] == "EPSG:3857"
     assert result["source_dataset_modified"] is False
-    derived = result["dataset"]
     assert derived["crs"] == "EPSG:3857"
     assert derived["format"] == "geojson"
     assert derived["summary"]["derived_from_dataset_id"] == dataset_id

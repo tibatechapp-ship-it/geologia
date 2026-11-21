@@ -231,6 +231,7 @@ def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    transformed_metrics = inspect_geojson(transformed)
     output_bytes = json.dumps(
         transformed, ensure_ascii=False, separators=(",", ":"), allow_nan=False
     ).encode("utf-8")
@@ -256,6 +257,7 @@ def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
             "derived_from_dataset_id": dataset_id,
             "operation": "geojson_reprojection",
             "coordinate_count": metrics["coordinate_count"],
+            "bbox_xy": transformed_metrics["bbox_xy"],
             "source_crs": info["source_crs"],
             "target_crs": info["target_crs"],
             "scientific_interpretation": False,
