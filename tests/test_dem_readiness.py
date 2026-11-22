@@ -189,3 +189,70 @@ def test_validation_status_cannot_be_bypassed_by_scope_exception():
     )
     assert result.disposition is ReadinessDisposition.NOT_EVALUABLE
     assert "validation_status" in result.blocking_fields
+
+
+
+def test_scope_exception_cannot_reference_unknown_field():
+    import pytest
+    from pydantic import ValidationError
+
+    exception = ScopeException(
+        field_name="analogue_region",
+        rationale="This is not part of the product mandatory context contract.",
+        evidence_reference="evidence://invalid-field",
+        reviewer="reviewer-1",
+        recorded_at=NOW,
+        compensating_controls=("No coverage claim is made",),
+    )
+    with pytest.raises(ValidationError):
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            scope_exceptions=(exception,),
+        )
+
+
+def test_scope_exception_cannot_be_attached_to_available_field():
+    import pytest
+    from pydantic import ValidationError
+
+    exception = ScopeException(
+        field_name="vertical_datum",
+        rationale="This field is already available and needs no exception.",
+        evidence_reference="evidence://available-field",
+        reviewer="reviewer-1",
+        recorded_at=NOW,
+        compensating_controls=("No additional control",),
+    )
+    with pytest.raises(ValidationError):
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            scope_exceptions=(exception,),
+        )
+
+
+def test_duplicate_scope_exceptions_for_same_field_are_rejected():
+    import pytest
+    from pydantic import ValidationError
+
+    exception = ScopeException(
+        field_name="vertical_datum",
+        rationale="This declared task avoids absolute elevation comparisons.",
+        evidence_reference="evidence://task-profile/relative-only",
+        reviewer="reviewer-1",
+        recorded_at=NOW,
+        compensating_controls=("Suppress absolute-height outputs",),
+    )
+    missing = EvidenceValue(
+        availability=Availability.NOT_AVAILABLE,
+        reason="Datum not published.",
+        reviewer="reviewer-1",
+        recorded_at=NOW,
+    )
+    with pytest.raises(ValidationError):
+        ReadinessInput(
+            context=context(vertical_datum=missing),
+            declared_use=use(),
+            scope_exceptions=(exception, exception),
+        )
