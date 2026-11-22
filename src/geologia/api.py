@@ -1229,6 +1229,25 @@ def project_dem_accuracy_assessment_chain(project_id: str) -> dict:
                 == list(coverage_manifest.tile_dataset_sha256s)
             )
             if coverage_valid:
+                coverage_valid = _coverage_inspection_matches_accuracy_evidence(
+                    project_id=project_id,
+                    aoi_dataset_id=aoi_id,
+                    aoi_dataset_sha256=assessment.get(
+                        "aoi_dataset_file_sha256", ""
+                    ),
+                    product_dataset_ids=list(
+                        coverage_manifest.tile_dataset_ids
+                    ),
+                    product_dataset_sha256s=list(
+                        coverage_manifest.tile_dataset_sha256s
+                    ),
+                    aoi_crs=request.get("metadata", {}).get("aoi_crs"),
+                    coverage_footprint_reference=assessment.get(
+                        "coverage_footprint_reference"
+                    ),
+                    inspection=coverage,
+                )
+            if coverage_valid:
                 try:
                     current_coverage_sha256 = hashlib.sha256(
                         json.dumps(
