@@ -50,9 +50,12 @@ def use():
 
 def review():
     return IndependentReviewEvidence(
-        product_version_id="release-1", pilot_area_id="pilot-north",
-        task_profile_id="regional-reconnaissance-v1", reviewer="independent-reviewer-2",
-        evidence_reference="evidence://independent-review/1", reviewed_at=NOW,
+        product_version_id="release-1",
+        pilot_area_id="pilot-north",
+        task_profile_id="regional-reconnaissance-v1",
+        reviewer="independent-reviewer-2",
+        evidence_reference="evidence://independent-review/1",
+        reviewed_at=NOW,
     )
 
 
