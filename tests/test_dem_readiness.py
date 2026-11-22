@@ -25,7 +25,11 @@ def evidence(value):
 def context(**overrides):
     values = {
         name: evidence(
-            "independently_reviewed" if name == "validation_status" else "verified"
+            "independently_reviewed"
+            if name == "validation_status"
+            else "release-1"
+            if name == "product_version"
+            else "verified"
         )
         for name in MandatoryProductContext.model_fields
     }
@@ -64,7 +68,11 @@ def reason(code, stage="coverage"):
 
 
 def test_complete_context_can_be_ready():
-    result = assess_readiness(ReadinessInput(context=context(), declared_use=use(), independent_review=review()))
+    result = assess_readiness(
+        ReadinessInput(
+            context=context(), declared_use=use(), independent_review=review()
+        )
+    )
     assert result.disposition is ReadinessDisposition.READY
 
 
@@ -292,3 +300,14 @@ def test_reason_record_requires_evidence_reference():
     with pytest.raises(ValidationError):
         ReasonRecord(code=ReasonCode.LICENSE_INCOMPATIBLE, stage="license",
             detail="License terms prohibit the declared use.", reviewer="reviewer-1", recorded_at=NOW)
+
+
+def test_declared_product_version_must_match_context():
+    import pytest
+    from pydantic import ValidationError
+
+    mismatched = context(product_version=evidence("release-2"))
+    with pytest.raises(ValidationError):
+        ReadinessInput(
+            context=mismatched, declared_use=use(), independent_review=review()
+        )
