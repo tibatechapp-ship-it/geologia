@@ -294,7 +294,9 @@ def test_independent_review_must_match_exact_declared_use():
         evidence_reference="evidence://independent-review/other-release", reviewed_at=NOW,
     )
     with pytest.raises(ValidationError):
-        ReadinessInput(context=context(), declared_use=use(), independent_review=invalid)
+        ReadinessInput(
+            context=context(), declared_use=use(), independent_review=invalid
+        )
 
 
 def test_reason_record_requires_evidence_reference():
