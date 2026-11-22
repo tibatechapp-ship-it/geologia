@@ -159,6 +159,7 @@ def test_scope_exception_allows_only_conditional_limited_use():
             declared_use=use(),
             scope_exceptions=(exception,),
             independent_review=review(),
+            accuracy_assessment=accuracy_evidence(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
@@ -172,6 +173,7 @@ def test_restriction_is_conditional_not_ready():
             declared_use=use(),
             accepted_restrictions=(reason(ReasonCode.TEMPORAL_MISMATCH),),
             independent_review=review(),
+            accuracy_assessment=accuracy_evidence(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
