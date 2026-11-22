@@ -10,6 +10,7 @@ import uvicorn
 
 from geologia import __version__
 from geologia.api import app
+from geologia.runtime import parse_port
 
 LOCAL_HOST = "127.0.0.1"
 
@@ -22,16 +23,6 @@ def configure_storage(home: Path | None = None) -> Path:
     os.environ.setdefault("GEOLOGIA_UPLOAD_DIR", str(data_dir / "uploads"))
     os.environ.setdefault("GEOLOGIA_KNOWLEDGE_DB_PATH", str(data_dir / "knowledge.sqlite3"))
     return data_dir
-
-
-def parse_port(value: str) -> int:
-    try:
-        port = int(value)
-    except (TypeError, ValueError) as exc:
-        raise argparse.ArgumentTypeError("port must be an integer") from exc
-    if not 1 <= port <= 65535:
-        raise argparse.ArgumentTypeError("port must be between 1 and 65535")
-    return port
 
 
 def _open_browser_when_ready(server: uvicorn.Server, url: str) -> None:
@@ -55,7 +46,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--port",
         type=parse_port,
-        default=parse_port(os.environ.get("GEOLOGIA_PORT", "8000")),
+        default=os.environ.get("GEOLOGIA_PORT", "8000"),
     )
     parser.add_argument("--no-browser", action="store_true", help="Do not open a browser tab")
     args = parser.parse_args(argv)

@@ -44,6 +44,7 @@ from geologia import __version__
 from geologia import knowledge, store
 from geologia.planner import agent_status, build_plan
 from geologia.registry import get_engine, list_engines
+from geologia.runtime import parse_port
 from geologia.vector import inspect_csv, inspect_geojson
 from geologia.validation import validate_csv_file, validate_geojson_payload
 
@@ -2380,7 +2381,11 @@ def dataset_provenance(dataset_id: str) -> dict:
 def run() -> None:
     parser = argparse.ArgumentParser(description="Run GEOLOGIA API")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument(
+        "--port",
+        type=parse_port,
+        default=os.environ.get("GEOLOGIA_PORT", "8000"),
+    )
     args = parser.parse_args()
     if args.host not in {"127.0.0.1", "::1", "localhost"}:
         parser.error(
