@@ -256,3 +256,14 @@ def test_duplicate_scope_exceptions_for_same_field_are_rejected():
             declared_use=use(),
             scope_exceptions=(exception, exception),
         )
+
+
+def test_not_assessed_reason_code_is_not_misclassified_as_unresolved():
+    result = assess_readiness(
+        ReadinessInput(
+            context=context(validation_status=evidence("not_assessed")),
+            declared_use=use(),
+            unresolved_items=(reason(ReasonCode.NOT_ASSESSED),),
+        )
+    )
+    assert result.disposition is ReadinessDisposition.NOT_ASSESSED

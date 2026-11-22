@@ -7,6 +7,8 @@ from geologia.dem_readiness.models import (
     Availability,
     EvidenceValue,
     MandatoryProductContext,
+    AnalogueRepresentativenessContext,
+    RepresentativenessStatus,
 )
 
 
@@ -56,3 +58,36 @@ def test_validation_status_rejects_unknown_values():
     )
     with pytest.raises(ValidationError):
         MandatoryProductContext(**fields)
+
+
+def test_analogue_pair_is_separate_from_product_coverage():
+    analogue = AnalogueRepresentativenessContext(
+        analogue_region="Asir western highlands",
+        yemen_target_stratum="Yemen western highlands",
+        representativeness_status=RepresentativenessStatus.UNQUANTIFIED,
+        limitations=("Matched slope and land-cover distributions are not yet available.",),
+    )
+    assert analogue.representativeness_status is RepresentativenessStatus.UNQUANTIFIED
+    assert not hasattr(analogue, "actual_coverage")
+
+
+def test_assessed_analogue_requires_attributable_evidence():
+    with pytest.raises(ValidationError):
+        AnalogueRepresentativenessContext(
+            analogue_region="Najran western mountain belt",
+            yemen_target_stratum="Northern Yemen highlands",
+            representativeness_status=RepresentativenessStatus.ASSESSED,
+        )
+
+
+def test_reason_record_requires_evidence_reference():
+    from geologia.dem_readiness.models import ReasonCode, ReasonRecord
+
+    with pytest.raises(ValidationError):
+        ReasonRecord(
+            code=ReasonCode.UNRESOLVED,
+            stage="metadata",
+            detail="The provider documentation is contradictory.",
+            reviewer="reviewer-1",
+            recorded_at=datetime(2026, 11, 22, tzinfo=UTC),
+        )

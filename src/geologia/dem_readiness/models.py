@@ -28,6 +28,12 @@ class ValidationStatus(StrEnum):
     NOT_ASSESSED = "not_assessed"
 
 
+class RepresentativenessStatus(StrEnum):
+    UNQUANTIFIED = "unquantified"
+    ASSESSED = "assessed"
+    NOT_APPLICABLE = "not_applicable"
+
+
 class ReadinessDisposition(StrEnum):
     READY = "ready_for_declared_use"
     CONDITIONAL = "conditional_limited_use"
@@ -117,9 +123,37 @@ class MandatoryProductContext(BaseModel):
     def unavailable_fields(self) -> list[str]:
         return [
             name
-            for name in self.model_fields
+            for name in type(self).model_fields
             if getattr(self, name).availability is Availability.NOT_AVAILABLE
         ]
+
+
+class AnalogueRepresentativenessContext(BaseModel):
+    """Comparison hypothesis metadata; never evidence of product-file coverage."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    analogue_region: NonEmpty
+    yemen_target_stratum: NonEmpty
+    representativeness_status: RepresentativenessStatus
+    evidence_reference: str | None = None
+    reviewer: str | None = None
+    recorded_at: datetime | None = None
+    limitations: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_assessment_evidence(self) -> "AnalogueRepresentativenessContext":
+        if self.representativeness_status is RepresentativenessStatus.ASSESSED:
+            if not self.evidence_reference or not self.reviewer or self.recorded_at is None:
+                raise ValueError(
+                    "assessed representativeness requires evidence, reviewer and timestamp"
+                )
+            if self.recorded_at.tzinfo is None:
+                raise ValueError("recorded_at must be timezone-aware")
+        elif self.representativeness_status is RepresentativenessStatus.UNQUANTIFIED:
+            if not self.limitations:
+                raise ValueError("unquantified representativeness requires a limitation")
+        return self
 
 
 class DeclaredUseContext(BaseModel):
@@ -139,7 +173,7 @@ class ReasonRecord(BaseModel):
     code: ReasonCode
     stage: NonEmpty
     detail: NonEmpty
-    evidence_reference: str | None = None
+    evidence_reference: NonEmpty
     reviewer: NonEmpty
     recorded_at: datetime
 
