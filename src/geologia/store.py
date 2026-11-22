@@ -182,7 +182,26 @@ def initialize() -> None:
             "CREATE INDEX IF NOT EXISTS idx_coverage_assessments_project_sequence "
             "ON coverage_assessments(project_id, sequence)"
         )
-        conn.execute("PRAGMA user_version = 2")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS accuracy_assessments (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT NOT NULL UNIQUE,
+                project_id TEXT NOT NULL REFERENCES projects(id),
+                created_by TEXT NOT NULL,
+                request_json TEXT NOT NULL,
+                assessment_json TEXT NOT NULL,
+                request_sha256 TEXT NOT NULL,
+                assessment_sha256 TEXT NOT NULL,
+                previous_hash TEXT,
+                record_hash TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_accuracy_assessments_project_sequence "
+            "ON accuracy_assessments(project_id, sequence)"
+        )
+        conn.execute("PRAGMA user_version = 3")
 
 
 def create_project(name: str, description: str, language: str) -> dict[str, Any]:
@@ -779,6 +798,181 @@ def verify_coverage_assessment_chain(project_id: str) -> dict[str, Any]:
         if row["previous_hash"] != previous_hash:
             errors.append({"record_id": row["id"], "code": "previous_hash_mismatch"})
         expected = _coverage_record_hash(
+            record_id=row["id"],
+            project_id=row["project_id"],
+            created_by=row["created_by"],
+            request_sha256=row["request_sha256"],
+            assessment_sha256=row["assessment_sha256"],
+            previous_hash=row["previous_hash"],
+            created_at=row["created_at"],
+        )
+        if expected != row["record_hash"]:
+            errors.append({"record_id": row["id"], "code": "record_hash_mismatch"})
+        previous_hash = row["record_hash"]
+    return {
+        "project_id": project_id,
+        "valid": not errors,
+        "record_count": len(rows),
+        "last_record_hash": previous_hash,
+        "errors": errors,
+        "tamper_evident_not_tamper_proof": True,
+    }
+
+
+def _accuracy_record_hash(
+    *,
+    record_id: str,
+    project_id: str,
+    created_by: str,
+    request_sha256: str,
+    assessment_sha256: str,
+    previous_hash: str | None,
+    created_at: str,
+) -> str:
+    payload = {
+        "id": record_id,
+        "project_id": project_id,
+        "created_by": created_by,
+        "request_sha256": request_sha256,
+        "assessment_sha256": assessment_sha256,
+        "previous_hash": previous_hash,
+        "created_at": created_at,
+    }
+    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def save_accuracy_assessment(
+    project_id: str,
+    request: dict[str, Any],
+    assessment: dict[str, Any],
+    created_by: str,
+) -> dict[str, Any]:
+    """Persist DEM accuracy residuals in a separate tamper-evident project chain."""
+    if not created_by.strip():
+        raise ValueError("created_by must not be empty")
+    request_json = _canonical_json(request)
+    assessment_json = _canonical_json(assessment)
+    request_sha256 = hashlib.sha256(request_json.encode("utf-8")).hexdigest()
+    assessment_sha256 = hashlib.sha256(assessment_json.encode("utf-8")).hexdigest()
+    record_id = str(uuid4())
+    created_at = utc_now()
+    initialize()
+    with connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        if conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone() is None:
+            raise ValueError("project not found")
+        previous = conn.execute(
+            "SELECT record_hash FROM accuracy_assessments "
+            "WHERE project_id=? ORDER BY sequence DESC LIMIT 1",
+            (project_id,),
+        ).fetchone()
+        previous_hash = previous["record_hash"] if previous else None
+        record_hash = _accuracy_record_hash(
+            record_id=record_id,
+            project_id=project_id,
+            created_by=created_by.strip(),
+            request_sha256=request_sha256,
+            assessment_sha256=assessment_sha256,
+            previous_hash=previous_hash,
+            created_at=created_at,
+        )
+        conn.execute(
+            "INSERT INTO accuracy_assessments("
+            "id,project_id,created_by,request_json,assessment_json,request_sha256,"
+            "assessment_sha256,previous_hash,record_hash,created_at"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (
+                record_id,
+                project_id,
+                created_by.strip(),
+                request_json,
+                assessment_json,
+                request_sha256,
+                assessment_sha256,
+                previous_hash,
+                record_hash,
+                created_at,
+            ),
+        )
+    result = get_accuracy_assessment(record_id)
+    if result is None:
+        raise RuntimeError("accuracy assessment was not persisted")
+    return result
+
+
+def _accuracy_assessment_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "project_id": row["project_id"],
+        "created_by": row["created_by"],
+        "request": json.loads(row["request_json"]),
+        "assessment": json.loads(row["assessment_json"]),
+        "request_sha256": row["request_sha256"],
+        "assessment_sha256": row["assessment_sha256"],
+        "previous_hash": row["previous_hash"],
+        "record_hash": row["record_hash"],
+        "created_at": row["created_at"],
+    }
+
+
+def get_accuracy_assessment(record_id: str) -> dict[str, Any] | None:
+    initialize()
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM accuracy_assessments WHERE id=?", (record_id,)
+        ).fetchone()
+    return _accuracy_assessment_row(row) if row else None
+
+
+def list_accuracy_assessments(
+    project_id: str,
+    *,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict[str, Any]:
+    if limit < 1 or limit > 200 or offset < 0:
+        raise ValueError("invalid accuracy assessment pagination")
+    initialize()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM accuracy_assessments WHERE project_id=? "
+            "ORDER BY sequence DESC LIMIT ? OFFSET ?",
+            (project_id, limit, offset),
+        ).fetchall()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM accuracy_assessments WHERE project_id=?",
+            (project_id,),
+        ).fetchone()[0]
+    return {
+        "count": count,
+        "limit": limit,
+        "offset": offset,
+        "assessments": [_accuracy_assessment_row(row) for row in rows],
+    }
+
+
+def verify_accuracy_assessment_chain(project_id: str) -> dict[str, Any]:
+    """Verify canonical payload hashes and sequence links for DEM accuracy records."""
+    initialize()
+    errors: list[dict[str, Any]] = []
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM accuracy_assessments WHERE project_id=? ORDER BY sequence",
+            (project_id,),
+        ).fetchall()
+    previous_hash = None
+    for row in rows:
+        request_hash = hashlib.sha256(row["request_json"].encode("utf-8")).hexdigest()
+        assessment_hash = hashlib.sha256(
+            row["assessment_json"].encode("utf-8")
+        ).hexdigest()
+        if request_hash != row["request_sha256"]:
+            errors.append({"record_id": row["id"], "code": "request_hash_mismatch"})
+        if assessment_hash != row["assessment_sha256"]:
+            errors.append({"record_id": row["id"], "code": "assessment_hash_mismatch"})
+        if row["previous_hash"] != previous_hash:
+            errors.append({"record_id": row["id"], "code": "previous_hash_mismatch"})
+        expected = _accuracy_record_hash(
             record_id=row["id"],
             project_id=row["project_id"],
             created_by=row["created_by"],
