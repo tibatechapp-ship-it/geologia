@@ -362,6 +362,7 @@ def project_dem_accuracy_assessment_save(
         or coverage.get("product_dataset_sha256s") != list(manifest.tile_dataset_sha256s)
         or coverage.get("aoi_dataset_id") != aoi["id"]
         or coverage.get("aoi_dataset_sha256") != aoi["sha256"]
+        or coverage.get("aoi_crs") != metadata.aoi_crs
         or coverage.get("coverage_footprint_reference")
         != body.coverage_footprint_reference
         or coverage.get("aoi_fully_within_raster_extent") is not True
@@ -1128,6 +1129,7 @@ def dataset_coverage_inspect(
         "product_dataset_sha256": product["sha256"],
         "aoi_dataset_id": aoi["id"],
         "aoi_dataset_sha256": aoi["sha256"],
+        "aoi_crs": body.aoi_crs,
         "inspected_at_utc": store.utc_now(),
     })
     canonical = json.dumps(
