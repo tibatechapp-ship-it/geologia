@@ -8,11 +8,23 @@ import re
 import unicodedata
 
 from geologia.normalize import normalize_text
+from geologia.registry import ENGINES
 
 INTENTS = [
     {
+        "domain": "well_logs",
+        "preferred_engines": ["lasio", "striplog"],
+        "inputs": ["las_files", "well_header_metadata"],
+        "keywords": [
+            "las", "well log", "well logs", "petrophys", "porosity",
+            "permeability", "gamma ray", "سجل البئر", "سجل الآبار",
+            "سجلات الآبار", "سجلات البئر", "قطع الآبار", "قطع البئر",
+            "المسامية", "النفاذية", "الشعاع الغامي",
+        ],
+    },
+    {
         "domain": "hydrology",
-        "engines": ["modflow6", "pastas"],
+        "preferred_engines": ["modflow6", "pastas"],
         "inputs": [
             "well_logs", "water_levels_timeseries", "recharge_estimate", "dem", "geology_map"
         ],
@@ -26,7 +38,7 @@ INTENTS = [
     },
     {
         "domain": "geology3d",
-        "engines": ["gempy", "loopstructural", "map2loop"],
+        "preferred_engines": ["gempy", "loopstructural", "map2loop"],
         "inputs": ["geology_map", "structural_orientations", "contacts", "dem"],
         "keywords": [
             "ثلاثي", "طيات", "الفوالق", "فوالق", "مقطع جيولوجي", "3d",
@@ -37,7 +49,7 @@ INTENTS = [
     },
     {
         "domain": "seismology",
-        "engines": ["obspy", "openquake"],
+        "preferred_engines": ["obspy", "openquake"],
         "inputs": ["waveforms_or_catalog", "station_metadata"],
         "keywords": [
             "زلزال", "زلازل", "الزلازل", "زلزالي", "seismic", "earthquake",
@@ -46,8 +58,31 @@ INTENTS = [
         ],
     },
     {
+        "domain": "geophysics",
+        "preferred_engines": ["simpeg", "pygimli", "madagascar"],
+        "inputs": ["geophysical_survey_data", "survey_geometry", "topography", "crs_definition"],
+        "keywords": [
+            "جيوفيزي", "كهرومغناطيسي", "مقاومة نوعية", "تصوير كهربائي",
+            "جاذبية", "ثقالي", "مغناطيسي", "انعكاسي", "انكساري",
+            "عكس جيوفيزيائي", "ert", "tomograph", "inversion", "resistivity",
+            "magnetic", "gravity", "geophysic", "seismic reflection",
+            "seismic refraction", "геофизика", "геофизический",
+            "电法", "地球物理", "磁法", "重力勘探",
+        ],
+    },
+    {
+        "domain": "geochemistry",
+        "preferred_engines": ["geochemistry-pi", "geopytool"],
+        "inputs": ["geochemistry_samples", "sample_locations", "qc_report"],
+        "keywords": [
+            "جيوكيمي", "تحليل عنصري", "تحليل كيميائي للصخور", "عينات الصخور",
+            "geochemistry", "geochem", "elemental analysis", "rock classification",
+            "геохимия", "геохимический анализ", "地球化学", "元素分析",
+        ],
+    },
+    {
         "domain": "exploration",
-        "engines": ["eis-toolkit", "geopytool"],
+        "preferred_engines": ["eis-toolkit"],
         "inputs": ["geochemistry_samples", "geophysics_surveys", "geology_map"],
         "keywords": [
             "ذهب", "الذهب", "معدن", "المعادن", "تنقيب", "استكشاف معدني",
@@ -58,7 +93,7 @@ INTENTS = [
     },
     {
         "domain": "remote_sensing",
-        "engines": ["opendronemap"],
+        "preferred_engines": ["opendronemap"],
         "inputs": ["imagery", "ground_control_points"],
         "keywords": [
             "درون", "استشعار عن بعد", "القمر الصناعي", "الأقمار الصناعية",
@@ -69,7 +104,7 @@ INTENTS = [
     },
     {
         "domain": "gis",
-        "engines": ["geopandas", "rasterio", "qgis"],
+        "preferred_engines": ["geopandas", "rasterio", "qgis"],
         "inputs": ["aoi_boundary", "data_layers", "crs_definition"],
         "keywords": [
             "خريطة", "الخريطة", "خرائط", "طبقات", "نظم المعلومات الجغرافية",
@@ -79,10 +114,61 @@ INTENTS = [
         ],
     },
 ]
+
+# Ali's preferred tools are advisory. The primary engine registry is the
+# authoritative source for candidate IDs and their domains; registry entries
+# remain planned/unverified and are never treated as installed integrations.
+PRECEDENCE_RULES = [
+    {
+        "strong": "well_logs",
+        "weak": "hydrology",
+        "weak_generics": {normalize_text(k) for k in ("well", "بئر", "آبار")},
+    },
+    {
+        "strong": "geophysics",
+        "weak": "seismology",
+        "weak_generics": {normalize_text(k) for k in ("seismic", "سيزمي", "زلزال", "زلازل")},
+    },
+]
+
+
+def _prepare_intents(intents=None, registry=None) -> list[dict]:
+    """Bind intent domains to the authoritative registry and fail on drift."""
+    source_intents = INTENTS if intents is None else intents
+    cards = ENGINES if registry is None else registry
+    by_id = {card.get("engine_id"): card for card in cards}
+    prepared = []
+    for intent in source_intents:
+        domain = intent["domain"]
+        candidates = sorted(
+            card["engine_id"] for card in cards if card.get("domain") == domain
+        )
+        if not candidates:
+            raise RuntimeError(f"planner domain {domain!r} has no registered engines")
+        preferred = list(intent.get("preferred_engines", []))
+        for engine_id in preferred:
+            card = by_id.get(engine_id)
+            if card is None:
+                raise RuntimeError(f"preferred engine {engine_id!r} is missing from registry")
+            if card.get("domain") != domain:
+                raise RuntimeError(
+                    f"preferred engine {engine_id!r} belongs to {card.get('domain')!r}, "
+                    f"not planner domain {domain!r}"
+                )
+        prepared.append({**intent, "candidate_engines": candidates})
+    return prepared
+
+
+PREPARED_INTENTS = _prepare_intents()
+SUPPORTED_DOMAINS = [intent["domain"] for intent in PREPARED_INTENTS]
+
 AGENT_ROLES = {
+    "well_logs": ("well_log_specialist", "وكيل سجلات الآبار", "Well-log specialist"),
     "hydrology": ("groundwater_specialist", "وكيل المياه الجوفية", "Groundwater specialist"),
     "geology3d": ("geology3d_specialist", "وكيل النمذجة ثلاثية الأبعاد", "3D geology specialist"),
     "seismology": ("seismology_specialist", "وكيل الزلازل", "Seismology specialist"),
+    "geophysics": ("geophysics_specialist", "وكيل الجيوفيزياء", "Geophysics specialist"),
+    "geochemistry": ("geochemistry_specialist", "وكيل الجيوكيمياء", "Geochemistry specialist"),
     "exploration": (
         "mineral_exploration_specialist", "وكيل استكشاف المعادن",
         "Mineral exploration specialist",
@@ -119,6 +205,8 @@ def agent_status() -> dict:
             "multilingual_ar_en_ru_zh_keyword_routing",
             "routing_evidence",
             "domain_routing",
+            "registry_bound_engine_candidates",
+            "well_log_geophysics_geochemistry_routing",
             "data_role_readiness",
             "explainable_plan_generation",
             "local_knowledge_retrieval",
@@ -165,17 +253,34 @@ def classify_request(request: str) -> dict:
     normalized = _normalize(request)
     matches = []
     for intent in INTENTS:
-        evidence = [
-            keyword for keyword in intent["keywords"]
-            if _contains_phrase(normalized, keyword)
-        ]
+        evidence = []
+        evidence_norm = []
+        for keyword in intent["keywords"]:
+            normalized_keyword = _normalize(keyword)
+            if _contains_phrase(normalized, normalized_keyword):
+                evidence.append(keyword)
+                evidence_norm.append(normalized_keyword)
         if evidence:
             matches.append({
                 "domain": intent["domain"],
                 "evidence": evidence,
+                "matched_keywords_norm": evidence_norm,
                 "confidence_level": _confidence_level(len(evidence)),
                 "evidence_count": len(evidence),
             })
+
+    # Suppress weak generic collisions only when all evidence for the weak
+    # domain consists of its explicitly listed generic terms.
+    by_domain = {item["domain"]: item for item in matches}
+    for rule in PRECEDENCE_RULES:
+        weak = by_domain.get(rule["weak"])
+        strong = by_domain.get(rule["strong"])
+        if (
+            weak and strong
+            and set(weak["matched_keywords_norm"]) <= rule["weak_generics"]
+        ):
+            matches.remove(weak)
+            by_domain.pop(rule["weak"], None)
     if matches:
         return {
             "classification_status": "matched",
@@ -204,11 +309,13 @@ def build_plan(request: str, language: str = "ar") -> dict:
     }
     steps, required, assignments = [], set(), []
     for domain in matched_domains:
-        item = next(intent for intent in INTENTS if intent["domain"] == domain)
+        item = next(intent for intent in PREPARED_INTENTS if intent["domain"] == domain)
         evidence = evidence_by_domain[domain]
         steps.append({
             "domain": domain,
-            "candidate_engines": item["engines"],
+            "candidate_engines": item["candidate_engines"],
+            "preferred_engines": item["preferred_engines"],
+            "candidate_engine_status": "registry_only_not_installed_or_certified",
             "required_inputs": item["inputs"],
             "engine_status": "planned",
             "execution": "not_started",
@@ -227,7 +334,8 @@ def build_plan(request: str, language: str = "ar") -> dict:
         )
         clarification = (
             "حدد المجال المطلوب: المياه الجوفية، النمذجة ثلاثية الأبعاد، "
-            "الزلازل، استكشاف المعادن، الاستشعار عن بعد، أم نظم المعلومات الجغرافية؟"
+            "الزلازل، الجيوفيزياء، الجيوكيمياء، سجلات الآبار، استكشاف المعادن، "
+            "الاستشعار عن بعد، أم نظم المعلومات الجغرافية؟"
         )
     else:
         disclaimer = (
@@ -236,7 +344,8 @@ def build_plan(request: str, language: str = "ar") -> dict:
         )
         clarification = (
             "Please specify the domain: groundwater, 3D geology, seismology, "
-            "mineral exploration, remote sensing, or GIS."
+            "geophysics, geochemistry, well logs, mineral exploration, "
+            "remote sensing, or GIS."
         )
 
     confidence = (
