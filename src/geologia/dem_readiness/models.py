@@ -219,7 +219,7 @@ class ReadinessInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_scope_exceptions(self) -> "ReadinessInput":
-        known_fields = set(self.context.model_fields)
+        known_fields = set(type(self.context).model_fields)
         exception_fields = [item.field_name for item in self.scope_exceptions]
         if len(exception_fields) != len(set(exception_fields)):
             raise ValueError("only one scope exception may be recorded per field")
