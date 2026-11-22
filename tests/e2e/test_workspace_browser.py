@@ -131,7 +131,7 @@ def test_geojson_upload_and_structural_inspection_are_explicit(app_url, browser_
         {
             "name": "stations.geojson",
             "mimeType": "application/geo+json",
-            "buffer": __import__("json").dumps(payload).encode("utf-8"),
+            "buffer": json.dumps(payload).encode("utf-8"),
         }
     )
     page.locator("#datasetForm button[type=submit]").click()
@@ -144,8 +144,8 @@ def test_geojson_upload_and_structural_inspection_are_explicit(app_url, browser_
     dataset.locator("button.inspect-button").first.click()
     report = dataset.locator("pre.inspection-report")
     expect(report).to_be_visible()
-    report_text = report.inner_text()
-    assert '"feature_count": 2' in report_text
-    assert '"coordinate_count": 2' in report_text
-    assert '"bbox_xy": [\n    44.2,\n    15.3,\n    44.5,\n    15.8\n  ]' in report_text
-    assert '"scientific_interpretation": false' in report_text
+    report_data = json.loads(report.inner_text().split("\\n", 1)[1])
+    assert report_data["feature_count"] == 2
+    assert report_data["coordinate_count"] == 2
+    assert report_data["bbox_xy"] == [44.2, 15.3, 44.5, 15.8]
+    assert report_data["scientific_interpretation"] is False
