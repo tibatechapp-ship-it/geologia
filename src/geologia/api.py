@@ -21,6 +21,7 @@ from geologia import knowledge, store
 from geologia.planner import agent_status, build_plan
 from geologia.registry import get_engine, list_engines
 from geologia.vector import inspect_csv, inspect_geojson
+from geologia.validation import validate_csv_file, validate_geojson_payload
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -493,6 +494,79 @@ def dataset_inspect(dataset_id: str) -> dict:
     })
     store.save_dataset_inspection(dataset_id, report)
     return report
+
+
+@app.post("/api/v1/datasets/{dataset_id}/validate", status_code=200)
+def dataset_validate(dataset_id: str) -> dict:
+    """Run deterministic structural checks and supported versioned schema profiles."""
+    item = store.get_dataset(dataset_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    content_path = store.get_dataset_content_path(dataset_id)
+    if content_path is None or not Path(content_path).is_file():
+        raise HTTPException(status_code=410, detail="dataset file is missing")
+    path = Path(content_path)
+    digest = hashlib.sha256()
+    actual_size = 0
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            actual_size += len(chunk)
+            digest.update(chunk)
+    if actual_size != item["size_bytes"] or digest.hexdigest() != item["sha256"]:
+        report = {
+            "validation_level": "integrity",
+            "validation_status": "failed",
+            "profile": None,
+            "checks": [{"code": "dataset.integrity.sha256", "status": "failed"}],
+            "errors": [{
+                "code": "dataset.integrity.sha256_mismatch",
+                "message": "Stored dataset bytes no longer match the recorded size and SHA-256.",
+            }],
+            "error_count": 1,
+            "warnings": [],
+            "warning_count": 0,
+            "scientific_interpretation": False,
+        }
+        report["dataset_id"] = dataset_id
+        report["source_sha256"] = item["sha256"]
+        report["source_size_bytes"] = item["size_bytes"]
+        report["validated_at"] = store.utc_now()
+        store.save_dataset_validation(dataset_id, report)
+        return report
+    if item["format"] == "csv":
+        report = validate_csv_file(path, item["data_role"])
+    elif item["format"] in {"geojson", "json"}:
+        try:
+            payload = _read_json(path)
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise HTTPException(
+                status_code=422, detail="GeoJSON must be valid UTF-8 JSON with finite numbers"
+            ) from exc
+        report = validate_geojson_payload(payload, item["data_role"])
+    else:
+        raise HTTPException(
+            status_code=415,
+            detail="validation profiles currently support CSV and GeoJSON only",
+        )
+    report["dataset_id"] = dataset_id
+    report["source_sha256"] = item["sha256"]
+    report["source_size_bytes"] = item["size_bytes"]
+    report["validated_at"] = store.utc_now()
+    store.save_dataset_validation(dataset_id, report)
+    return report
+
+
+@app.get("/api/v1/datasets/{dataset_id}/validation", status_code=200)
+def dataset_validation_get(dataset_id: str) -> dict:
+    """Read the latest persisted validation report without re-running checks."""
+    item = store.get_dataset(dataset_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    report = store.get_dataset_validation(dataset_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="dataset has not been validated")
+    return report
+
 
 
 @app.post("/api/v1/projects/{project_id}/jobs", status_code=201)
