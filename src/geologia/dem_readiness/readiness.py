@@ -1,0 +1,90 @@
+"""Deterministic readiness decision rules; no scientific result is inferred."""
+
+from .models import (
+    ReadinessAssessment,
+    ReadinessDisposition,
+    ReadinessInput,
+    ReasonCode,
+)
+from .reason_codes import all_reason_codes
+
+
+DECISION_RULE_VERSION = "dem-readiness-v1"
+
+
+def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
+    """Assess a product/version × area × task tuple using explicit precedence.
+
+    Precedence:
+    1. A proven mandatory requirement failure means not_ready.
+    2. Otherwise, material unresolved evidence or unexcepted missing mandatory
+       fields means not_evaluable.
+    3. Otherwise, documented accepted restrictions/exceptions mean conditional.
+    4. Only a complete, assessed record with no restrictions can be ready.
+    5. Explicit not_assessed validation status remains not_assessed.
+    """
+    codes = all_reason_codes(data)
+    missing = tuple(data.context.unavailable_fields())
+    if missing:
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.METADATA_INSUFFICIENT)))
+    exceptions = {item.field_name: item for item in data.scope_exceptions}
+    excepted = tuple(name for name in missing if name in exceptions)
+    unexcepted = tuple(
+        name for name in missing
+        if name not in exceptions or name == "validation_status"
+    )
+
+    if data.mandatory_failures:
+        disposition = ReadinessDisposition.NOT_READY
+        explanation = (
+            "At least one mandatory requirement is demonstrably not met. "
+            "All recorded reasons are retained; secondary reasons are not hidden."
+        )
+        blocking = ()
+    elif data.unresolved_items or unexcepted:
+        disposition = ReadinessDisposition.NOT_EVALUABLE
+        explanation = (
+            "No mandatory failure is proven, but unresolved evidence or missing "
+            "mandatory context prevents a defensible readiness decision."
+        )
+        blocking = unexcepted
+    elif data.context.validation_status.value in {
+        "planned", "coverage_checked", "reference_ready", "not_assessed"
+    }:
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.NOT_ASSESSED)))
+        disposition = ReadinessDisposition.NOT_ASSESSED
+        explanation = (
+            "The validation has not reached independent review; no readiness claim is made."
+        )
+        blocking = ()
+    elif data.context.validation_status.value == "analyzed":
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.UNRESOLVED)))
+        disposition = ReadinessDisposition.NOT_EVALUABLE
+        explanation = (
+            "Analysis exists, but the required independent review is not recorded."
+        )
+        blocking = ("validation_status",)
+    elif data.accepted_restrictions or excepted:
+        disposition = ReadinessDisposition.CONDITIONAL
+        explanation = (
+            "Use is limited to the declared scope by documented, accepted restrictions. "
+            "Every unavailable field is covered by an explicit evidence-backed scope exception."
+        )
+        blocking = ()
+    else:
+        disposition = ReadinessDisposition.READY
+        explanation = (
+            "All mandatory context is available and no recorded mandatory failure, "
+            "unresolved item or accepted restriction blocks this declared use."
+        )
+        blocking = ()
+
+    return ReadinessAssessment(
+        disposition=disposition,
+        declared_use=data.declared_use,
+        reason_codes=codes,
+        blocking_fields=blocking,
+        applied_scope_exceptions=excepted,
+        decision_rule_version=DECISION_RULE_VERSION,
+        explanation=explanation,
+    )
