@@ -804,6 +804,7 @@ def save_dataset_coverage_inspection(dataset_id: str, report: dict[str, Any]) ->
     """Persist a DEM/AOI coverage inspection and append its dataset provenance event."""
     initialize()
     with connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT project_id, summary_json FROM datasets WHERE id=?", (dataset_id,)
         ).fetchone()
