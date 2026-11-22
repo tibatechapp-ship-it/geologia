@@ -118,7 +118,7 @@ def _load_reference_uncertainty_sidecar(
     """Load hash-bound typed uncertainty records without propagating them."""
     size, digest = _sha256_file(path, MAX_REFERENCE_UNCERTAINTY_SIDECAR_BYTES)
     if digest.lower() != expected_sha256.lower():
-        raise FormatValidationError(
+        raise ValueError(
             "reference uncertainty sidecar SHA-256 does not match its record"
         )
     try:
@@ -498,12 +498,15 @@ def compute_dem_reference_residuals(
             raise FormatValidationError(
                 "reference uncertainty sidecar SHA-256 must be a SHA-256 value"
             )
-        uncertainty_sidecar_sha, typed_uncertainties = _load_reference_uncertainty_sidecar(
-            Path(reference_uncertainty_sidecar_path),
-            reference_uncertainty_sidecar_sha256,
-            reference_sha,
-            seen_ids,
-        )
+        try:
+            uncertainty_sidecar_sha, typed_uncertainties = _load_reference_uncertainty_sidecar(
+                Path(reference_uncertainty_sidecar_path),
+                reference_uncertainty_sidecar_sha256,
+                reference_sha,
+                seen_ids,
+            )
+        except ValueError as exc:
+            raise FormatValidationError(str(exc)) from exc
         for observation in observations:
             uncertainty = typed_uncertainties[observation["point_id"]]
             observation["typed_reference_uncertainty"] = uncertainty.model_dump(
