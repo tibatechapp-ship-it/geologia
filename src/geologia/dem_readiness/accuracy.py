@@ -671,7 +671,10 @@ def compute_dem_reference_residuals(
             "kind": "unknown",
             "unit": "m",
             "interpretation": "legacy_untyped_not_propagated",
-            "note": "Numeric values are preserved for traceability only; they are not converted, combined, or used to adjust residual metrics.",
+            "note": (
+                "Numeric values are preserved for traceability only; they are not "
+                "converted, combined, or used to adjust residual metrics."
+            ),
         },
         "reference_dataset_sha256": reference_sha,
         "reference_file_size_bytes": reference_size,
