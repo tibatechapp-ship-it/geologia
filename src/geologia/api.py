@@ -1162,6 +1162,22 @@ async def dataset_upload(
                     "product_version_id": manifest.product_version_id,
                     "tile_count": len(manifest.tile_dataset_ids),
                 }
+            elif data_role == "dem_product_metadata":
+                try:
+                    product_metadata = DEMProductMetadata.model_validate(
+                        _read_json(temporary_path)
+                    )
+                except (UnicodeDecodeError, ValueError, ValidationError) as exc:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="DEM product metadata JSON is invalid",
+                    ) from exc
+                summary = {
+                    "validation": "product_metadata_structure_validated",
+                    "schema": product_metadata.schema,
+                    "product_version_id": product_metadata.product_version_id,
+                    "license_disposition": product_metadata.license_disposition,
+                }
             else:
                 summary = _geojson_summary(temporary_path)
                 effective_crs = effective_crs or "EPSG:4326"
