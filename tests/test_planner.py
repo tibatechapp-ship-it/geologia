@@ -92,3 +92,18 @@ def test_multilingual_routing_keeps_source_terms_in_evidence():
     assert "地下水" in hydro["evidence"]
     assert "подземные воды" in hydro["evidence"]
     assert result["matched_domains"] == ["hydrology"]
+
+
+
+def test_arabic_routing_ignores_diacritics_and_tatweel():
+    result = classify_request("أريد دراسة المِيَاهُ الجَوْفِيَّة")
+    assert result["classification_status"] == "matched"
+    assert "hydrology" in result["matched_domains"]
+    hydro = next(item for item in result["routing_evidence"]
+                 if item["domain"] == "hydrology")
+    assert "المياه الجوفية" in hydro["evidence"]
+
+
+def test_arabic_routing_matches_hamza_and_alef_variants():
+    result = classify_request("إِرْتِفَاع منسوب المياه")
+    assert "hydrology" in result["matched_domains"]

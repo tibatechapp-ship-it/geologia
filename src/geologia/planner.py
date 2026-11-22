@@ -7,6 +7,8 @@ when the request does not identify a geoscience domain.
 import re
 import unicodedata
 
+from geologia.normalize import normalize_text
+
 INTENTS = [
     {
         "domain": "hydrology",
@@ -132,10 +134,9 @@ def agent_status() -> dict:
 
 
 def _normalize(text: str) -> str:
+    """Normalize Unicode and Arabic spelling variants for keyword matching."""
     text = unicodedata.normalize("NFKC", text).casefold()
-    text = re.sub(r"[^\w]+", " ", text, flags=re.UNICODE)
-    return " ".join(text.split())
-
+    return normalize_text(text)
 
 def _contains_phrase(normalized_text: str, keyword: str) -> bool:
     normalized_keyword = _normalize(keyword)
