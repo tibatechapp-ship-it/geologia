@@ -4,6 +4,7 @@ from geologia.dem_readiness.models import (
     Availability,
     DeclaredUseContext,
     EvidenceValue,
+    IndependentReviewEvidence,
     MandatoryProductContext,
     ReadinessDisposition,
     ReadinessInput,
@@ -24,7 +25,11 @@ def evidence(value):
 def context(**overrides):
     values = {
         name: evidence(
-            "independently_reviewed" if name == "validation_status" else "verified"
+            "independently_reviewed"
+            if name == "validation_status"
+            else "release-1"
+            if name == "product_version"
+            else "verified"
         )
         for name in MandatoryProductContext.model_fields
     }
@@ -43,6 +48,17 @@ def use():
     )
 
 
+def review():
+    return IndependentReviewEvidence(
+        product_version_id="release-1",
+        pilot_area_id="pilot-north",
+        task_profile_id="regional-reconnaissance-v1",
+        reviewer="independent-reviewer-2",
+        evidence_reference="evidence://independent-review/1",
+        reviewed_at=NOW,
+    )
+
+
 def reason(code, stage="coverage"):
     return ReasonRecord(
         code=code,
@@ -55,7 +71,9 @@ def reason(code, stage="coverage"):
 
 
 def test_complete_context_can_be_ready():
-    result = assess_readiness(ReadinessInput(context=context(), declared_use=use()))
+    result = assess_readiness(
+        ReadinessInput(context=context(), declared_use=use(), independent_review=review())
+    )
     assert result.disposition is ReadinessDisposition.READY
 
 
@@ -115,6 +133,7 @@ def test_scope_exception_allows_only_conditional_limited_use():
             context=context(vertical_datum=missing),
             declared_use=use(),
             scope_exceptions=(exception,),
+            independent_review=review(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
@@ -127,6 +146,7 @@ def test_restriction_is_conditional_not_ready():
             context=context(),
             declared_use=use(),
             accepted_restrictions=(reason(ReasonCode.TEMPORAL_MISMATCH),),
+            independent_review=review(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
@@ -267,3 +287,60 @@ def test_not_assessed_reason_code_is_not_misclassified_as_unresolved():
         )
     )
     assert result.disposition is ReadinessDisposition.NOT_ASSESSED
+
+
+
+def test_independent_review_status_without_review_record_is_not_evaluable():
+    result = assess_readiness(ReadinessInput(context=context(), declared_use=use()))
+    assert result.disposition is ReadinessDisposition.NOT_EVALUABLE
+    assert result.blocking_fields == ("independent_review",)
+
+
+def test_independent_review_must_match_exact_declared_use():
+    import pytest
+    from pydantic import ValidationError
+
+    invalid = IndependentReviewEvidence(
+        product_version_id="release-1",
+        pilot_area_id="different-area",
+        task_profile_id="regional-reconnaissance-v1",
+        reviewer="independent-reviewer-2",
+        evidence_reference="evidence://independent-review/other-area",
+        reviewed_at=NOW,
+    )
+    with pytest.raises(ValidationError):
+        ReadinessInput(context=context(), declared_use=use(), independent_review=invalid)
+
+
+def test_declared_product_version_must_match_context():
+    import pytest
+    from pydantic import ValidationError
+
+    mismatched = context(product_version=evidence("release-2"))
+    with pytest.raises(ValidationError):
+        ReadinessInput(context=mismatched, declared_use=use(), independent_review=review())
+
+
+def test_timezone_with_missing_utc_offset_is_rejected():
+    from datetime import tzinfo
+
+    import pytest
+    from pydantic import ValidationError
+
+    class InvalidTimezone(tzinfo):
+        def utcoffset(self, dt):
+            return None
+
+        def dst(self, dt):
+            return None
+
+    invalid_time = datetime(2026, 11, 22, tzinfo=InvalidTimezone())
+    with pytest.raises(ValidationError):
+        IndependentReviewEvidence(
+            product_version_id="release-1",
+            pilot_area_id="pilot-north",
+            task_profile_id="regional-reconnaissance-v1",
+            reviewer="independent-reviewer-2",
+            evidence_reference="evidence://independent-review/invalid-time",
+            reviewed_at=invalid_time,
+        )

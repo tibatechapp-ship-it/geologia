@@ -14,6 +14,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 NonEmpty = Annotated[str, Field(min_length=1)]
 
 
+def _is_timezone_aware(value: datetime) -> bool:
+    """Reject tzinfo objects that do not provide a usable UTC offset."""
+    return value.tzinfo is not None and value.utcoffset() is not None
+
+
 class Availability(StrEnum):
     AVAILABLE = "available"
     NOT_AVAILABLE = "not_available"
@@ -89,7 +94,7 @@ class EvidenceValue(BaseModel):
             raise ValueError("not_available evidence requires a documented reason")
         if not self.reviewer or not self.reviewer.strip():
             raise ValueError("not_available evidence requires a reviewer")
-        if self.recorded_at is None or self.recorded_at.tzinfo is None:
+        if self.recorded_at is None or not _is_timezone_aware(self.recorded_at):
             raise ValueError("not_available evidence requires a timezone-aware recorded_at")
         return self
 
@@ -148,7 +153,7 @@ class AnalogueRepresentativenessContext(BaseModel):
                 raise ValueError(
                     "assessed representativeness requires evidence, reviewer and timestamp"
                 )
-            if self.recorded_at.tzinfo is None:
+            if not _is_timezone_aware(self.recorded_at):
                 raise ValueError("recorded_at must be timezone-aware")
         elif self.representativeness_status is RepresentativenessStatus.UNQUANTIFIED:
             if not self.limitations:
@@ -167,6 +172,25 @@ class DeclaredUseContext(BaseModel):
     declared_scale: NonEmpty
 
 
+class IndependentReviewEvidence(BaseModel):
+    """Attributable review bound to the exact declared product, area and task."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    product_version_id: NonEmpty
+    pilot_area_id: NonEmpty
+    task_profile_id: NonEmpty
+    reviewer: NonEmpty
+    evidence_reference: NonEmpty
+    reviewed_at: datetime
+
+    @model_validator(mode="after")
+    def require_timezone(self) -> "IndependentReviewEvidence":
+        if not _is_timezone_aware(self.reviewed_at):
+            raise ValueError("reviewed_at must be timezone-aware")
+        return self
+
+
 class ReasonRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -179,7 +203,7 @@ class ReasonRecord(BaseModel):
 
     @model_validator(mode="after")
     def require_timezone(self) -> "ReasonRecord":
-        if self.recorded_at.tzinfo is None:
+        if not _is_timezone_aware(self.recorded_at):
             raise ValueError("recorded_at must be timezone-aware")
         return self
 
@@ -198,7 +222,7 @@ class ScopeException(BaseModel):
 
     @model_validator(mode="after")
     def validate_exception(self) -> "ScopeException":
-        if self.recorded_at.tzinfo is None:
+        if not _is_timezone_aware(self.recorded_at):
             raise ValueError("recorded_at must be timezone-aware")
         if not self.compensating_controls and len(self.rationale.strip()) < 20:
             raise ValueError(
@@ -216,10 +240,11 @@ class ReadinessInput(BaseModel):
     unresolved_items: tuple[ReasonRecord, ...] = ()
     accepted_restrictions: tuple[ReasonRecord, ...] = ()
     scope_exceptions: tuple[ScopeException, ...] = ()
+    independent_review: IndependentReviewEvidence | None = None
 
     @model_validator(mode="after")
     def validate_scope_exceptions(self) -> "ReadinessInput":
-        known_fields = set(type(self.context).model_fields)
+        known_fields = set(MandatoryProductContext.model_fields)
         exception_fields = [item.field_name for item in self.scope_exceptions]
         if len(exception_fields) != len(set(exception_fields)):
             raise ValueError("only one scope exception may be recorded per field")
@@ -236,6 +261,37 @@ class ReadinessInput(BaseModel):
                 "scope exceptions may only apply to not_available fields: "
                 + ", ".join(available)
             )
+        if self.independent_review is not None:
+            if (
+                self.context.validation_status.value
+                != ValidationStatus.INDEPENDENTLY_REVIEWED.value
+            ):
+                raise ValueError(
+                    "independent review evidence requires independently_reviewed status"
+                )
+            review = self.independent_review
+            expected = (
+                self.declared_use.product_version_id,
+                self.declared_use.pilot_area_id,
+                self.declared_use.task_profile_id,
+            )
+            actual = (
+                review.product_version_id,
+                review.pilot_area_id,
+                review.task_profile_id,
+            )
+            if actual != expected:
+                raise ValueError(
+                    "independent review evidence must match the exact declared use"
+                )
+            product_version = self.context.product_version
+            if (
+                product_version.availability is Availability.AVAILABLE
+                and product_version.value != self.declared_use.product_version_id
+            ):
+                raise ValueError(
+                    "declared product version must match the mandatory product context"
+                )
         return self
 
 
