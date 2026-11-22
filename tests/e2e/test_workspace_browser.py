@@ -99,3 +99,51 @@ def test_malformed_csv_is_rejected_during_inspection(app_url, browser_page):
     dataset.locator("button.inspect-button").first.click()
     expect(page.locator("#uploadStatus")).to_have_class("feedback error")
     expect(dataset.locator(".inspection-report")).to_have_count(0)
+
+
+
+def test_geojson_upload_and_structural_inspection_are_explicit(app_url, browser_page):
+    page = browser_page
+    page.goto(app_url, wait_until="domcontentloaded")
+    page.locator("#projectName").fill("GeoJSON structural inspection")
+    page.locator("#projectForm button[type=submit]").click()
+    expect(page.locator("#projectStatus")).to_contain_text("تم إنشاء المشروع")
+
+    payload = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"station": "A-01", "depth_m": 12.5},
+                "geometry": {"type": "Point", "coordinates": [44.2, 15.3]},
+            },
+            {
+                "type": "Feature",
+                "properties": {"station": "A-02", "depth_m": 18.0},
+                "geometry": {"type": "Point", "coordinates": [44.5, 15.8]},
+            },
+        ],
+    }
+    page.locator("#datasetName").fill("Groundwater station points")
+    page.locator("#fileInput").set_input_files(
+        {
+            "name": "stations.geojson",
+            "mimeType": "application/geo+json",
+            "buffer": __import__("json").dumps(payload).encode("utf-8"),
+        }
+    )
+    page.locator("#datasetForm button[type=submit]").click()
+    dataset = page.locator(".dataset-item").filter(
+        has_text="Groundwater station points"
+    )
+    expect(dataset).to_be_visible()
+    expect(page.locator("#uploadStatus")).to_contain_text("تم حفظ البيانات")
+
+    dataset.locator("button.inspect-button").first.click()
+    report = dataset.locator("pre.inspection-report")
+    expect(report).to_be_visible()
+    report_text = report.inner_text()
+    assert '"feature_count": 2' in report_text
+    assert '"coordinate_count": 2' in report_text
+    assert '"bbox_xy": [\n    44.2,\n    15.3,\n    44.5,\n    15.8\n  ]' in report_text
+    assert '"scientific_interpretation": false' in report_text
