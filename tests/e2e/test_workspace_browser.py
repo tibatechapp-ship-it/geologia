@@ -1,4 +1,6 @@
 """Browser acceptance tests for the GEOLOGIA workspace."""
+import json
+
 from playwright.sync_api import expect
 
 
