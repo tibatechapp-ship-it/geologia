@@ -5,6 +5,7 @@ perform geospatial validation or establish scientific accuracy.
 """
 
 from datetime import datetime
+import math
 from enum import StrEnum
 from typing import Annotated, Literal
 
