@@ -16,6 +16,8 @@ The evaluator applies this order:
 4. **`ready_for_declared_use`** only when mandatory context is complete, validation is assessed, and no mandatory failure, unresolved item or accepted restriction remains.
 5. **`not_assessed`** is retained for work that has not been evaluated; it is never a pass.
 
+A readiness pass requires `validation_status = independently_reviewed`. The statuses `planned`, `coverage_checked`, `reference_ready` and `not_assessed` remain `not_assessed`; `analyzed` without independent review remains `not_evaluable`. An unavailable `validation_status` cannot be bypassed through a scope exception.
+
 A missing field is not automatically a proven failure. A missing field also cannot be bypassed by calling the result “conditional”: the exception must identify the field, explain why the declared task does not depend on it or document compensating controls, cite evidence, and name a reviewer and timestamp.
 
 ## 2. Mandatory context schema
