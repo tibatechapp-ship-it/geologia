@@ -457,3 +457,41 @@ The archive record must include:
 - Any later amendment as a new version linked to the original; never overwrite the original registration.
 
 A GitHub commit/tag provides a useful public timestamp and version history, but the persistent archive strengthens citability and preservation. Do not claim that the protocol was registered before data collection or residual inspection unless the timestamped record and project chronology support that statement. If coverage/source availability was already examined, label the document accurately as a protocol or pre-analysis plan informed by coverage—not as a fully blind preregistration.
+
+## 35. Operational disposition of unresolved independence
+
+Any observation or lineage group whose independence status is conditional, unresolved or unknown is excluded from the primary confirmatory independent-accuracy dataset. It may be retained in a separately labeled exploratory/consistency dataset, with its status and reason attached to every result. It must not be silently pooled with eligible observations.
+
+An unresolved observation may be promoted to confirmatory eligibility only after written, dated evidence resolves the relevant dependency for the specific candidate product and validation purpose; the register must record the reviewer and evidence. If the dependency cannot be resolved, keep it excluded. Sensitivity results with and without unresolved observations may be reported only as secondary analyses and cannot override the primary eligibility decision.
+
+## 36. Spatial support and scale matching for reference observations
+
+Each comparison must document the spatial support of both measurements, not only their nominal resolution:
+- DEM pixel size, grid alignment, resampling history and the elevation statistic represented by the cell (as documented or operationally defined).
+- Reference support type and effective dimensions: point/occupation, footprint, segment/profile, or aggregated area; include the product-specific footprint/segment definition and uncertainty from authoritative product metadata.
+- Reference geolocation uncertainty, position within the DEM cell, local slope/roughness and whether the reference support crosses multiple terrain/land-cover classes.
+
+A point, lidar footprint, along-track segment and DEM cell do not necessarily measure the same spatial quantity. Before residual calculation, register a support-matching rule for each reference type and DEM resolution. Where justified, aggregate DEM elevations over the reference support using a pre-declared statistic and sampling method; alternatively, use a pre-declared point-to-cell rule and explicitly label the support mismatch. Do not choose the aggregation statistic after viewing residuals.
+
+In steep or heterogeneous terrain, assess scale mismatch using the local DEM/reference terrain gradient and within-support elevation variability, with the method and neighborhood fixed before residual inspection. Include a defensible scale/geolocation contribution in the uncertainty budget where it can be quantified. If it cannot be quantified and is material to the intended claim, mark the pairing scale_limited or not_evaluable rather than attributing the mismatch to DEM error. Do not assume a universal numeric error floor from nominal pixel spacing or footprint size.
+
+## 37. Archive and analysis chronology fields
+
+The protocol registration and final readiness/validation record must explicitly record, in UTC where available:
+- protocol commit SHA, protocol file SHA-256, release/tag and archive timestamp/identifier;
+- date/time of the first inspection of reference-source availability or coverage geometry for the registered study area;
+- date/time of the first generation or inspection of any candidate DEM–reference residual, including exploratory residuals;
+- date/time and scope of each amendment, coverage-informed decision and archive update.
+
+The claim of fully prospective preregistration is permitted only if the immutable archive timestamp precedes both the first coverage/source-availability inspection relevant to the registered design and the first residual calculation/inspection. If coverage was inspected first, describe the record as a coverage-informed protocol or pre-analysis plan; if residuals were inspected first, identify it as post hoc and preserve the original chronology. Do not backdate, overwrite, or imply that a later archive proves an earlier blind registration.
+
+## 38. Cross-source disagreement: ICESat-2 versus GEDI
+
+Before residual analysis, define the spatial/temporal matching window, quality filters, uncertainty compatibility rule and comparison statistic for overlapping ICESat-2 and GEDI observations. Do not select the matching window or tolerance after inspecting which source agrees better with the candidate DEM.
+
+If matched ICESat-2 and GEDI observations disagree beyond the pre-registered compatibility criterion, classify the affected point/lineage group as reference_conflict and reference_uncertainty for the candidate pairing. The disagreement is not, by itself, evidence that the DEM is wrong or that either lidar source is wrong.
+
+- Exclude the conflicted pair from the primary confirmatory independent-accuracy dataset until the conflict is resolved using documented quality/uncertainty evidence or a materially independent reference method.
+- Retain and report the disagreement, both source estimates, their uncertainty metadata, matching geometry and reason for unresolved status in the readiness/quality report.
+- Do not choose whichever lidar agrees with the DEM, average the two sources automatically, or count agreement elsewhere as a reason to dismiss a local conflict.
+- If no defensible resolution is possible, keep the location non-evaluable for confirmatory validation; a separately labeled sensitivity/consistency analysis may show each source independently but must not be presented as a resolved reference.
