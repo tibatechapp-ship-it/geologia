@@ -1,0 +1,557 @@
+"""File-backed DEM/reference residual computation with explicit scientific gates."""
+
+import csv
+import hashlib
+import math
+import statistics
+from datetime import datetime
+from pathlib import Path
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+NonEmpty = Annotated[str, Field(min_length=1)]
+SHA256 = Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
+
+AccuracyMetric = Literal["rmse_m", "mae_m", "abs_bias_m", "empirical_le90_m"]
+IndependenceStatus = Literal[
+    "independent_confirmed",
+    "conditional_limited_use",
+    "unresolved",
+    "dependent",
+]
+SurfaceType = Literal["DSM", "DTM"]
+
+
+class DEMAccuracyMetadata(BaseModel):
+    """Required provenance and compatibility metadata; never inferred from pixels."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    product_version_id: NonEmpty
+    dem_vertical_datum: NonEmpty
+    reference_vertical_datum: NonEmpty
+    dem_vertical_unit: NonEmpty
+    reference_vertical_unit: NonEmpty
+    dem_surface_type: SurfaceType
+    reference_surface_type: SurfaceType
+    dem_epoch: NonEmpty
+    reference_epoch: NonEmpty
+    reference_source_id: NonEmpty
+    reference_release: NonEmpty
+    reference_horizontal_crs: NonEmpty
+    aoi_crs: NonEmpty
+    dem_metadata_reference: NonEmpty
+    reference_metadata_reference: NonEmpty
+    independence_status: IndependenceStatus
+    independence_evidence_reference: NonEmpty
+    independence_reviewer: NonEmpty
+    independence_reviewed_at: datetime
+
+    @model_validator(mode="after")
+    def require_timezone(self) -> "DEMAccuracyMetadata":
+        if (
+            self.independence_reviewed_at.tzinfo is None
+            or self.independence_reviewed_at.utcoffset() is None
+        ):
+            raise ValueError("independence_reviewed_at must have a valid UTC offset")
+        return self
+
+
+class AccuracyRequirement(BaseModel):
+    """Task-specific, frozen accuracy requirement; no universal limit is supplied."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    metric: AccuracyMetric
+    maximum_value_m: float = Field(ge=0)
+    minimum_valid_observations: int = Field(ge=1, le=100_000)
+    requirement_reference: NonEmpty
+    approved_by: NonEmpty
+    frozen_at: datetime
+
+    @field_validator("maximum_value_m")
+    @classmethod
+    def finite_limit(cls, value: float) -> float:
+        if not math.isfinite(value):
+            raise ValueError("accuracy limit must be finite")
+        return value
+
+    @model_validator(mode="after")
+    def require_timezone(self) -> "AccuracyRequirement":
+        if self.frozen_at.tzinfo is None or self.frozen_at.utcoffset() is None:
+            raise ValueError("frozen_at must have a valid UTC offset")
+        return self
+
+
+MAX_REFERENCE_OBSERVATIONS = 100_000
+MAX_REFERENCE_FILE_BYTES = 100 * 1024 * 1024
+MAX_DEM_ACCURACY_TILE_BYTES = 2 * 1024 * 1024 * 1024
+MAX_DEM_ACCURACY_TILES = 256
+OVERLAP_EQUALITY_TOLERANCE_M = 1e-6
+
+
+def _sha256_file(path: Path, maximum_bytes: int) -> tuple[int, str]:
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                total += len(chunk)
+                if total > maximum_bytes:
+                    raise ValueError("input file exceeds the accuracy-processing size limit")
+                digest.update(chunk)
+    except OSError as exc:
+        raise ValueError("input file cannot be read") from exc
+    if total == 0:
+        raise ValueError("input file must be non-empty")
+    return total, digest.hexdigest()
+
+
+def _metrics(residuals: list[float]) -> dict[str, float | int | None]:
+    count = len(residuals)
+    if not count:
+        return {
+            "count": 0,
+            "bias_m": None,
+            "mae_m": None,
+            "rmse_m": None,
+            "residual_std_m": None,
+            "median_residual_m": None,
+            "nmad_m": None,
+            "empirical_le90_m": None,
+        }
+    absolute = [abs(value) for value in residuals]
+    bias = statistics.fmean(residuals)
+    median = statistics.median(residuals)
+    deviations = [abs(value - median) for value in residuals]
+    sorted_absolute = sorted(absolute)
+    nearest_rank_90 = max(1, math.ceil(0.90 * count))
+    return {
+        "count": count,
+        "bias_m": bias,
+        "mae_m": statistics.fmean(absolute),
+        "rmse_m": math.sqrt(statistics.fmean(value * value for value in residuals)),
+        "residual_std_m": statistics.stdev(residuals) if count > 1 else None,
+        "median_residual_m": median,
+        "nmad_m": 1.4826 * statistics.median(deviations),
+        "empirical_le90_m": sorted_absolute[nearest_rank_90 - 1],
+    }
+
+
+def _not_evaluable_report(
+    reason: str,
+    *,
+    metadata: DEMAccuracyMetadata,
+    product_manifest_sha256: str,
+    reference_dataset_sha256: str,
+    aoi_dataset_sha256: str,
+    coverage_footprint_reference: str,
+) -> dict:
+    return {
+        "assessment_type": "dem_reference_residuals",
+        "assessment_status": "not_evaluable",
+        "accuracy_disposition": "not_evaluable",
+        "reason_codes": [reason],
+        "product_version_id": metadata.product_version_id,
+        "product_manifest_sha256": product_manifest_sha256,
+        "reference_dataset_sha256": reference_dataset_sha256,
+        "aoi_dataset_sha256": aoi_dataset_sha256,
+        "coverage_footprint_reference": coverage_footprint_reference,
+        "independence_status": metadata.independence_status,
+        "metrics": None,
+        "readiness_disposition": "not_assessed",
+        "scientific_interpretation": False,
+    }
+
+
+def compute_dem_reference_residuals(
+    dem_paths: list[Path],
+    reference_csv_path: Path,
+    aoi_payload: dict,
+    *,
+    metadata: DEMAccuracyMetadata,
+    product_manifest_sha256: str,
+    reference_dataset_sha256: str,
+    aoi_dataset_sha256: str,
+    coverage_footprint_reference: str,
+    requirement: AccuracyRequirement | None = None,
+) -> dict:
+    """Sample aligned DEM tiles at reference points and calculate direct residual metrics.
+
+    CSV columns: point_id,x,y,elevation_m,terrain_stratum,uncertainty_m.
+    Residual convention: DEM elevation minus reference elevation.
+    """
+    from contextlib import ExitStack
+
+    from geologia.formats import (
+        FormatValidationError,
+        _densify_geometry_for_crs,
+        _polygonal_aoi,
+        _dependency,
+    )
+
+    rasterio = _dependency("rasterio")
+    pyproj = _dependency("pyproj")
+    from rasterio.windows import Window
+    from shapely.geometry import Point
+    from shapely.ops import transform as transform_geometry
+
+    if not dem_paths or len(dem_paths) > MAX_DEM_ACCURACY_TILES:
+        raise FormatValidationError(
+            f"accuracy assessment requires 1 to {MAX_DEM_ACCURACY_TILES} DEM tiles"
+        )
+    for value in (
+        product_manifest_sha256,
+        reference_dataset_sha256,
+        aoi_dataset_sha256,
+    ):
+        if len(value) != 64 or any(
+            char not in "0123456789abcdefABCDEF" for char in value
+        ):
+            raise FormatValidationError("accuracy input checksums must be SHA-256 values")
+    if not coverage_footprint_reference.strip():
+        raise FormatValidationError(
+            "accuracy assessment requires a coverage footprint reference"
+        )
+
+    if metadata.dem_vertical_datum != metadata.reference_vertical_datum:
+        return _not_evaluable_report(
+            "vertical_datum_mismatch",
+            metadata=metadata,
+            product_manifest_sha256=product_manifest_sha256,
+            reference_dataset_sha256=reference_dataset_sha256,
+            aoi_dataset_sha256=aoi_dataset_sha256,
+            coverage_footprint_reference=coverage_footprint_reference,
+        )
+    if (
+        metadata.dem_vertical_unit.lower() != "m"
+        or metadata.reference_vertical_unit.lower() != "m"
+    ):
+        return _not_evaluable_report(
+            "technical_format_incompatible",
+            metadata=metadata,
+            product_manifest_sha256=product_manifest_sha256,
+            reference_dataset_sha256=reference_dataset_sha256,
+            aoi_dataset_sha256=aoi_dataset_sha256,
+            coverage_footprint_reference=coverage_footprint_reference,
+        )
+    if metadata.dem_surface_type != metadata.reference_surface_type:
+        return _not_evaluable_report(
+            "surface_type_mismatch",
+            metadata=metadata,
+            product_manifest_sha256=product_manifest_sha256,
+            reference_dataset_sha256=reference_dataset_sha256,
+            aoi_dataset_sha256=aoi_dataset_sha256,
+            coverage_footprint_reference=coverage_footprint_reference,
+        )
+    if metadata.dem_epoch != metadata.reference_epoch:
+        return _not_evaluable_report(
+            "temporal_mismatch",
+            metadata=metadata,
+            product_manifest_sha256=product_manifest_sha256,
+            reference_dataset_sha256=reference_dataset_sha256,
+            aoi_dataset_sha256=aoi_dataset_sha256,
+            coverage_footprint_reference=coverage_footprint_reference,
+        )
+
+    reference_size, reference_sha = _sha256_file(
+        Path(reference_csv_path), MAX_REFERENCE_FILE_BYTES
+    )
+    if reference_sha.lower() != reference_dataset_sha256.lower():
+        raise FormatValidationError(
+            "reference CSV SHA-256 does not match its dataset record"
+        )
+    tile_records = []
+    for path in dem_paths:
+        size_bytes, digest = _sha256_file(Path(path), MAX_DEM_ACCURACY_TILE_BYTES)
+        tile_records.append({
+            "filename": Path(path).name,
+            "size_bytes": size_bytes,
+            "sha256": digest,
+        })
+
+    try:
+        reference_crs = pyproj.CRS.from_user_input(
+            metadata.reference_horizontal_crs
+        )
+        aoi_source_crs = pyproj.CRS.from_user_input(metadata.aoi_crs)
+        aoi = _polygonal_aoi(aoi_payload)
+        if (
+            aoi_source_crs.is_compound
+            or aoi_source_crs.is_vertical
+            or not (aoi_source_crs.is_geographic or aoi_source_crs.is_projected)
+        ):
+            raise FormatValidationError("AOI CRS must be horizontal")
+    except Exception as exc:
+        if isinstance(exc, FormatValidationError):
+            raise
+        raise FormatValidationError("reference/AOI CRS or geometry is invalid") from exc
+
+    observations = []
+    seen_ids = set()
+    required_columns = {
+        "point_id", "x", "y", "elevation_m", "terrain_stratum", "uncertainty_m"
+    }
+    try:
+        with Path(reference_csv_path).open(
+            "r", encoding="utf-8-sig", newline=""
+        ) as source:
+            reader = csv.DictReader(source)
+            if reader.fieldnames is None or not required_columns.issubset(reader.fieldnames):
+                raise FormatValidationError(
+                    "reference CSV must contain point_id,x,y,elevation_m,terrain_stratum,uncertainty_m"
+                )
+            if len(reader.fieldnames) != len(set(reader.fieldnames)):
+                raise FormatValidationError("reference CSV contains duplicate column names")
+            for row_number, row in enumerate(reader, start=2):
+                if len(observations) >= MAX_REFERENCE_OBSERVATIONS:
+                    raise FormatValidationError(
+                        "reference CSV exceeds the 100,000 observation limit"
+                    )
+                point_id = (row.get("point_id") or "").strip()
+                stratum = (row.get("terrain_stratum") or "").strip()
+                if not point_id or not stratum or point_id in seen_ids:
+                    raise FormatValidationError(
+                        f"reference row {row_number} has empty or duplicate point ID/stratum"
+                    )
+                seen_ids.add(point_id)
+                try:
+                    x, y, elevation, uncertainty = (
+                        float(row["x"]),
+                        float(row["y"]),
+                        float(row["elevation_m"]),
+                        float(row["uncertainty_m"]),
+                    )
+                except (TypeError, ValueError) as exc:
+                    raise FormatValidationError(
+                        f"reference row {row_number} contains a non-numeric value"
+                    ) from exc
+                if not all(
+                    math.isfinite(value)
+                    for value in (x, y, elevation, uncertainty)
+                ):
+                    raise FormatValidationError(
+                        f"reference row {row_number} contains a non-finite value"
+                    )
+                if uncertainty < 0:
+                    raise FormatValidationError(
+                        f"reference row {row_number} has negative uncertainty"
+                    )
+                observations.append({
+                    "point_id": point_id,
+                    "x": x,
+                    "y": y,
+                    "reference_elevation_m": elevation,
+                    "terrain_stratum": stratum,
+                    "reference_uncertainty_m": uncertainty,
+                })
+    except OSError as exc:
+        raise FormatValidationError("reference CSV cannot be read") from exc
+    if not observations:
+        raise FormatValidationError("reference CSV contains no observations")
+
+    excluded: dict[str, int] = {}
+    residual_records = []
+    all_residuals = []
+    residuals_by_stratum: dict[str, list[float]] = {}
+
+    with ExitStack() as stack:
+        datasets = []
+        dem_crs = None
+        reference_grid = None
+        for path in dem_paths:
+            try:
+                dataset = stack.enter_context(rasterio.open(Path(path), "r"))
+            except Exception as exc:
+                raise FormatValidationError("DEM tile cannot be opened") from exc
+            if dataset.count < 1 or dataset.crs is None:
+                raise FormatValidationError("DEM tile must have a band and horizontal CRS")
+            tile_crs = pyproj.CRS.from_user_input(dataset.crs)
+            if dem_crs is None:
+                dem_crs = tile_crs
+                reference_grid = dataset.transform
+            elif not tile_crs.equals(dem_crs):
+                raise FormatValidationError(
+                    "DEM accuracy tiles must share one horizontal CRS"
+                )
+            if any(
+                not math.isclose(left, right, rel_tol=0, abs_tol=1e-9)
+                for left, right in zip(
+                    (
+                        dataset.transform.a, dataset.transform.b,
+                        dataset.transform.d, dataset.transform.e,
+                    ),
+                    (
+                        reference_grid.a, reference_grid.b,
+                        reference_grid.d, reference_grid.e,
+                    ),
+                )
+            ):
+                raise FormatValidationError(
+                    "DEM accuracy tiles must share grid orientation and resolution"
+                )
+            datasets.append(dataset)
+
+        aoi_to_dem = pyproj.Transformer.from_crs(
+            aoi_source_crs, dem_crs, always_xy=True
+        )
+        aoi_in_dem = transform_geometry(
+            aoi_to_dem.transform,
+            _densify_geometry_for_crs(aoi, aoi_source_crs),
+        )
+        reference_to_dem = pyproj.Transformer.from_crs(
+            reference_crs, dem_crs, always_xy=True
+        )
+
+        for observation in observations:
+            x, y = reference_to_dem.transform(observation["x"], observation["y"])
+            if not math.isfinite(x) or not math.isfinite(y):
+                excluded["coordinate_transform_failed"] = (
+                    excluded.get("coordinate_transform_failed", 0) + 1
+                )
+                continue
+            if not aoi_in_dem.covers(Point(x, y)):
+                excluded["outside_aoi"] = excluded.get("outside_aoi", 0) + 1
+                continue
+
+            candidates = []
+            for dataset, tile_record in zip(datasets, tile_records, strict=True):
+                bounds = dataset.bounds
+                if not (
+                    bounds.left <= x <= bounds.right
+                    and bounds.bottom <= y <= bounds.top
+                ):
+                    continue
+                try:
+                    row, col = dataset.index(x, y)
+                except Exception:
+                    continue
+                if not (0 <= row < dataset.height and 0 <= col < dataset.width):
+                    continue
+                window = Window(col, row, 1, 1)
+                if int(dataset.read_masks(1, window=window)[0, 0]) == 0:
+                    continue
+                value = float(dataset.read(1, window=window)[0, 0])
+                if not math.isfinite(value):
+                    continue
+                candidates.append((tile_record["filename"], value))
+
+            if not candidates:
+                excluded["no_valid_dem_pixel"] = (
+                    excluded.get("no_valid_dem_pixel", 0) + 1
+                )
+                continue
+            candidates.sort(key=lambda item: item[0])
+            if any(
+                abs(value - candidates[0][1]) > OVERLAP_EQUALITY_TOLERANCE_M
+                for _, value in candidates[1:]
+            ):
+                excluded["overlap_value_conflict"] = (
+                    excluded.get("overlap_value_conflict", 0) + 1
+                )
+                continue
+            dem_value = candidates[0][1]
+            residual = dem_value - observation["reference_elevation_m"]
+            record = {
+                "point_id": observation["point_id"],
+                "terrain_stratum": observation["terrain_stratum"],
+                "dem_elevation_m": dem_value,
+                "reference_elevation_m": observation["reference_elevation_m"],
+                "residual_m": residual,
+                "reference_uncertainty_m": observation["reference_uncertainty_m"],
+                "overlapping_valid_tiles": len(candidates),
+            }
+            residual_records.append(record)
+            all_residuals.append(residual)
+            residuals_by_stratum.setdefault(
+                observation["terrain_stratum"], []
+            ).append(residual)
+
+    metrics = _metrics(all_residuals)
+    stratum_metrics = {
+        stratum: _metrics(values)
+        for stratum, values in sorted(residuals_by_stratum.items())
+    }
+    reason_codes = []
+    metrics_scope = (
+        "primary_confirmatory"
+        if metadata.independence_status == "independent_confirmed"
+        else "descriptive_only"
+    )
+    accuracy_disposition = "not_assessed"
+    metric_value = None
+
+    if metadata.independence_status in {"unresolved", "dependent"}:
+        reason_codes.append("source_dependence_conflict")
+        accuracy_disposition = "not_evaluable"
+    elif metadata.independence_status == "conditional_limited_use":
+        reason_codes.append("source_dependence_conflict")
+        accuracy_disposition = "conditional_limited_use"
+        metrics_scope = "conditional_limited_use"
+    elif not all_residuals:
+        reason_codes.append("insufficient_sample")
+        accuracy_disposition = "not_evaluable"
+    elif requirement is None:
+        reason_codes.append("not_assessed")
+    elif len(all_residuals) < requirement.minimum_valid_observations:
+        reason_codes.append("insufficient_sample")
+        accuracy_disposition = "not_evaluable"
+    else:
+        metric_value = {
+            "rmse_m": metrics["rmse_m"],
+            "mae_m": metrics["mae_m"],
+            "abs_bias_m": abs(metrics["bias_m"]) if metrics["bias_m"] is not None else None,
+            "empirical_le90_m": metrics["empirical_le90_m"],
+        }[requirement.metric]
+        if metric_value is None:
+            reason_codes.append("not_assessed")
+        elif metric_value <= requirement.maximum_value_m:
+            accuracy_disposition = "accuracy_requirement_met_for_declared_use"
+        else:
+            accuracy_disposition = "accuracy_requirement_not_met"
+            reason_codes.append("accuracy_requirement_not_met")
+
+    return {
+        "assessment_type": "dem_reference_residuals",
+        "assessment_status": "computed",
+        "accuracy_disposition": accuracy_disposition,
+        "reason_codes": reason_codes,
+        "metrics_scope": metrics_scope,
+        "product_version_id": metadata.product_version_id,
+        "product_manifest_sha256": product_manifest_sha256,
+        "dem_tiles": tile_records,
+        "reference_source_id": metadata.reference_source_id,
+        "reference_release": metadata.reference_release,
+        "reference_dataset_sha256": reference_sha,
+        "reference_file_size_bytes": reference_size,
+        "reference_metadata_reference": metadata.reference_metadata_reference,
+        "dem_metadata_reference": metadata.dem_metadata_reference,
+        "reference_vertical_datum": metadata.reference_vertical_datum,
+        "dem_vertical_datum": metadata.dem_vertical_datum,
+        "surface_type": metadata.dem_surface_type,
+        "dem_epoch": metadata.dem_epoch,
+        "reference_epoch": metadata.reference_epoch,
+        "aoi_dataset_sha256": aoi_dataset_sha256,
+        "coverage_footprint_reference": coverage_footprint_reference,
+        "independence_status": metadata.independence_status,
+        "independence_evidence_reference": metadata.independence_evidence_reference,
+        "independence_reviewer": metadata.independence_reviewer,
+        "independence_reviewed_at": metadata.independence_reviewed_at.isoformat(),
+        "observation_count": len(observations),
+        "valid_residual_count": len(all_residuals),
+        "excluded_counts": excluded,
+        "metrics": metrics,
+        "metrics_by_terrain_stratum": stratum_metrics,
+        "accuracy_requirement": (
+            requirement.model_dump(mode="json") if requirement is not None else None
+        ),
+        "evaluated_metric_value_m": metric_value,
+        "residuals": residual_records,
+        "readiness_disposition": "not_assessed",
+        "vertical_transformation_applied": False,
+        "sampling_method": "nearest containing raster cell; no interpolation",
+        "residual_convention": "DEM minus reference",
+        "empirical_le90_method": "nearest-rank 90th percentile of absolute residuals",
+        "scientific_interpretation": False,
+    }
