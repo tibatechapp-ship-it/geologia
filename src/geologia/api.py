@@ -392,14 +392,36 @@ def project_dem_accuracy_assessment_save(
     reference_path = store.get_dataset_content_path(reference["id"])
     aoi_path = store.get_dataset_content_path(aoi["id"])
     try:
+        aoi_payload = _read_json(Path(aoi_path))
+        canonical_manifest = json.dumps(
+            manifest.model_dump(mode="json"),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        canonical_aoi = json.dumps(
+            aoi_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        canonical_manifest_sha256 = hashlib.sha256(
+            canonical_manifest.encode("utf-8")
+        ).hexdigest()
+        canonical_aoi_sha256 = hashlib.sha256(
+            canonical_aoi.encode("utf-8")
+        ).hexdigest()
         report = compute_dem_reference_residuals(
             dem_paths,
             Path(reference_path),
-            _read_json(Path(aoi_path)),
+            aoi_payload,
             metadata=metadata,
-            product_manifest_sha256=manifest_dataset["sha256"],
+            product_manifest_sha256=canonical_manifest_sha256,
             reference_dataset_sha256=reference["sha256"],
-            aoi_dataset_sha256=aoi["sha256"],
+            aoi_dataset_sha256=canonical_aoi_sha256,
+            product_manifest=manifest,
             coverage_footprint_reference=body.coverage_footprint_reference,
             requirement=body.requirement,
             declared_use=declared_use,
@@ -409,10 +431,14 @@ def project_dem_accuracy_assessment_save(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except FormatValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="AOI or manifest JSON is invalid") from exc
 
     report.update({
         "project_id": project_id,
         "product_manifest_dataset_id": manifest_dataset["id"],
+        "product_manifest_dataset_sha256": manifest_dataset["sha256"],
+        "aoi_dataset_file_sha256": aoi["sha256"],
         "reference_dataset_id": reference["id"],
         "aoi_dataset_id": aoi["id"],
         "declared_use": declared_use.model_dump(mode="json"),
