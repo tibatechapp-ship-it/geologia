@@ -72,7 +72,7 @@ These changes do not integrate or certify a scientific engine, validate the actu
 
 ### Security and operations
 - No user authentication, authorization, tenant isolation, or project ownership model.
-- The bundled development CLI rejects non-loopback bind addresses, and PR #108 adds ASGI middleware rejecting non-loopback client IPs and non-local Host headers even when launched through another ASGI server. This is defense-in-depth only; a reverse proxy that rewrites client identity and Host can bypass it and is unsupported. Public deployment remains unsafe until authentication and operational controls exist.
+- The bundled development CLI rejects non-loopback bind addresses, and PR #108 adds ASGI middleware rejecting non-loopback client IPs and non-local Host headers even when launched through another ASGI server. This is defense-in-depth only; a reverse proxy that rewrites client identity and Host can bypass it and is unsupported. Public deployment remains unsafe until authentication and operational controls exist
 - No rate limiting, per-user quotas, upload concurrency limits, request timeouts, or abuse monitoring.
 - No malware scanning or sandbox for uploaded content. The current application does not execute uploaded code or scientific tools.
 - No production secret management, audit log, backup/restore procedure, retention policy, or deployment hardening.
