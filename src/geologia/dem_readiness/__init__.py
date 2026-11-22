@@ -1,5 +1,13 @@
 """Evidence-based DEM readiness contracts for declared use profiles."""
 
+from .coverage import (
+    CoverageAssessment,
+    CoverageDecisionStatus,
+    CoverageMetrics,
+    CoveragePhase,
+    CoverageStatus,
+    evaluate_coverage_sufficiency,
+)
 from .models import (
     AnalogueRepresentativenessContext,
     Availability,
@@ -21,6 +29,11 @@ from .thresholds import FROZEN_V1_THRESHOLDS
 __all__ = [
     "AnalogueRepresentativenessContext",
     "Availability",
+    "CoverageAssessment",
+    "CoverageDecisionStatus",
+    "CoverageMetrics",
+    "CoveragePhase",
+    "CoverageStatus",
     "DeclaredUseContext",
     "EvidenceValue",
     "FROZEN_V1_THRESHOLDS",
@@ -34,4 +47,5 @@ __all__ = [
     "ScopeException",
     "ValidationStatus",
     "assess_readiness",
+    "evaluate_coverage_sufficiency",
 ]
