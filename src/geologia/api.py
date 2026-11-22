@@ -2,6 +2,7 @@
 import argparse
 import math
 import hashlib
+import ipaddress
 import json
 import os
 import tempfile
@@ -9,6 +10,7 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import uvicorn
@@ -61,6 +63,48 @@ app = FastAPI(
     description="Bilingual geoscience workspace. Plans and stored datasets; no engine execution.",
     lifespan=lifespan,
 )
+
+LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1"}
+
+
+def _is_loopback_client(host: str) -> bool:
+    """Accept only loopback IPs plus the synthetic Starlette test client."""
+    if host == "testclient":
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    if address.is_loopback:
+        return True
+    mapped = getattr(address, "ipv4_mapped", None)
+    return bool(mapped and mapped.is_loopback)
+
+
+def _is_local_host_header(value: str) -> bool:
+    """Reject DNS-rebinding Host headers; only local names/IPs are supported."""
+    try:
+        hostname = urlsplit("//" + value).hostname
+    except ValueError:
+        return False
+    return bool(hostname and hostname.casefold() in LOCAL_HOSTNAMES | {"testserver"})
+
+
+@app.middleware("http")
+async def local_only_guard(request: Request, call_next):
+    """Enforce local-only access even when ASGI is launched outside the CLI."""
+    client_host = request.client.host if request.client else ""
+    host_header = request.headers.get("host", "")
+    test_client = client_host == "testclient" and host_header.casefold() == "testserver"
+    if not test_client and (
+        not _is_loopback_client(client_host) or not _is_local_host_header(host_header)
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "GEOLOGIA is local-only; remote access is disabled"},
+        )
+    return await call_next(request)
+
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 ALLOWED_FORMATS = {".geojson", ".json", ".gpkg", ".tif", ".tiff", ".hgt", ".csv", ".las"}
 def _dataset_content_matches(item: dict, path: Path) -> bool:
