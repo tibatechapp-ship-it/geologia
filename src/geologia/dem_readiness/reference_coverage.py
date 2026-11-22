@@ -15,7 +15,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from geologia.formats import FormatValidationError
+from geologia.formats import FormatDependencyError, FormatValidationError
 from .coverage import CoverageMetrics
 
 
@@ -206,9 +206,14 @@ def compute_reference_coverage_metrics(
     independence_review: IndependenceReviewAttestation,
 ) -> dict[str, Any]:
     """Compute frozen v1 spatial and temporal reference-coverage metrics."""
-    import pyproj
-    from shapely.geometry import Point
-    from shapely.ops import transform as transform_geometry
+    try:
+        import pyproj
+        from shapely.geometry import Point
+        from shapely.ops import transform as transform_geometry
+    except ImportError as exc:
+        raise FormatDependencyError(
+            "reference coverage metrics require the optional pyproj and shapely dependencies"
+        ) from exc
 
     aoi = _polygonal_aoi(aoi_payload)
     reference_crs_obj = pyproj.CRS.from_user_input(reference_crs)
