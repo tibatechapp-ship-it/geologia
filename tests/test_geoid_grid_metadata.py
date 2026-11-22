@@ -6,11 +6,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-rasterio = pytest.importorskip("rasterio")
-from affine import Affine
-from rasterio.transform import from_origin
-
 from scripts.inspect_geoid_grid_metadata import inspect_directory, inspect_grid
+
+rasterio = pytest.importorskip("rasterio")
+Affine = pytest.importorskip("affine").Affine
+from_origin = rasterio.transform.from_origin
 
 
 def write_grid(path: Path, *, crs="EPSG:4326", transform=None, width=8, height=4):
