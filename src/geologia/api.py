@@ -14,13 +14,14 @@ import uvicorn
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from geologia.dem_readiness.coverage import (
     CoverageAssessmentRequest,
     CoverageAssessmentSubmission,
     evaluate_coverage_sufficiency,
 )
+from geologia.dem_readiness.manifest import DEMTileManifest
 from geologia.dem_readiness.thresholds import FROZEN_V1_THRESHOLDS
 from geologia import __version__
 from geologia import knowledge, store
@@ -266,8 +267,13 @@ def dem_coverage_assessment_save(
         raise HTTPException(status_code=422, detail="AOI dataset must have data_role=aoi_boundary")
     if aoi["sha256"] != context.aoi_dataset_sha256:
         raise HTTPException(status_code=409, detail="AOI dataset checksum does not match request")
-    if product["data_role"] != "dem":
-        raise HTTPException(status_code=422, detail="product dataset must have data_role=dem")
+    if product["data_role"] not in {"dem", "dem_tile_manifest"}:
+        raise HTTPException(
+            status_code=422,
+            detail="product dataset must be a DEM tile or dem_tile_manifest",
+        )
+    if product["data_role"] == "dem_tile_manifest" and product["format"] != "json":
+        raise HTTPException(status_code=422, detail="DEM tile manifest must be a JSON dataset")
     if reference["data_role"] not in {
         "ground_control_points",
         "reference_elevation_observations",
@@ -288,12 +294,74 @@ def dem_coverage_assessment_save(
                 detail="DEM, reference or AOI dataset failed upload-time integrity verification",
             )
 
-    inspection = store.get_dataset_coverage_inspection(product["id"])
     evidence = body.request.evidence
+    if evidence is None:
+        raise HTTPException(status_code=409, detail="coverage assessment requires attributable evidence")
+
+    if product["data_role"] == "dem":
+        inspection = store.get_dataset_coverage_inspection(product["id"])
+        inspection_matches = (
+            inspection is not None
+            and inspection.get("inspection_status") == "measured"
+            and inspection.get("product_dataset_sha256") == product["sha256"]
+            and inspection.get("aoi_dataset_id") == aoi["id"]
+            and inspection.get("aoi_dataset_sha256") == aoi["sha256"]
+            and inspection.get("coverage_footprint_reference")
+            == evidence.coverage_footprint_reference
+        )
+    else:
+        manifest_path = store.get_dataset_content_path(product["id"])
+        try:
+            manifest_payload = _read_json(Path(manifest_path))
+            manifest = DEMTileManifest.model_validate(manifest_payload)
+        except (UnicodeDecodeError, ValueError, ValidationError) as exc:
+            raise HTTPException(status_code=422, detail="DEM tile manifest is invalid") from exc
+        if manifest.product_version_id != context.product_version_id:
+            raise HTTPException(
+                status_code=409,
+                detail="manifest product version does not match the declared product version",
+            )
+        tile_items = []
+        for tile_id, tile_sha256 in zip(
+            manifest.tile_dataset_ids, manifest.tile_dataset_sha256s, strict=True
+        ):
+            tile = store.get_dataset(tile_id)
+            if (
+                tile is None
+                or tile["project_id"] != project_id
+                or tile["data_role"] != "dem"
+                or tile["format"] not in {"tif", "tiff", "hgt"}
+                or tile["sha256"] != tile_sha256
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="manifest tile membership or checksum does not match project datasets",
+                )
+            tile_path = store.get_dataset_content_path(tile_id)
+            if tile_path is None or not _dataset_content_matches(tile, Path(tile_path)):
+                raise HTTPException(
+                    status_code=409, detail="manifest DEM tile failed integrity verification"
+                )
+            tile_items.append(tile)
+
+        inspection = store.get_dataset_coverage_inspection(aoi["id"])
+        inspection_matches = (
+            inspection is not None
+            and inspection.get("format") == "dem_tile_collection_coverage_inspection"
+            and inspection.get("inspection_status") == "measured"
+            and inspection.get("project_id") == project_id
+            and inspection.get("product_dataset_ids")
+            == list(manifest.tile_dataset_ids)
+            and inspection.get("product_dataset_sha256s")
+            == list(manifest.tile_dataset_sha256s)
+            and inspection.get("aoi_dataset_id") == aoi["id"]
+            and inspection.get("aoi_dataset_sha256") == aoi["sha256"]
+            and inspection.get("coverage_footprint_reference")
+            == evidence.coverage_footprint_reference
+        )
+
     if (
-        inspection is None
-        or evidence is None
-        or inspection.get("inspection_status") != "measured"
+        not inspection_matches
         or (
             body.request.coverage_status.value == "verified"
             and not (
@@ -301,15 +369,13 @@ def dem_coverage_assessment_save(
                 and inspection.get("all_aoi_pixel_centres_valid") is True
             )
         )
-        or inspection.get("coverage_footprint_reference")
-        != evidence.coverage_footprint_reference
-        or inspection.get("product_dataset_sha256") != product["sha256"]
-        or inspection.get("aoi_dataset_id") != aoi["id"]
-        or inspection.get("aoi_dataset_sha256") != aoi["sha256"]
     ):
         raise HTTPException(
             status_code=409,
-            detail="verified coverage must cite the latest persisted DEM/AOI coverage inspection",
+            detail=(
+                "coverage assessment must cite a persisted inspection matching "
+                "the exact product manifest, tile checksums and AOI"
+            ),
         )
 
     assessment = evaluate_coverage_sufficiency(body.request)
