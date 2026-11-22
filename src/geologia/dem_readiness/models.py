@@ -152,7 +152,7 @@ class MandatoryProductContext(BaseModel):
     def unavailable_fields(self) -> list[str]:
         return [
             name
-            for name in self.model_fields
+            for name in type(self).model_fields
             if getattr(self, name).availability is Availability.NOT_AVAILABLE
         ]
 
@@ -174,7 +174,7 @@ class ReasonRecord(BaseModel):
     code: ReasonCode
     stage: NonEmpty
     detail: NonEmpty
-    evidence_reference: str | None = None
+    evidence_reference: NonEmpty
     reviewer: NonEmpty
     recorded_at: datetime
 
