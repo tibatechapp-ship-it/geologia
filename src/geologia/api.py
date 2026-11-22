@@ -22,8 +22,8 @@ from geologia.dem_readiness.accuracy import (
     DEMAccuracyMetadata,
     compute_dem_reference_residuals,
 )
-from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
-from geologia.dem_readiness.coverage import (
+from geologia.dem_readiness.models import (\n    AccuracyAssessmentEvidence,\n    DeclaredUseContext,\n    IndependentReviewEvidence,\n    MandatoryProductContext,\n    ReadinessInput,\n    ReasonRecord,\n    ScopeException,\n)
+from geologia.dem_readiness.readiness import assess_readiness\nfrom geologia.dem_readiness.coverage import (
     CoverageAssessmentRequest,
     CoverageAssessmentSubmission,
     evaluate_coverage_sufficiency,
@@ -143,6 +143,27 @@ class DEMAccuracyAssessmentInput(BaseModel):
     independent_review: IndependentReviewEvidence
     coverage_footprint_reference: str = Field(..., min_length=1, max_length=1024)
     requirement: AccuracyRequirement | None = None
+    created_by: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("created_by")
+    @classmethod
+    def nonblank_creator(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("created_by must be non-empty")
+        return normalized
+
+
+class DEMReadinessAssessmentInput(BaseModel):
+    product_manifest_dataset_id: str = Field(..., min_length=1, max_length=64)
+    declared_use: DeclaredUseContext
+    context: MandatoryProductContext
+    accuracy_assessment_id: str | None = Field(default=None, max_length=64)
+    independent_review: IndependentReviewEvidence | None = None
+    mandatory_failures: tuple[ReasonRecord, ...] = ()
+    unresolved_items: tuple[ReasonRecord, ...] = ()
+    accepted_restrictions: tuple[ReasonRecord, ...] = ()
+    scope_exceptions: tuple[ScopeException, ...] = ()
     created_by: str = Field(..., min_length=1, max_length=128)
 
     @field_validator("created_by")
