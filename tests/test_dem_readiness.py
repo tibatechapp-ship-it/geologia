@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from geologia.dem_readiness.models import (
+    AccuracyAssessmentEvidence,
     Availability,
     DeclaredUseContext,
     EvidenceValue,
@@ -59,6 +60,25 @@ def review():
     )
 
 
+def accuracy_evidence(**overrides):
+    values = {
+        "assessment_id": "accuracy-record-1",
+        "record_hash": "a" * 64,
+        "assessment_sha256": "b" * 64,
+        "product_version_id": "release-1",
+        "pilot_area_id": "pilot-north",
+        "task_profile_id": "regional-reconnaissance-v1",
+        "accuracy_disposition": "accuracy_requirement_met_for_declared_use",
+        "metrics_scope": "primary_confirmatory",
+        "independence_status": "independent_confirmed",
+        "coverage_footprint_reference": "coverage://release-1/pilot-north",
+        "evidence_reference": "accuracy-record://accuracy-record-1",
+        "assessed_at": NOW,
+    }
+    values.update(overrides)
+    return AccuracyAssessmentEvidence(**values)
+
+
 def reason(code, stage="coverage"):
     return ReasonRecord(
         code=code,
@@ -72,7 +92,12 @@ def reason(code, stage="coverage"):
 
 def test_complete_context_can_be_ready():
     result = assess_readiness(
-        ReadinessInput(context=context(), declared_use=use(), independent_review=review())
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            independent_review=review(),
+            accuracy_assessment=accuracy_evidence(),
+        )
     )
     assert result.disposition is ReadinessDisposition.READY
 
@@ -134,6 +159,7 @@ def test_scope_exception_allows_only_conditional_limited_use():
             declared_use=use(),
             scope_exceptions=(exception,),
             independent_review=review(),
+            accuracy_assessment=accuracy_evidence(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
@@ -147,6 +173,7 @@ def test_restriction_is_conditional_not_ready():
             declared_use=use(),
             accepted_restrictions=(reason(ReasonCode.TEMPORAL_MISMATCH),),
             independent_review=review(),
+            accuracy_assessment=accuracy_evidence(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
@@ -344,3 +371,68 @@ def test_timezone_with_missing_utc_offset_is_rejected():
             evidence_reference="evidence://independent-review/invalid-time",
             reviewed_at=invalid_time,
         )
+
+
+def test_independent_review_without_accuracy_assessment_cannot_be_ready():
+    result = assess_readiness(
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            independent_review=review(),
+        )
+    )
+    assert result.disposition is ReadinessDisposition.NOT_EVALUABLE
+    assert result.blocking_fields == ("accuracy_assessment",)
+    assert ReasonCode.NOT_ASSESSED in result.reason_codes
+
+
+def test_accuracy_requirement_failure_makes_declared_use_not_ready():
+    result = assess_readiness(
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            independent_review=review(),
+            accuracy_assessment=accuracy_evidence(
+                accuracy_disposition="accuracy_requirement_not_met"
+            ),
+        )
+    )
+    assert result.disposition is ReadinessDisposition.NOT_READY
+    assert ReasonCode.ACCURACY_REQUIREMENT_NOT_MET in result.reason_codes
+
+
+def test_conditional_accuracy_cannot_produce_ready():
+    result = assess_readiness(
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            independent_review=review(),
+            accuracy_assessment=accuracy_evidence(
+                accuracy_disposition="conditional_limited_use",
+                metrics_scope="conditional_limited_use",
+                independence_status="conditional_limited_use",
+            ),
+        )
+    )
+    assert result.disposition is ReadinessDisposition.CONDITIONAL
+
+
+def test_accuracy_evidence_must_match_exact_declared_use():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="exact declared product"):
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            independent_review=review(),
+            accuracy_assessment=accuracy_evidence(pilot_area_id="pilot-other"),
+        )
+
+
+def test_descriptive_metrics_cannot_be_marked_as_accuracy_pass():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="must be primary"):
+        accuracy_evidence(metrics_scope="descriptive_only")

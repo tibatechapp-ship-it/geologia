@@ -84,3 +84,17 @@ This first implementation does not infer that a product has geographic coverage 
 ## 6. Attributable independent review gate
 
 The `independently_reviewed` status is a workflow assertion, not review evidence. A readiness assessment must include an `IndependentReviewEvidence` record bound to the exact product version, pilot area and task profile. The record includes a named reviewer, timezone-aware review timestamp and evidence reference. A missing record or a mismatch returns `not_evaluable`; it cannot be converted to `ready` or bypassed through a scope exception. Reason records used to establish failures or accepted restrictions require an evidence reference.
+
+
+## 7. Accuracy assessment is a mandatory readiness gate
+
+An attributable independent review record is necessary but not sufficient for a readiness pass. The readiness input must also reference a persisted `AccuracyAssessmentEvidence` record bound to the exact product version, pilot area and task profile.
+
+- Missing accuracy evidence after independent review returns `not_evaluable` with `accuracy_assessment` as a blocking field.
+- `accuracy_requirement_not_met` returns `not_ready_for_declared_use` and preserves the accuracy reason code.
+- `not_evaluable` accuracy evidence remains `not_evaluable`; `not_assessed` remains `not_assessed`.
+- `conditional_limited_use` accuracy evidence can only produce a conditional disposition.
+- Only `accuracy_requirement_met_for_declared_use` with `primary_confirmatory` metrics and `independent_confirmed` source status may pass this gate.
+- The API layer must verify the persisted accuracy record and its hash chain before constructing readiness evidence.
+
+A successful accuracy gate is still not sufficient by itself for universal readiness: all other mandatory provenance, license, coverage, reference-independence and task-scope gates remain in force. The evaluator never converts accuracy success directly into a scientific interpretation.

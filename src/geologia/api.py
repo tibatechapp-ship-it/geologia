@@ -22,7 +22,16 @@ from geologia.dem_readiness.accuracy import (
     DEMAccuracyMetadata,
     compute_dem_reference_residuals,
 )
-from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
+from geologia.dem_readiness.models import (
+    AccuracyAssessmentEvidence,
+    DeclaredUseContext,
+    IndependentReviewEvidence,
+    MandatoryProductContext,
+    ReadinessInput,
+    ReasonRecord,
+    ScopeException,
+)
+from geologia.dem_readiness.readiness import assess_readiness
 from geologia.dem_readiness.coverage import (
     CoverageAssessmentRequest,
     CoverageAssessmentSubmission,
@@ -154,6 +163,27 @@ class DEMAccuracyAssessmentInput(BaseModel):
         return normalized
 
 
+class DEMReadinessAssessmentInput(BaseModel):
+    product_manifest_dataset_id: str = Field(..., min_length=1, max_length=64)
+    declared_use: DeclaredUseContext
+    context: MandatoryProductContext
+    accuracy_assessment_id: str | None = Field(default=None, max_length=64)
+    independent_review: IndependentReviewEvidence | None = None
+    mandatory_failures: tuple[ReasonRecord, ...] = ()
+    unresolved_items: tuple[ReasonRecord, ...] = ()
+    accepted_restrictions: tuple[ReasonRecord, ...] = ()
+    scope_exceptions: tuple[ScopeException, ...] = ()
+    created_by: str = Field(..., min_length=1, max_length=128)
+
+    @field_validator("created_by")
+    @classmethod
+    def nonblank_creator(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("created_by must be non-empty")
+        return normalized
+
+
 class ClaimInput(BaseModel):
     statement: str = Field(..., min_length=8, max_length=2000)
     created_by: str = Field(..., min_length=1, max_length=200)
@@ -259,6 +289,292 @@ def dem_coverage_thresholds() -> dict:
 def dem_coverage_assessment(body: CoverageAssessmentRequest) -> dict:
     """Preview caller-supplied reference coverage metrics; no files are inspected or stored."""
     return evaluate_coverage_sufficiency(body).model_dump(mode="json")
+
+
+@app.post(
+    "/api/v1/projects/{project_id}/dem/readiness-assessments",
+    status_code=201,
+)
+def project_dem_readiness_assessment_save(
+    project_id: str,
+    body: DEMReadinessAssessmentInput,
+) -> dict:
+    """Evaluate readiness using verified persisted accuracy evidence and save the decision."""
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    manifest_dataset = store.get_dataset(body.product_manifest_dataset_id)
+    if (
+        manifest_dataset is None
+        or manifest_dataset["project_id"] != project_id
+        or manifest_dataset["data_role"] != "dem_tile_manifest"
+        or manifest_dataset["format"] != "json"
+    ):
+        raise HTTPException(status_code=404, detail="DEM product manifest not found")
+    manifest_path = store.get_dataset_content_path(manifest_dataset["id"])
+    if manifest_path is None or not _dataset_content_matches(
+        manifest_dataset, Path(manifest_path)
+    ):
+        raise HTTPException(
+            status_code=409, detail="DEM product manifest failed integrity verification"
+        )
+    try:
+        manifest = DEMTileManifest.model_validate(_read_json(Path(manifest_path)))
+    except (UnicodeDecodeError, ValueError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail="DEM product manifest is invalid") from exc
+    if manifest.product_version_id != body.declared_use.product_version_id:
+        raise HTTPException(
+            status_code=409,
+            detail="manifest product version does not match the declared use",
+        )
+    product_version = body.context.product_version
+    if (
+        product_version.availability.value != "available"
+        or product_version.value != manifest.product_version_id
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="readiness context must identify the exact manifest product version",
+        )
+
+    review = body.independent_review
+    accuracy_evidence = None
+    accuracy_record = None
+    if body.accuracy_assessment_id is not None:
+        chain = store.verify_accuracy_assessment_chain(project_id)
+        if not chain["valid"]:
+            raise HTTPException(
+                status_code=409, detail="project accuracy assessment chain is invalid"
+            )
+        accuracy_record = store.get_accuracy_assessment(body.accuracy_assessment_id)
+        if accuracy_record is None or accuracy_record["project_id"] != project_id:
+            raise HTTPException(status_code=404, detail="accuracy assessment not found")
+        accuracy_report = accuracy_record["assessment"]
+        accuracy_request = accuracy_record["request"]
+        if accuracy_report.get("dem_tiles") is None or [
+            item.get("sha256") for item in accuracy_report.get("dem_tiles", [])
+        ] != list(manifest.tile_dataset_sha256s):
+            raise HTTPException(
+                status_code=409,
+                detail="accuracy record tile checksums do not match the current manifest",
+            )
+        for tile_id, tile_sha256 in zip(
+            manifest.tile_dataset_ids, manifest.tile_dataset_sha256s, strict=True
+        ):
+            tile = store.get_dataset(tile_id)
+            tile_path = store.get_dataset_content_path(tile_id) if tile else None
+            if (
+                tile is None
+                or tile["project_id"] != project_id
+                or tile["data_role"] != "dem"
+                or tile["sha256"] != tile_sha256
+                or tile_path is None
+                or not _dataset_content_matches(tile, Path(tile_path))
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="DEM tile content changed after the accuracy assessment",
+                )
+        reference_id = accuracy_report.get("reference_dataset_id")
+        reference_dataset = store.get_dataset(reference_id) if reference_id else None
+        reference_path = (
+            store.get_dataset_content_path(reference_id) if reference_dataset else None
+        )
+        if (
+            reference_dataset is None
+            or reference_dataset["project_id"] != project_id
+            or reference_dataset["data_role"] != "reference_elevation_observations"
+            or reference_dataset["sha256"] != accuracy_report.get("reference_dataset_sha256")
+            or reference_path is None
+            or not _dataset_content_matches(
+                reference_dataset, Path(reference_path)
+            )
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="reference dataset content changed after the accuracy assessment",
+            )
+        aoi_id = accuracy_report.get("aoi_dataset_id")
+        aoi_dataset = store.get_dataset(aoi_id) if aoi_id else None
+        aoi_path = store.get_dataset_content_path(aoi_id) if aoi_dataset else None
+        if (
+            aoi_dataset is None
+            or aoi_dataset["project_id"] != project_id
+            or aoi_dataset["data_role"] != "aoi_boundary"
+            or aoi_dataset["sha256"] != accuracy_report.get("aoi_dataset_file_sha256")
+            or aoi_path is None
+            or not _dataset_content_matches(aoi_dataset, Path(aoi_path))
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="AOI dataset content changed after the accuracy assessment",
+            )
+        try:
+            aoi_payload = _read_json(Path(aoi_path))
+            canonical_manifest = json.dumps(
+                manifest.model_dump(mode="json"),
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            canonical_aoi = json.dumps(
+                aoi_payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail="accuracy source JSON is invalid") from exc
+        if (
+            hashlib.sha256(canonical_manifest.encode("utf-8")).hexdigest()
+            != accuracy_report.get("product_manifest_sha256")
+            or hashlib.sha256(canonical_aoi.encode("utf-8")).hexdigest()
+            != accuracy_report.get("aoi_dataset_sha256")
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="canonical manifest or AOI hash no longer matches accuracy evidence",
+            )
+        coverage = store.get_dataset_coverage_inspection(aoi_id)
+        if (
+            coverage is None
+            or coverage.get("format") != "dem_tile_collection_coverage_inspection"
+            or coverage.get("project_id") != project_id
+            or coverage.get("product_dataset_ids") != list(manifest.tile_dataset_ids)
+            or coverage.get("product_dataset_sha256s")
+            != list(manifest.tile_dataset_sha256s)
+            or coverage.get("aoi_dataset_id") != aoi_id
+            or coverage.get("aoi_dataset_sha256") != aoi_dataset["sha256"]
+            or coverage.get("aoi_crs")
+            != accuracy_request.get("metadata", {}).get("aoi_crs")
+            or coverage.get("coverage_footprint_reference")
+            != accuracy_report.get("coverage_footprint_reference")
+            or coverage.get("aoi_fully_within_raster_extent") is not True
+            or coverage.get("all_aoi_pixel_centres_valid") is not True
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="coverage inspection no longer matches the accuracy evidence",
+            )
+        if (
+            accuracy_report.get("product_manifest_dataset_id")
+            != manifest_dataset["id"]
+            or accuracy_report.get("product_manifest_dataset_sha256")
+            != manifest_dataset["sha256"]
+            or accuracy_report.get("product_version_id")
+            != manifest.product_version_id
+            or accuracy_report.get("declared_use")
+            != body.declared_use.model_dump(mode="json")
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="accuracy assessment does not match this manifest and declared use",
+            )
+        try:
+            persisted_review = IndependentReviewEvidence.model_validate(
+                accuracy_report["independent_review"]
+            )
+        except (KeyError, ValidationError) as exc:
+            raise HTTPException(
+                status_code=409, detail="accuracy record has no valid review evidence"
+            ) from exc
+        if review is not None and review != persisted_review:
+            raise HTTPException(
+                status_code=409,
+                detail="submitted independent review differs from the persisted accuracy review",
+            )
+        review = persisted_review
+        try:
+            assessed_at = datetime.fromisoformat(accuracy_record["created_at"])
+            accuracy_evidence = AccuracyAssessmentEvidence(
+                assessment_id=accuracy_record["id"],
+                record_hash=accuracy_record["record_hash"],
+                assessment_sha256=accuracy_record["assessment_sha256"],
+                product_version_id=accuracy_report["product_version_id"],
+                pilot_area_id=body.declared_use.pilot_area_id,
+                task_profile_id=body.declared_use.task_profile_id,
+                accuracy_disposition=accuracy_report["accuracy_disposition"],
+                metrics_scope=accuracy_report["metrics_scope"],
+                independence_status=accuracy_report["independence_status"],
+                coverage_footprint_reference=accuracy_report[
+                    "coverage_footprint_reference"
+                ],
+                evidence_reference=(
+                    f"accuracy-assessment://{accuracy_record['id']}"
+                    f"#{accuracy_record['record_hash']}"
+                ),
+                assessed_at=assessed_at,
+            )
+        except (KeyError, ValueError, ValidationError) as exc:
+            raise HTTPException(
+                status_code=409, detail="persisted accuracy evidence is malformed"
+            ) from exc
+
+    readiness_input = ReadinessInput(
+        context=body.context,
+        declared_use=body.declared_use,
+        mandatory_failures=body.mandatory_failures,
+        unresolved_items=body.unresolved_items,
+        accepted_restrictions=body.accepted_restrictions,
+        scope_exceptions=body.scope_exceptions,
+        independent_review=review,
+        accuracy_assessment=accuracy_evidence,
+    )
+    assessment = assess_readiness(readiness_input)
+    report = assessment.model_dump(mode="json")
+    report.update({
+        "product_manifest_dataset_id": manifest_dataset["id"],
+        "product_manifest_dataset_sha256": manifest_dataset["sha256"],
+        "accuracy_assessment_id": (
+            accuracy_record["id"] if accuracy_record is not None else None
+        ),
+        "accuracy_assessment_record_hash": (
+            accuracy_record["record_hash"] if accuracy_record is not None else None
+        ),
+        "accuracy_assessment_payload_sha256": (
+            accuracy_record["assessment_sha256"]
+            if accuracy_record is not None
+            else None
+        ),
+    })
+    return store.save_readiness_assessment(
+        project_id,
+        body.model_dump(mode="json"),
+        report,
+        body.created_by,
+    )
+
+
+@app.get("/api/v1/projects/{project_id}/dem/readiness-assessments")
+def project_dem_readiness_assessment_list(
+    project_id: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return store.list_readiness_assessments(project_id, limit=limit, offset=offset)
+
+
+@app.get("/api/v1/projects/{project_id}/dem/readiness-assessments/chain")
+def project_dem_readiness_assessment_chain(project_id: str) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return store.verify_readiness_assessment_chain(project_id)
+
+
+@app.get("/api/v1/projects/{project_id}/dem/readiness-assessments/{assessment_id}")
+def project_dem_readiness_assessment_get(
+    project_id: str,
+    assessment_id: str,
+) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    record = store.get_readiness_assessment(assessment_id)
+    if record is None or record["project_id"] != project_id:
+        raise HTTPException(status_code=404, detail="readiness assessment not found")
+    return record
 
 
 @app.post(

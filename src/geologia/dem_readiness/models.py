@@ -6,7 +6,7 @@ perform geospatial validation or establish scientific accuracy.
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -191,6 +191,63 @@ class IndependentReviewEvidence(BaseModel):
         return self
 
 
+class AccuracyAssessmentEvidence(BaseModel):
+    """Exact reference to a persisted accuracy assessment for one declared use."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    assessment_id: NonEmpty
+    record_hash: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
+    assessment_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
+    product_version_id: NonEmpty
+    pilot_area_id: NonEmpty
+    task_profile_id: NonEmpty
+    accuracy_disposition: Literal[
+        "accuracy_requirement_met_for_declared_use",
+        "accuracy_requirement_not_met",
+        "conditional_limited_use",
+        "not_evaluable",
+        "not_assessed",
+    ]
+    metrics_scope: Literal[
+        "primary_confirmatory",
+        "conditional_limited_use",
+        "descriptive_only",
+    ]
+    independence_status: Literal[
+        "independent_confirmed",
+        "conditional_limited_use",
+        "unresolved",
+        "dependent",
+    ]
+    coverage_footprint_reference: NonEmpty
+    evidence_reference: NonEmpty
+    assessed_at: datetime
+
+    @model_validator(mode="after")
+    def validate_accuracy_evidence(self) -> "AccuracyAssessmentEvidence":
+        for name in self.model_fields:
+            value = getattr(self, name)
+            if isinstance(value, str) and not value.strip():
+                raise ValueError(f"{name} must be non-empty")
+        if self.assessed_at.tzinfo is None or self.assessed_at.utcoffset() is None:
+            raise ValueError("assessed_at must have a valid UTC offset")
+        if self.accuracy_disposition == "accuracy_requirement_met_for_declared_use":
+            if (
+                self.metrics_scope != "primary_confirmatory"
+                or self.independence_status != "independent_confirmed"
+            ):
+                raise ValueError(
+                    "a met accuracy requirement must be primary and independently confirmed"
+                )
+        if self.accuracy_disposition == "conditional_limited_use":
+            if self.metrics_scope != "conditional_limited_use":
+                raise ValueError(
+                    "conditional accuracy evidence must use conditional_limited_use scope"
+                )
+        return self
+
+
 class ReasonRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -241,6 +298,7 @@ class ReadinessInput(BaseModel):
     accepted_restrictions: tuple[ReasonRecord, ...] = ()
     scope_exceptions: tuple[ScopeException, ...] = ()
     independent_review: IndependentReviewEvidence | None = None
+    accuracy_assessment: AccuracyAssessmentEvidence | None = None
 
     @model_validator(mode="after")
     def validate_scope_exceptions(self) -> "ReadinessInput":
@@ -261,6 +319,30 @@ class ReadinessInput(BaseModel):
                 "scope exceptions may only apply to not_available fields: "
                 + ", ".join(available)
             )
+        if self.accuracy_assessment is not None:
+            assessment = self.accuracy_assessment
+            expected = (
+                self.declared_use.product_version_id,
+                self.declared_use.pilot_area_id,
+                self.declared_use.task_profile_id,
+            )
+            actual = (
+                assessment.product_version_id,
+                assessment.pilot_area_id,
+                assessment.task_profile_id,
+            )
+            if actual != expected:
+                raise ValueError(
+                    "accuracy assessment must match the exact declared product, area and task"
+                )
+            product_version = self.context.product_version
+            if (
+                product_version.availability is Availability.AVAILABLE
+                and product_version.value != assessment.product_version_id
+            ):
+                raise ValueError(
+                    "accuracy assessment product version must match mandatory context"
+                )
         if self.independent_review is not None:
             if (
                 self.context.validation_status.value
