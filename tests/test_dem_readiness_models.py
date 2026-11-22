@@ -56,3 +56,69 @@ def test_validation_status_rejects_unknown_values():
     )
     with pytest.raises(ValidationError):
         MandatoryProductContext(**fields)
+
+
+from geologia.dem_readiness.models import (
+    AnalogueRepresentativenessContext,
+    RepresentativenessStatus,
+)
+
+
+def test_analogue_pair_is_separate_from_product_coverage():
+    analogue = AnalogueRepresentativenessContext(
+        analogue_region="Asir western highlands",
+        yemen_target_stratum="Yemen western highlands",
+        representativeness_status=RepresentativenessStatus.UNQUANTIFIED,
+        limitations=("Matched slope and land-cover distributions are not yet available.",),
+    )
+    assert analogue.representativeness_status is RepresentativenessStatus.UNQUANTIFIED
+    assert not hasattr(analogue, "actual_coverage")
+
+
+def test_assessed_analogue_requires_attributable_evidence():
+    with pytest.raises(ValidationError):
+        AnalogueRepresentativenessContext(
+            analogue_region="Najran western mountain belt",
+            yemen_target_stratum="Northern Yemen highlands",
+            representativeness_status=RepresentativenessStatus.ASSESSED,
+        )
+
+
+def test_scope_exception_must_target_unavailable_field():
+    from geologia.dem_readiness.models import (
+        DeclaredUseContext,
+        EvidenceValue,
+        MandatoryProductContext,
+        ReadinessInput,
+        ScopeException,
+    )
+    from datetime import UTC, datetime
+
+    def available(value):
+        return EvidenceValue(availability=Availability.AVAILABLE, value=value)
+
+    fields = {
+        name: available("independently_reviewed" if name == "validation_status" else "verified")
+        for name in MandatoryProductContext.model_fields
+    }
+    exception = ScopeException(
+        field_name="vertical_datum",
+        rationale="The declared task does not rely on absolute elevation values.",
+        evidence_reference="evidence://task/relative-only",
+        reviewer="reviewer-1",
+        recorded_at=datetime(2026, 11, 22, tzinfo=UTC),
+        compensating_controls=("Suppress absolute-height outputs",),
+    )
+    with pytest.raises(ValidationError):
+        ReadinessInput(
+            context=MandatoryProductContext(**fields),
+            declared_use=DeclaredUseContext(
+                product_name="Example",
+                product_version_id="v1",
+                pilot_area_id="pilot-1",
+                task_profile_id="relative-only",
+                intended_user="geological researcher",
+                declared_scale="regional",
+            ),
+            scope_exceptions=(exception,),
+        )
