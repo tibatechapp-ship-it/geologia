@@ -74,6 +74,17 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
             "Analysis exists, but the required independent review is not recorded."
         )
         blocking = ("validation_status",)
+    elif (
+        data.context.validation_status.value == "independently_reviewed"
+        and data.independent_review is None
+    ):
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.UNRESOLVED)))
+        disposition = ReadinessDisposition.NOT_EVALUABLE
+        explanation = (
+            "The status claims independent review, but no attributable review record "
+            "bound to this exact product, area and task is supplied."
+        )
+        blocking = ("independent_review",)
     elif data.accepted_restrictions or excepted:
         disposition = ReadinessDisposition.CONDITIONAL
         explanation = (
