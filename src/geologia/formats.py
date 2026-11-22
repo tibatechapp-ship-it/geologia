@@ -520,19 +520,30 @@ def inspect_dem_aoi_coverage(
                 if aoi_pixel_count_in_raster
                 else 0.0
             )
+            aoi_fully_within_raster_extent = bool(
+                raster_footprint.covers(aoi_in_raster)
+            )
+            all_aoi_pixel_centres_valid = bool(
+                aoi_pixel_count_in_raster > 0
+                and valid_aoi_pixel_count == aoi_pixel_count_in_raster
+            )
             if intersection_area_m2 == 0:
                 coverage_status = "no_extent_overlap"
             elif valid_aoi_pixel_count == 0:
                 coverage_status = "overlap_without_valid_pixels"
+            elif aoi_fully_within_raster_extent and all_aoi_pixel_centres_valid:
+                coverage_status = "full_aoi_extent_and_valid_pixels"
             elif valid_aoi_pixel_count < aoi_pixel_count_in_raster:
                 coverage_status = "partial_valid_data_within_raster_extent"
             else:
-                coverage_status = "valid_pixels_present_within_raster_extent"
+                coverage_status = "partial_aoi_extent_with_valid_pixels"
 
             return {
                 "format": "dem_aoi_coverage_inspection",
                 "inspection_status": "measured",
                 "coverage_status": coverage_status,
+                "aoi_fully_within_raster_extent": aoi_fully_within_raster_extent,
+                "all_aoi_pixel_centres_valid": all_aoi_pixel_centres_valid,
                 "file_size_bytes": size,
                 "raster_width": width,
                 "raster_height": height,
