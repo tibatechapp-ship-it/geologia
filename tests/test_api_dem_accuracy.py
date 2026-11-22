@@ -215,26 +215,11 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert retrieved.status_code == 200
     assert retrieved.json()["record_hash"] == record["record_hash"]
 
-    def available(value):
-        return {"availability": "available", "value": value}
-
-    readiness_context = {
-        "product_version": available("dem-release-2026-01"),
-        "spec_source": available("source product metadata"),
-        "spec_date": available("2026-11-22"),
-        "metric_type": available("vertical elevation"),
-        "vertical_datum": available("NAVD88"),
-        "surface_type": available("DTM"),
-        "actual_coverage": available(coverage_reference),
-        "coverage_status": available("verified"),
-        "spatial_resolution_x": available("30 m"),
-        "spatial_resolution_y": available("30 m"),
-        "validation_status": available("independently_reviewed"),
-    }
     readiness_request = {
         "product_manifest_dataset_id": manifest.json()["id"],
+        "product_metadata_dataset_id": product_metadata.json()["id"],
+        "aoi_dataset_id": aoi.json()["id"],
         "declared_use": request["declared_use"],
-        "context": readiness_context,
         "accuracy_assessment_id": record["id"],
         "independent_review": request["independent_review"],
         "created_by": "readiness-reviewer",
@@ -250,6 +235,7 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
 
     without_accuracy = dict(readiness_request)
     without_accuracy.pop("accuracy_assessment_id")
+    without_accuracy.pop("independent_review")
     not_evaluable = client.post(
         f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
         json=without_accuracy,
