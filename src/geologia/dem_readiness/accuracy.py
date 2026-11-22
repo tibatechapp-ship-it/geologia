@@ -98,9 +98,16 @@ def _canonical_json_sha256(payload: object) -> str:
     """Hash deterministic UTF-8 JSON for the exact structured input payload."""
     import json
 
-    encoded = json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
-    ).encode("utf-8")
+    try:
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("payload cannot be canonicalized as finite JSON") from exc
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -230,10 +237,15 @@ def compute_dem_reference_residuals(
             char not in "0123456789abcdefABCDEF" for char in value
         ):
             raise FormatValidationError("accuracy input checksums must be SHA-256 values")
-    canonical_manifest_sha = _canonical_json_sha256(
-        product_manifest.model_dump(mode="json")
-    )
-    canonical_aoi_sha = _canonical_json_sha256(aoi_payload)
+    try:
+        canonical_manifest_sha = _canonical_json_sha256(
+            product_manifest.model_dump(mode="json")
+        )
+        canonical_aoi_sha = _canonical_json_sha256(aoi_payload)
+    except ValueError as exc:
+        raise FormatValidationError(
+            "manifest or AOI payload is not canonicalizable finite JSON"
+        ) from exc
     if canonical_manifest_sha.lower() != product_manifest_sha256.lower():
         raise FormatValidationError(
             "product manifest SHA-256 does not match canonical manifest content"
@@ -311,9 +323,11 @@ def compute_dem_reference_residuals(
             "sha256": digest,
         })
 
-    if sorted(value.lower() for value in product_manifest.tile_dataset_sha256s) != sorted(
-        record["sha256"].lower() for record in tile_records
-    ):
+    manifest_tile_hashes = sorted(
+        value.lower() for value in product_manifest.tile_dataset_sha256s
+    )
+    actual_tile_hashes = sorted(record["sha256"].lower() for record in tile_records)
+    if manifest_tile_hashes != actual_tile_hashes:
         raise FormatValidationError(
             "manifest tile SHA-256 membership does not match the supplied DEM files"
         )
