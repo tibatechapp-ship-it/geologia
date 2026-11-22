@@ -28,6 +28,8 @@ A verified coverage submission must preserve:
 
 The API validates the presence and internal checksum binding of these fields. It does **not** independently re-run the GIS footprint extraction, count observations, reconstruct the 1 km/5 km grids, or verify the truth of the caller-declared reviewer identity and methods. A coverage sufficiency result remains an input-screening result.
 
+Dataset roles are declarations recorded at upload time. This workflow checks the declared role and the file's upload-time checksum; it does not inspect raster pixels or observation semantics to prove that the file truly is a DEM or a valid reference dataset.
+
 ## Hash-chain record
 
 Each project has an append-only logical sequence in SQLite. Every record stores:
@@ -37,7 +39,7 @@ Each project has an append-only logical sequence in SQLite. Every record stores:
 - the previous record hash for that project;
 - a record hash over the record ID, project ID, caller-declared actor, payload hashes, previous hash and UTC timestamp.
 
-The record is committed under `BEGIN IMMEDIATE` so concurrent writers cannot select the same predecessor. Verify the chain with:
+The record is committed under `BEGIN IMMEDIATE` so concurrent writers cannot select the same predecessor. The SQLite schema version is advanced to 2. Verify the chain with:
 
 `GET /api/v1/projects/{project_id}/dem/coverage-assessments/integrity`
 
