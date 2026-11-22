@@ -617,11 +617,45 @@ def project_dem_accuracy_assessment_save(
     ):
         raise HTTPException(status_code=404, detail="AOI dataset not found")
 
-    for item in (manifest_dataset, reference, aoi):
+    uncertainty_sidecar = None
+    uncertainty_sidecar_path = None
+    if body.reference_uncertainty_sidecar_dataset_id is not None:
+        uncertainty_sidecar = store.get_dataset(
+            body.reference_uncertainty_sidecar_dataset_id
+        )
+        if (
+            uncertainty_sidecar is None
+            or uncertainty_sidecar["project_id"] != project_id
+            or uncertainty_sidecar["data_role"] != "reference_uncertainty_sidecar"
+            or uncertainty_sidecar["format"] != "json"
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail="typed reference uncertainty sidecar dataset not found",
+            )
+        uncertainty_sidecar_path = store.get_dataset_content_path(
+            uncertainty_sidecar["id"]
+        )
+        if (
+            uncertainty_sidecar_path is None
+            or not _dataset_content_matches(
+                uncertainty_sidecar, Path(uncertainty_sidecar_path)
+            )
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="reference uncertainty sidecar failed integrity verification",
+            )
+
+    assessment_datasets = [manifest_dataset, reference, aoi]
+    if uncertainty_sidecar is not None:
+        assessment_datasets.append(uncertainty_sidecar)
+    for item in assessment_datasets:
         content_path = store.get_dataset_content_path(item["id"])
         if content_path is None or not _dataset_content_matches(item, Path(content_path)):
             raise HTTPException(
-                status_code=409, detail="accuracy input dataset failed integrity verification"
+                status_code=409,
+                detail="accuracy input dataset failed integrity verification",
             )
 
     try:
