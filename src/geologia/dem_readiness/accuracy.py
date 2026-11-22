@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from geologia.dem_readiness.manifest import DEMTileManifest
 from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
 
 NonEmpty = Annotated[str, Field(min_length=1)]
@@ -93,6 +94,23 @@ MAX_DEM_ACCURACY_TILES = 256
 OVERLAP_EQUALITY_TOLERANCE_M = 1e-6
 
 
+def _canonical_json_sha256(payload: object) -> str:
+    """Hash deterministic UTF-8 JSON for the exact structured input payload."""
+    import json
+
+    try:
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("payload cannot be canonicalized as finite JSON") from exc
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _sha256_file(path: Path, maximum_bytes: int) -> tuple[int, str]:
     digest = hashlib.sha256()
     total = 0
@@ -157,8 +175,11 @@ def _not_evaluable_report(
         "reason_codes": [reason],
         "product_version_id": metadata.product_version_id,
         "product_manifest_sha256": product_manifest_sha256,
+        "input_hash_scheme": "canonical-json-v1",
+        "product_manifest_hash_binding": "verified_canonical_manifest",
         "reference_dataset_sha256": reference_dataset_sha256,
         "aoi_dataset_sha256": aoi_dataset_sha256,
+        "aoi_hash_binding": "verified_canonical_aoi_payload",
         "coverage_footprint_reference": coverage_footprint_reference,
         "independence_status": metadata.independence_status,
         "metrics": None,
@@ -176,6 +197,7 @@ def compute_dem_reference_residuals(
     product_manifest_sha256: str,
     reference_dataset_sha256: str,
     aoi_dataset_sha256: str,
+    product_manifest: DEMTileManifest,
     coverage_footprint_reference: str,
     requirement: AccuracyRequirement | None = None,
     declared_use: DeclaredUseContext | None = None,
@@ -216,6 +238,27 @@ def compute_dem_reference_residuals(
             char not in "0123456789abcdefABCDEF" for char in value
         ):
             raise FormatValidationError("accuracy input checksums must be SHA-256 values")
+    try:
+        canonical_manifest_sha = _canonical_json_sha256(
+            product_manifest.model_dump(mode="json")
+        )
+        canonical_aoi_sha = _canonical_json_sha256(aoi_payload)
+    except ValueError as exc:
+        raise FormatValidationError(
+            "manifest or AOI payload is not canonicalizable finite JSON"
+        ) from exc
+    if canonical_manifest_sha.lower() != product_manifest_sha256.lower():
+        raise FormatValidationError(
+            "product manifest SHA-256 does not match canonical manifest content"
+        )
+    if canonical_aoi_sha.lower() != aoi_dataset_sha256.lower():
+        raise FormatValidationError(
+            "AOI SHA-256 does not match canonical AOI content"
+        )
+    if product_manifest.product_version_id != metadata.product_version_id:
+        raise FormatValidationError(
+            "manifest product version does not match accuracy metadata"
+        )
     if not coverage_footprint_reference.strip():
         raise FormatValidationError(
             "accuracy assessment requires a coverage footprint reference"
@@ -280,6 +323,15 @@ def compute_dem_reference_residuals(
             "size_bytes": size_bytes,
             "sha256": digest,
         })
+
+    manifest_tile_hashes = sorted(
+        value.lower() for value in product_manifest.tile_dataset_sha256s
+    )
+    actual_tile_hashes = sorted(record["sha256"].lower() for record in tile_records)
+    if manifest_tile_hashes != actual_tile_hashes:
+        raise FormatValidationError(
+            "manifest tile SHA-256 membership does not match the supplied DEM files"
+        )
 
     try:
         reference_crs = pyproj.CRS.from_user_input(
@@ -595,7 +647,9 @@ def compute_dem_reference_residuals(
         "reason_codes": reason_codes,
         "metrics_scope": metrics_scope,
         "product_version_id": metadata.product_version_id,
-        "product_manifest_sha256": product_manifest_sha256,
+        "product_manifest_sha256": canonical_manifest_sha,
+        "input_hash_scheme": "canonical-json-v1",
+        "product_manifest_hash_binding": "verified_canonical_manifest",
         "dem_tiles": tile_records,
         "reference_source_id": metadata.reference_source_id,
         "reference_release": metadata.reference_release,
@@ -608,7 +662,8 @@ def compute_dem_reference_residuals(
         "surface_type": metadata.dem_surface_type,
         "dem_epoch": metadata.dem_epoch,
         "reference_epoch": metadata.reference_epoch,
-        "aoi_dataset_sha256": aoi_dataset_sha256,
+        "aoi_dataset_sha256": canonical_aoi_sha,
+        "aoi_hash_binding": "verified_canonical_aoi_payload",
         "coverage_footprint_reference": coverage_footprint_reference,
         "independence_status": metadata.independence_status,
         "independence_evidence_reference": metadata.independence_evidence_reference,
