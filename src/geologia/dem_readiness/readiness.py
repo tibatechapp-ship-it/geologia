@@ -48,7 +48,10 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
             "mandatory context prevents a defensible readiness decision."
         )
         blocking = unexcepted
-    elif data.context.validation_status.value == "independently_reviewed" and data.independent_review is None:
+    elif (
+        data.context.validation_status.value == "independently_reviewed"
+        and data.independent_review is None
+    ):
         codes = tuple(dict.fromkeys((*codes, ReasonCode.UNRESOLVED)))
         disposition = ReadinessDisposition.NOT_EVALUABLE
         explanation = (
