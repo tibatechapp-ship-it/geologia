@@ -125,7 +125,7 @@ def test_browser_claim_to_evidence_workflow(tmp_path, monkeypatch):
             )
             csv_path = tmp_path / "water-levels.csv"
             csv_path.write_text(
-                "timestamp,water_level_m\\n2026-01-01,12.4\\n",
+                "timestamp,water_level_m\n2026-01-01,12.4\n",
                 encoding="utf-8",
             )
             page.locator("#datasetName").fill("Groundwater levels")
