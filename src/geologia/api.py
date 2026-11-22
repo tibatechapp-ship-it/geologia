@@ -795,11 +795,19 @@ def jobs_cancel(job_id: str) -> dict:
 
 @app.get("/api/v1/datasets/{dataset_id}/provenance")
 def dataset_provenance(dataset_id: str) -> dict:
-    """Return the dataset's provenance events and project-wide hash-chain status."""
+    """Return event-chain status separately from current stored-file integrity."""
     report = store.get_dataset_provenance(dataset_id)
     if report is None:
         raise HTTPException(status_code=404, detail="dataset not found")
-    return report
+    item = store.get_dataset(dataset_id)
+    content_path = store.get_dataset_content_path(dataset_id)
+    if content_path is None or not Path(content_path).is_file():
+        content_integrity = "missing"
+    elif item is not None and _dataset_content_matches(item, Path(content_path)):
+        content_integrity = "verified"
+    else:
+        content_integrity = "failed"
+    return {**report, "content_integrity": content_integrity}
 
 def run() -> None:
     parser = argparse.ArgumentParser(description="Run GEOLOGIA API")

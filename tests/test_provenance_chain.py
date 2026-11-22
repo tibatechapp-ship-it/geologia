@@ -1,5 +1,7 @@
 """Provenance event-chain integrity regression tests."""
 
+import hashlib
+
 from geologia import store
 
 
@@ -50,7 +52,9 @@ def test_validation_and_inspection_events_are_chained(tmp_path, monkeypatch):
     ]
 
 
-def test_provenance_api_returns_verified_event_chain(tmp_path, monkeypatch):
+def test_provenance_api_reports_event_and_content_integrity_separately(
+    tmp_path, monkeypatch
+):
     from fastapi.testclient import TestClient
     from geologia.api import app
 
@@ -58,16 +62,28 @@ def test_provenance_api_returns_verified_event_chain(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "api-uploads"))
     project = store.create_project("API audit", "", "en")
     path = tmp_path / "api.csv"
-    path.write_text("x\n2\n", encoding="utf-8")
+    content = b"x\n2\n"
+    path.write_bytes(content)
     dataset = store.create_dataset(
         project["id"], name="API sample", file_format="csv",
         original_filename="api.csv", content_path=str(path),
-        sha256="c" * 64, size_bytes=4, crs=None, data_role=None, summary={},
+        sha256=hashlib.sha256(content).hexdigest(), size_bytes=len(content),
+        crs=None, data_role=None, summary={},
     )
-    response = TestClient(app).get(
-        f"/api/v1/datasets/{dataset['id']}/provenance"
-    )
+    client = TestClient(app)
+    dataset_id = dataset["id"]
+    response = client.get(f"/api/v1/datasets/{dataset_id}/provenance")
     assert response.status_code == 200
     payload = response.json()
     assert payload["chain_integrity"] == "verified"
+    assert payload["content_integrity"] == "verified"
     assert payload["events"][0]["event_type"] == "dataset_ingested"
+
+    path.write_bytes(b"changed\n")
+    changed = client.get(f"/api/v1/datasets/{dataset_id}/provenance").json()
+    assert changed["chain_integrity"] == "verified"
+    assert changed["content_integrity"] == "failed"
+
+    path.unlink()
+    missing = client.get(f"/api/v1/datasets/{dataset_id}/provenance").json()
+    assert missing["content_integrity"] == "missing"
