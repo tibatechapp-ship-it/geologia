@@ -21,6 +21,10 @@ from geologia.dem_readiness.coverage import (
     CoverageAssessmentSubmission,
     evaluate_coverage_sufficiency,
 )
+from geologia.dem_readiness.reference_coverage import (
+    ReferenceCoverageMetricsRequest,
+    compute_reference_coverage_metrics,
+)
 from geologia.dem_readiness.thresholds import FROZEN_V1_THRESHOLDS
 from geologia import __version__
 from geologia import knowledge, store
@@ -274,8 +278,10 @@ def dem_coverage_assessment_save(
 
     inspection = store.get_dataset_coverage_inspection(product["id"])
     evidence = body.request.evidence
+    reference_metrics = store.get_reference_coverage_metrics(reference["id"])
     if (
         inspection is None
+        or reference_metrics is None
         or evidence is None
         or inspection.get("inspection_status") != "measured"
         or (
@@ -290,6 +296,20 @@ def dem_coverage_assessment_save(
         or inspection.get("product_dataset_sha256") != product["sha256"]
         or inspection.get("aoi_dataset_id") != aoi["id"]
         or inspection.get("aoi_dataset_sha256") != aoi["sha256"]
+        or evidence.coverage_verified_at.isoformat() != inspection.get("inspected_at_utc")
+        or reference_metrics.get("status") != "measured"
+        or reference_metrics.get("independence_review_status") != "attested_complete"
+        or reference_metrics.get("reference_dataset_sha256") != reference["sha256"]
+        or reference_metrics.get("aoi_dataset_id") != aoi["id"]
+        or reference_metrics.get("aoi_dataset_sha256") != aoi["sha256"]
+        or reference_metrics.get("dem_epoch") != context.dem_epoch.isoformat()
+        or reference_metrics.get("metrics")
+        != body.request.metrics.model_dump(mode="json")
+        or reference_metrics.get("metrics_reference") != evidence.metrics_source_reference
+        or reference_metrics.get("computation_method") != evidence.metrics_computation_method
+        or reference_metrics.get("computed_by") != evidence.metrics_computed_by
+        or reference_metrics.get("computed_at_utc") != evidence.metrics_computed_at.isoformat()
+        or reference_metrics.get("analysis_code_commit") != evidence.analysis_code_commit
     ):
         raise HTTPException(
             status_code=409,
@@ -844,6 +864,103 @@ def dataset_coverage_inspection_get(dataset_id: str) -> dict:
     report = store.get_dataset_coverage_inspection(dataset_id)
     if report is None:
         raise HTTPException(status_code=404, detail="coverage inspection not found")
+    return report
+
+
+
+@app.post("/api/v1/datasets/{dataset_id}/reference-coverage-metrics", status_code=200)
+def dataset_reference_coverage_metrics(
+    dataset_id: str,
+    body: ReferenceCoverageMetricsRequest,
+) -> dict:
+    """Compute spatial/temporal reference coverage from an uploaded GeoJSON point set."""
+    from geologia.formats import FormatDependencyError, FormatValidationError
+
+    reference = store.get_dataset(dataset_id)
+    aoi = store.get_dataset(body.aoi_dataset_id)
+    if reference is None or aoi is None:
+        raise HTTPException(status_code=404, detail="reference or AOI dataset not found")
+    if reference["project_id"] != aoi["project_id"]:
+        raise HTTPException(status_code=404, detail="reference or AOI dataset not found")
+    if reference["data_role"] not in {
+        "ground_control_points",
+        "reference_elevation_observations",
+    }:
+        raise HTTPException(
+            status_code=422,
+            detail="reference dataset must contain ground control or elevation observations",
+        )
+    if aoi["data_role"] != "aoi_boundary":
+        raise HTTPException(status_code=422, detail="AOI dataset must have data_role=aoi_boundary")
+    if reference["format"] not in {"geojson", "json"} or aoi["format"] not in {
+        "geojson",
+        "json",
+    }:
+        raise HTTPException(status_code=415, detail="reference and AOI inputs must be GeoJSON")
+
+    reference_path = store.get_dataset_content_path(reference["id"])
+    aoi_path = store.get_dataset_content_path(aoi["id"])
+    for item, path in ((reference, reference_path), (aoi, aoi_path)):
+        if path is None or not _dataset_content_matches(item, Path(path)):
+            raise HTTPException(
+                status_code=409,
+                detail="reference or AOI dataset failed upload-time integrity verification",
+            )
+
+    try:
+        reference_payload = _read_json(Path(reference_path))
+        aoi_payload = _read_json(Path(aoi_path))
+        inspect_geojson(reference_payload)
+        inspect_geojson(aoi_payload)
+        report = compute_reference_coverage_metrics(
+            reference_payload,
+            aoi_payload,
+            reference_crs=body.reference_crs,
+            aoi_crs=body.aoi_crs,
+            dem_epoch=body.dem_epoch,
+            independence_review=body.independence_review,
+        )
+    except FormatDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except FormatValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"invalid reference/AOI GeoJSON: {exc}") from exc
+
+    report.update({
+        "reference_dataset_id": reference["id"],
+        "reference_dataset_sha256": reference["sha256"],
+        "aoi_dataset_id": aoi["id"],
+        "aoi_dataset_sha256": aoi["sha256"],
+        "reference_crs": body.reference_crs,
+        "aoi_crs": body.aoi_crs,
+        "computed_by": body.computed_by,
+        "computed_at_utc": store.utc_now(),
+        "analysis_code_commit": body.analysis_code_commit,
+    })
+    canonical = json.dumps(
+        report,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    metrics_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    report["metrics_sha256"] = metrics_sha256
+    report["metrics_reference"] = (
+        f"reference-coverage-metrics:{reference['id']}:{metrics_sha256}"
+    )
+    store.save_reference_coverage_metrics(reference["id"], report)
+    return report
+
+
+@app.get("/api/v1/datasets/{dataset_id}/reference-coverage-metrics")
+def dataset_reference_coverage_metrics_get(dataset_id: str) -> dict:
+    if store.get_dataset(dataset_id) is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    report = store.get_reference_coverage_metrics(dataset_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="reference coverage metrics not found")
     return report
 
 
