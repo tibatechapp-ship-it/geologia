@@ -9,6 +9,8 @@ client = TestClient(app)
 def _coverage_payload():
     return {
         "context": {
+            "product_dataset_id": "dataset-dem-1",
+            "reference_dataset_id": "dataset-reference-1",
             "product_version_id": "copernicus-glo30-release-x",
             "pilot_area_id": "yemen-pilot-west-01",
             "reference_source_id": "icesat2-atl08-release-x",
@@ -21,6 +23,18 @@ def _coverage_payload():
             "value": "coverage://glo30/release-x/yemen-pilot-west-01",
         },
         "coverage_status": "verified",
+        "evidence": {
+            "coverage_footprint_reference": "evidence://coverage-footprint/1",
+            "coverage_verification_method": "Raster footprint intersected with registered AOI.",
+            "coverage_reviewer": "reviewer-1",
+            "coverage_verified_at": "2026-11-22T02:00:00Z",
+            "metrics_source_reference": "evidence://reference-observations/1",
+            "metrics_computation_method": "Frozen equal-area grid count script.",
+            "metrics_computed_by": "analyst-1",
+            "metrics_computed_at": "2026-11-22T02:05:00Z",
+            "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "analysis_code_commit": "a1b2c3d4",
+        },
         "metrics": {
             "valid_independent_locations": 60,
             "polygon_area_km2": 3.0,
