@@ -16,6 +16,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
+from geologia.dem_readiness.coverage import (
+    CoverageAssessmentRequest,
+    evaluate_coverage_sufficiency,
+)
+from geologia.dem_readiness.thresholds import FROZEN_V1_THRESHOLDS
 from geologia import __version__
 from geologia import knowledge, store
 from geologia.planner import agent_status, build_plan
@@ -192,6 +197,18 @@ def _geojson_summary(path: Path) -> dict:
 def health() -> dict:
     return {"status": "ok", "service": "geologia", "version": __version__,
             "engines_integrated": 0, "execution_enabled": False}
+
+@app.get("/api/v1/dem/coverage-thresholds")
+def dem_coverage_thresholds() -> dict:
+    """Expose immutable protocol v1 screening thresholds; not DEM accuracy limits."""
+    return FROZEN_V1_THRESHOLDS.model_dump(mode="json")
+
+
+@app.post("/api/v1/dem/coverage-assessments")
+def dem_coverage_assessment(body: CoverageAssessmentRequest) -> dict:
+    """Assess reference coverage only for one exact product/area/source/stratum/task unit."""
+    return evaluate_coverage_sufficiency(body).model_dump(mode="json")
+
 
 @app.get("/api/v1/agent/status")
 def agent_status_endpoint() -> dict:
