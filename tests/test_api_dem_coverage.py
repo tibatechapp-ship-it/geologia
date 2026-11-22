@@ -304,7 +304,7 @@ def test_dem_aoi_coverage_inspection_api_persists_measured_footprint(tmp_path, m
         f"/api/v1/datasets/{product.json()['id']}/coverage-inspection",
         json={"aoi_dataset_id": aoi.json()["id"], "aoi_crs": "EPSG:32638"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     report = response.json()
     assert report["coverage_status"] == "full_aoi_extent_and_valid_pixels"
     assert report["aoi_fully_within_raster_extent"] is True
