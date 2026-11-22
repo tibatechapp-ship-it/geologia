@@ -335,10 +335,12 @@ def test_timezone_with_missing_utc_offset_is_rejected():
             return None
 
     invalid_time = datetime(2026, 11, 22, tzinfo=InvalidTimezone())
-    invalid_review = review().model_copy(update={"reviewed_at": invalid_time})
     with pytest.raises(ValidationError):
-        ReadinessInput(
-            context=context(),
-            declared_use=use(),
-            independent_review=invalid_review,
+        IndependentReviewEvidence(
+            product_version_id="release-1",
+            pilot_area_id="pilot-north",
+            task_profile_id="regional-reconnaissance-v1",
+            reviewer="independent-reviewer-2",
+            evidence_reference="evidence://independent-review/invalid-time",
+            reviewed_at=invalid_time,
         )
