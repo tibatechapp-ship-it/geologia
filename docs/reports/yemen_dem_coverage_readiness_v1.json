@@ -48,7 +48,7 @@
       "exact_product_file_present": false,
       "yemen_footprint_verified_for_exact_release": false,
       "disposition": "metadata_access_license_and_footprint_unverified",
-      "reason_codes": ["metadata_insufficient", "access_unavailable", "not_assessed"]
+      "reason_codes": ["metadata_insufficient", "not_assessed"]
     },
     {
       "product": "Saudi national 5 m DEM in the Makkah study",
@@ -73,7 +73,7 @@
       "exact_product_file_present": false,
       "yemen_footprint_verified_for_exact_release": false,
       "disposition": "excluded_from_open_v1_baseline_pending_exact_product_and_license",
-      "reason_codes": ["license_incompatible", "not_assessed"]
+      "reason_codes": ["metadata_insufficient", "not_assessed"]
     }
   ],
   "limitations": [
