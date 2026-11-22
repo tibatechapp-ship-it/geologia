@@ -330,11 +330,16 @@ def project_dem_accuracy_assessment_save(
             status_code=409,
             detail="manifest, metadata, declared use and independent review must match exactly",
         )
+    now = datetime.now(timezone.utc)
+    if review.reviewed_at.astimezone(timezone.utc) > now:
+        raise HTTPException(
+            status_code=409, detail="independent review timestamp is in the future"
+        )
     if body.requirement is not None:
-        now = datetime.now(timezone.utc)
         if body.requirement.frozen_at.astimezone(timezone.utc) > now:
             raise HTTPException(
-                status_code=409, detail="accuracy requirement freeze timestamp is in the future"
+                status_code=409,
+                detail="accuracy requirement freeze timestamp is in the future",
             )
 
     dem_paths = []
