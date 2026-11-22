@@ -26,7 +26,7 @@ def _coverage_payload():
         },
         "coverage_status": "verified",
         "evidence": {
-            "coverage_footprint_reference": "evidence://coverage-footprint/1",
+            "coverage_footprint_reference": "coverage://glo30/release-x/yemen-pilot-west-01",
             "coverage_verification_method": "Raster footprint intersected with registered AOI.",
             "coverage_reviewer": "reviewer-1",
             "coverage_verified_at": "2026-11-22T02:00:00Z",
