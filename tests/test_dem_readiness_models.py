@@ -122,3 +122,16 @@ def test_scope_exception_must_target_unavailable_field():
             ),
             scope_exceptions=(exception,),
         )
+
+
+def test_reason_record_requires_evidence_reference():
+    from geologia.dem_readiness.models import ReasonCode, ReasonRecord
+
+    with pytest.raises(ValidationError):
+        ReasonRecord(
+            code=ReasonCode.UNRESOLVED,
+            stage="metadata",
+            detail="The provider documentation is contradictory.",
+            reviewer="reviewer-1",
+            recorded_at=datetime(2026, 11, 22, tzinfo=UTC),
+        )
