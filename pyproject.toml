@@ -15,6 +15,7 @@ dev = ["pytest>=7.4,<9", "httpx>=0.24,<0.28", "ruff>=0.5,<1"]
 gis = ["pyproj>=3.6,<4"]
 pdf = ["pypdf>=5.0,<7"]
 browser = ["playwright>=1.50,<2"]
+formats = ["geopandas>=1.0,<2", "pyogrio>=0.11,<1", "rasterio>=1.4,<2", "laspy>=2.5,<3"]
 build = ["pyinstaller>=6.10,<7"]
 
 [project.scripts]

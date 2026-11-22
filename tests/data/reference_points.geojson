@@ -1,0 +1,44 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "reference_id": "unit-degree"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "reference_id": "yemen-control"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          44.2,
+          15.3
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "reference_id": "origin"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          0,
+          0
+        ]
+      }
+    }
+  ]
+}
