@@ -10,6 +10,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
+
 NonEmpty = Annotated[str, Field(min_length=1)]
 SHA256 = Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
 
@@ -176,6 +178,8 @@ def compute_dem_reference_residuals(
     aoi_dataset_sha256: str,
     coverage_footprint_reference: str,
     requirement: AccuracyRequirement | None = None,
+    declared_use: DeclaredUseContext | None = None,
+    independent_review: IndependentReviewEvidence | None = None,
 ) -> dict:
     """Sample aligned DEM tiles at reference points and calculate direct residual metrics.
 
@@ -499,16 +503,42 @@ def compute_dem_reference_residuals(
         for stratum, values in sorted(residuals_by_stratum.items())
     }
     reason_codes = []
+    review_bound = False
+    if declared_use is not None and independent_review is not None:
+        expected_scope = (
+            metadata.product_version_id,
+            declared_use.pilot_area_id,
+            declared_use.task_profile_id,
+        )
+        review_scope = (
+            independent_review.product_version_id,
+            independent_review.pilot_area_id,
+            independent_review.task_profile_id,
+        )
+        review_bound = (
+            declared_use.product_version_id == metadata.product_version_id
+            and review_scope == expected_scope
+            and independent_review.reviewer == metadata.independence_reviewer
+            and independent_review.evidence_reference
+            == metadata.independence_evidence_reference
+            and independent_review.reviewed_at == metadata.independence_reviewed_at
+        )
     metrics_scope = (
         "primary_confirmatory"
-        if metadata.independence_status == "independent_confirmed"
+        if metadata.independence_status == "independent_confirmed" and review_bound
         else "descriptive_only"
     )
     accuracy_disposition = "not_assessed"
     metric_value = None
 
     conditional_requirement_comparison = None
-    if metadata.independence_status in {"unresolved", "dependent"}:
+    if (
+        metadata.independence_status in {"unresolved", "dependent"}
+        or (
+            metadata.independence_status == "independent_confirmed"
+            and not review_bound
+        )
+    ):
         reason_codes.append("source_dependence_conflict")
         accuracy_disposition = "not_evaluable"
     elif not all_residuals:
