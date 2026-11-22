@@ -29,7 +29,10 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
         codes = tuple(dict.fromkeys((*codes, ReasonCode.METADATA_INSUFFICIENT)))
     exceptions = {item.field_name: item for item in data.scope_exceptions}
     excepted = tuple(name for name in missing if name in exceptions)
-    unexcepted = tuple(name for name in missing if name not in exceptions)
+    unexcepted = tuple(
+        name for name in missing
+        if name not in exceptions or name == "validation_status"
+    )
 
     if data.mandatory_failures:
         disposition = ReadinessDisposition.NOT_READY
@@ -45,11 +48,22 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
             "mandatory context prevents a defensible readiness decision."
         )
         blocking = unexcepted
-    elif data.context.validation_status.value == "not_assessed":
+    elif data.context.validation_status.value in {
+        "planned", "coverage_checked", "reference_ready", "not_assessed"
+    }:
         codes = tuple(dict.fromkeys((*codes, ReasonCode.NOT_ASSESSED)))
         disposition = ReadinessDisposition.NOT_ASSESSED
-        explanation = "The validation has not been performed; no readiness claim is made."
+        explanation = (
+            "The validation has not reached independent review; no readiness claim is made."
+        )
         blocking = ()
+    elif data.context.validation_status.value == "analyzed":
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.UNRESOLVED)))
+        disposition = ReadinessDisposition.NOT_EVALUABLE
+        explanation = (
+            "Analysis exists, but the required independent review is not recorded."
+        )
+        blocking = ("validation_status",)
     elif data.accepted_restrictions or excepted:
         disposition = ReadinessDisposition.CONDITIONAL
         explanation = (
