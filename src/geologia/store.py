@@ -182,6 +182,7 @@ def initialize() -> None:
             "CREATE INDEX IF NOT EXISTS idx_coverage_assessments_project_sequence "
             "ON coverage_assessments(project_id, sequence)"
         )
+        conn.execute("PRAGMA user_version = 2")
 
 
 def create_project(name: str, description: str, language: str) -> dict[str, Any]:
