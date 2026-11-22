@@ -422,7 +422,7 @@ def test_project_tile_collection_coverage_inspection_is_persisted(tmp_path, monk
             "aoi_crs": "EPSG:32638",
         },
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     report = response.json()
     assert report["coverage_status"] == "full_aoi_extent_and_valid_pixels"
     assert report["tile_count"] == 2
