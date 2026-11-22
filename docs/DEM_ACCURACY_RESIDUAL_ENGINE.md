@@ -15,7 +15,7 @@ Required columns:
 
 ## Mandatory metadata gates
 
-The input must declare the DEM and reference vertical datums, units, DSM/DTM surface types and epochs, horizontal CRS, metadata references, source/release, and an attributable independence review record.
+The input must declare the DEM and reference vertical datums, units, DSM/DTM surface types and epochs, horizontal CRS, metadata references, source/release, and an attributable independence review record. For a confirmatory accuracy disposition, the caller must also supply the typed `DeclaredUseContext` and `IndependentReviewEvidence` from the readiness contract. The review must match the exact product version, pilot area and task profile, and its reviewer, evidence reference and timestamp must match the supplied review metadata. Missing or mismatched review evidence leaves computed metrics descriptive-only and accuracy `not_evaluable`.
 
 The v1 engine refuses to compute residuals when vertical datums, surface types, units or epochs are incompatible. It does not apply a geoid or vertical transformation. Reference points are transformed horizontally to the DEM CRS.
 
@@ -39,4 +39,4 @@ A task-specific `AccuracyRequirement` must carry a metric, maximum value, minimu
 - Conditional independence remains `conditional_limited_use`.
 - Every output keeps `readiness_disposition=not_assessed`; coverage, provenance, scientific review and task-specific readiness remain separate gates.
 
-This engine does not authenticate reviewer identity, independently verify reference-source independence, or prove that the supplied metadata references are correct.
+This engine does not authenticate reviewer identity, independently verify reference-source independence, or prove that the supplied metadata references are correct. The current function accepts manifest and AOI checksums as declared inputs; it does not yet recompute those two hashes from canonical manifest/AOI source files. Consequently, those fields are provenance assertions, not cryptographic proof that the assessment inputs are bound to the referenced records. This limitation must be closed before calling the output fully evidence-bound or integrating it into a readiness decision.
