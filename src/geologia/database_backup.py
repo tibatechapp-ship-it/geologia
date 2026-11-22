@@ -6,8 +6,8 @@ writers and ensure the destination database is offline before replacing it.
 """
 from __future__ import annotations
 
-import hashlib
 from contextlib import closing
+import hashlib
 import os
 import sqlite3
 import tempfile
@@ -73,7 +73,7 @@ def _snapshot(
                 check = target_connection.execute("PRAGMA integrity_check").fetchone()
                 if check is None or check[0] != "ok":
                     raise ValueError("SQLite snapshot failed integrity check")
-        with temporary.open("rb") as snapshot:
+        with temporary.open("rb+") as snapshot:
             os.fsync(snapshot.fileno())
         os.replace(temporary, destination)
         digest = hashlib.sha256()
