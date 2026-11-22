@@ -11,6 +11,7 @@ from .models import (
     ReasonCode,
     ReasonRecord,
     ScopeException,
+    ValidationStatus,
 )
 from .readiness import assess_readiness
 from .thresholds import FROZEN_V1_THRESHOLDS
@@ -27,5 +28,6 @@ __all__ = [
     "ReasonCode",
     "ReasonRecord",
     "ScopeException",
+    "ValidationStatus",
     "assess_readiness",
 ]
