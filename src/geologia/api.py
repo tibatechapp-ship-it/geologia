@@ -460,22 +460,22 @@ def dataset_geojson(dataset_id: str) -> JSONResponse:
 
 @app.post("/api/v1/datasets/{dataset_id}/inspect", status_code=200)
 def dataset_inspect(dataset_id: str) -> dict:
-    """Compute deterministic structural GIS metrics for a stored GeoJSON dataset."""
+    """Run bounded format-specific inspection; never claim scientific interpretation."""
     item = store.get_dataset(dataset_id)
     if item is None:
         raise HTTPException(status_code=404, detail="dataset not found")
-    if item["format"] not in {"geojson", "json", "csv"}:
-        raise HTTPException(status_code=415, detail="inspection supports GeoJSON and CSV only")
     content_path = store.get_dataset_content_path(dataset_id)
     if content_path is None or not Path(content_path).is_file():
         raise HTTPException(status_code=410, detail="dataset file is missing")
-    if item["format"] == "csv":
+
+    file_format = item["format"]
+    if file_format == "csv":
         try:
             report = inspect_csv(Path(content_path))
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         operation = "csv_inspection"
-    else:
+    elif file_format in {"geojson", "json"}:
         try:
             payload = _read_json(Path(content_path))
         except (UnicodeDecodeError, ValueError) as exc:
@@ -487,6 +487,57 @@ def dataset_inspect(dataset_id: str) -> dict:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         operation = "geojson_inspection"
+    elif file_format in {"gpkg", "tif", "tiff", "las"}:
+        from geologia.formats import (
+            FormatDependencyError,
+            FormatValidationError,
+            inspect_geopackage,
+            inspect_geotiff,
+            inspect_las,
+        )
+
+        inspectors = {
+            "gpkg": inspect_geopackage,
+            "tif": inspect_geotiff,
+            "tiff": inspect_geotiff,
+            "las": inspect_las,
+        }
+        try:
+            report = inspectors[file_format](Path(content_path))
+        except FormatDependencyError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except FormatValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        operation = f"{report['format']}_inspection"
+    else:
+        raise HTTPException(status_code=415, detail="inspection is not supported for this format")
+
+    import importlib.metadata
+    import sys
+
+    parser_packages = {
+        "gpkg": "pyogrio", "tif": "rasterio", "tiff": "rasterio",
+        "las": "laspy", "geojson": "json", "json": "json", "csv": "csv",
+    }
+    package = parser_packages[file_format]
+    try:
+        parser_version = importlib.metadata.version(package)
+    except importlib.metadata.PackageNotFoundError:
+        parser_version = "stdlib"
+    report["provenance"] = {
+        "dataset_id": dataset_id,
+        "source_sha256": item["sha256"],
+        "original_filename": item["original_filename"],
+        "format": file_format,
+        "declared_crs": item["crs"],
+        "inspected_at_utc": store.utc_now(),
+        "geologia_version": __version__,
+        "python_version": sys.version.split()[0],
+        "parser": package,
+        "parser_version": parser_version,
+        "scientific_validation": False,
+    }
+
     report.update({
         "dataset_id": dataset_id,
         "operation": operation,
