@@ -1,9 +1,9 @@
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 rasterio = pytest.importorskip("rasterio")
+np = pytest.importorskip("numpy")
 from rasterio.transform import from_origin
 
 from geologia.formats import FormatValidationError, inspect_dem_aoi_coverage
