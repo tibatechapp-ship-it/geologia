@@ -395,7 +395,7 @@ def test_manifest_product_version_must_match_accuracy_metadata(tmp_path):
         schema="geologia.dem-tile-manifest.v1",
         product_version_id="another-release",
         tile_dataset_ids=(dem.name,),
-        tile_dataset_sha256=(hashlib.sha256(dem.read_bytes()).hexdigest(),),
+        tile_dataset_sha256s=(hashlib.sha256(dem.read_bytes()).hexdigest(),),
     )
 
     with pytest.raises(FormatValidationError, match="product version"):
