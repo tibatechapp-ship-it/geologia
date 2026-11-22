@@ -28,6 +28,11 @@ from .models import (
     ValidationStatus,
 )
 from .readiness import assess_readiness
+from .reference_coverage import (
+    IndependenceReviewAttestation,
+    ReferenceCoverageMetricsRequest,
+    compute_reference_coverage_metrics,
+)
 from .thresholds import FROZEN_V1_THRESHOLDS
 
 __all__ = [
@@ -45,6 +50,8 @@ __all__ = [
     "DeclaredUseContext",
     "EvidenceValue",
     "FROZEN_V1_THRESHOLDS",
+    "IndependenceReviewAttestation",
+    "ReferenceCoverageMetricsRequest",
     "MandatoryProductContext",
     "ReadinessAssessment",
     "RepresentativenessStatus",
@@ -55,5 +62,6 @@ __all__ = [
     "ScopeException",
     "ValidationStatus",
     "assess_readiness",
+    "compute_reference_coverage_metrics",
     "evaluate_coverage_sufficiency",
 ]
