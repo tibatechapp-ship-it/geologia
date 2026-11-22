@@ -4,6 +4,7 @@ from geologia.dem_readiness.models import (
     Availability,
     DeclaredUseContext,
     EvidenceValue,
+    IndependentReviewEvidence,
     MandatoryProductContext,
     ReadinessDisposition,
     ReadinessInput,
@@ -24,7 +25,11 @@ def evidence(value):
 def context(**overrides):
     values = {
         name: evidence(
-            "independently_reviewed" if name == "validation_status" else "verified"
+            "independently_reviewed"
+            if name == "validation_status"
+            else "release-1"
+            if name == "product_version"
+            else "verified"
         )
         for name in MandatoryProductContext.model_fields
     }
@@ -43,6 +48,17 @@ def use():
     )
 
 
+def review():
+    return IndependentReviewEvidence(
+        product_version_id="release-1",
+        pilot_area_id="pilot-north",
+        task_profile_id="regional-reconnaissance-v1",
+        reviewer="independent-reviewer-2",
+        evidence_reference="evidence://independent-review/1",
+        reviewed_at=NOW,
+    )
+
+
 def reason(code, stage="coverage"):
     return ReasonRecord(
         code=code,
@@ -55,7 +71,7 @@ def reason(code, stage="coverage"):
 
 
 def test_complete_context_can_be_ready():
-    result = assess_readiness(ReadinessInput(context=context(), declared_use=use()))
+    result = assess_readiness(ReadinessInput(context=context(), declared_use=use(), independent_review=review()))
     assert result.disposition is ReadinessDisposition.READY
 
 
@@ -115,6 +131,7 @@ def test_scope_exception_allows_only_conditional_limited_use():
             context=context(vertical_datum=missing),
             declared_use=use(),
             scope_exceptions=(exception,),
+            independent_review=review(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
@@ -127,6 +144,7 @@ def test_restriction_is_conditional_not_ready():
             context=context(),
             declared_use=use(),
             accepted_restrictions=(reason(ReasonCode.TEMPORAL_MISMATCH),),
+            independent_review=review(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
