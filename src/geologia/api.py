@@ -38,6 +38,22 @@ app = FastAPI(
 )
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 ALLOWED_FORMATS = {".geojson", ".json", ".gpkg", ".tif", ".tiff", ".csv", ".las"}
+def _dataset_content_matches(item: dict, path: Path) -> bool:
+    """Verify stored bytes against the upload-time size and SHA-256 before reading them."""
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                size += len(chunk)
+                if size > item["size_bytes"]:
+                    return False
+                digest.update(chunk)
+    except OSError:
+        return False
+    return size == item["size_bytes"] and digest.hexdigest() == item["sha256"]
+
+
 ALLOWED_DATA_ROLES = {
     "dem", "geology_map", "recharge_estimate", "water_levels_timeseries", "well_logs",
     "structural_orientations", "contacts", "waveforms_or_catalog", "station_metadata",
@@ -395,6 +411,11 @@ def dataset_reproject(dataset_id: str, body: ReprojectInput) -> dict:
     content_path = store.get_dataset_content_path(dataset_id)
     if content_path is None or not Path(content_path).is_file():
         raise HTTPException(status_code=410, detail="dataset file is missing")
+    if not _dataset_content_matches(item, Path(content_path)):
+        raise HTTPException(
+            status_code=409,
+            detail="dataset integrity mismatch; stored bytes differ from the upload-time record",
+        )
     try:
         payload = _read_json(Path(content_path))
     except (UnicodeDecodeError, ValueError) as exc:
@@ -480,6 +501,11 @@ def dataset_geojson(dataset_id: str) -> JSONResponse:
     content_path = store.get_dataset_content_path(dataset_id)
     if content_path is None or not Path(content_path).is_file():
         raise HTTPException(status_code=410, detail="dataset file is missing")
+    if not _dataset_content_matches(item, Path(content_path)):
+        raise HTTPException(
+            status_code=409,
+            detail="dataset integrity mismatch; stored bytes differ from the upload-time record",
+        )
     try:
         payload = _read_json(Path(content_path))
     except (UnicodeDecodeError, ValueError) as exc:
@@ -512,6 +538,11 @@ def dataset_inspect(dataset_id: str) -> dict:
     content_path = store.get_dataset_content_path(dataset_id)
     if content_path is None or not Path(content_path).is_file():
         raise HTTPException(status_code=410, detail="dataset file is missing")
+    if not _dataset_content_matches(item, Path(content_path)):
+        raise HTTPException(
+            status_code=409,
+            detail="dataset integrity mismatch; stored bytes differ from the upload-time record",
+        )
 
     file_format = item["format"]
     if file_format == "csv":
