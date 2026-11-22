@@ -343,7 +343,12 @@ def dem_coverage_assessment_save(
         )
         or reference_metrics.get("status") != "measured"
         or reference_metrics.get("independence_review_status") != "attested_complete"
+        or reference_metrics.get("reference_dataset_id") != reference["id"]
         or reference_metrics.get("reference_dataset_sha256") != reference["sha256"]
+        or context.reference_source_id
+        not in reference_metrics.get("source_observation_counts", {})
+        or context.primary_stratum_id
+        not in reference_metrics.get("primary_stratum_ids", [])
         or reference_metrics.get("aoi_dataset_id") != aoi["id"]
         or reference_metrics.get("aoi_dataset_sha256") != aoi["sha256"]
         or reference_metrics.get("dem_epoch") != context.dem_epoch.isoformat()
@@ -965,6 +970,7 @@ def dataset_reference_coverage_metrics(
             reference_crs=body.reference_crs,
             aoi_crs=body.aoi_crs,
             dem_epoch=body.dem_epoch,
+            primary_stratum_ids=body.primary_stratum_ids,
             independence_review=body.independence_review,
         )
     except FormatDependencyError as exc:
