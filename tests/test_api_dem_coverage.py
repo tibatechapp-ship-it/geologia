@@ -221,7 +221,7 @@ def test_persistent_assessment_rejects_dataset_integrity_mismatch(tmp_path, monk
     aoi = _upload_coverage_dataset(
         project["id"],
         "pilot-aoi.geojson",
-        b'{"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[[500000,1699700],[500300,1699700],[500300,1700000],[500000,1700000],[500000,1699700]]]}}',
+        _aoi_geojson_bytes(),
         "aoi_boundary",
     )
     assert aoi.status_code == 201
