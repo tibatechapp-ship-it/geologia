@@ -105,12 +105,26 @@ def _finite_json_float(value: str) -> float:
     return parsed
 
 
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        result[key] = value
+    return result
+
+
 def _read_json(path: Path) -> dict:
-    return json.loads(
-        path.read_text(encoding="utf-8"),
-        parse_constant=_reject_json_constant,
-        parse_float=_finite_json_float,
-    )
+    try:
+        return json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=_reject_json_constant,
+            parse_float=_finite_json_float,
+            object_pairs_hook=_unique_json_object,
+        )
+    except RecursionError as exc:
+        raise ValueError("JSON nesting exceeds the supported depth") from exc
+
 
 
 def _geojson_summary(path: Path) -> dict:
@@ -717,6 +731,13 @@ def jobs_cancel(job_id: str) -> dict:
         "execution_stopped": item["status"] == "cancelled",
     }
 
+@app.get("/api/v1/datasets/{dataset_id}/provenance")
+def dataset_provenance(dataset_id: str) -> dict:
+    """Return the dataset's provenance events and project-wide hash-chain status."""
+    report = store.get_dataset_provenance(dataset_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    return report
 
 def run() -> None:
     parser = argparse.ArgumentParser(description="Run GEOLOGIA API")
