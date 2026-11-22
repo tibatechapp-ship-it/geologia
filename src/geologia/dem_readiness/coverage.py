@@ -63,6 +63,8 @@ class CoverageUnitContext(BaseModel):
     product_dataset_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
     reference_dataset_id: NonEmpty
     reference_dataset_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
+    aoi_dataset_id: NonEmpty
+    aoi_dataset_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
     product_version_id: NonEmpty
     pilot_area_id: NonEmpty
     reference_source_id: NonEmpty

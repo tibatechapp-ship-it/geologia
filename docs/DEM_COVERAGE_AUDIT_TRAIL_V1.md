@@ -4,6 +4,20 @@
 
 Persist the exact request and result for each coverage sufficiency assessment, bound to one project and to the exact uploaded DEM and reference-observation datasets. The record supports reproducibility and later review; it does not turn a caller's coverage attestation into an independently verified scientific fact.
 
+## DEM/AOI footprint inspection
+
+Upload the exact DEM as `data_role=dem` and the registered AOI polygon as `data_role=aoi_boundary`. Then call `POST /api/v1/datasets/{dem_dataset_id}/coverage-inspection` with the AOI dataset ID and its explicitly declared CRS.
+
+The inspection:
+- verifies both uploaded file hashes before reading;
+- requires a projected DEM CRS with linear units;
+- intersects the raster's affine footprint with the AOI polygon;
+- scans the first-band validity mask block-by-block without reading elevation values;
+- reports exact polygon extent-intersection area and pixel-centre valid-mask counts/area estimates separately;
+- records whether the AOI is fully within the raster extent and whether every AOI pixel centre in the rasterized AOI is valid.
+
+A `CoverageStatus.VERIFIED` assessment is accepted only when the persisted inspection reports full AOI containment and all AOI pixel centres valid. Partial extent or nodata cases must not be labelled verified. The pixel-area estimate is approximate at AOI boundaries and is not a terrain-accuracy statistic.
+
 ## Submission workflow
 
 Use `POST /api/v1/projects/{project_id}/dem/coverage-assessments` with:
@@ -11,11 +25,12 @@ Use `POST /api/v1/projects/{project_id}/dem/coverage-assessments` with:
 - `created_by`: caller-declared operator/reviewer identifier. The current local API does not authenticate this identity.
 - `request.context.product_dataset_id` and `product_dataset_sha256`: exact uploaded DEM dataset and its upload-time SHA-256.
 - `request.context.reference_dataset_id` and `reference_dataset_sha256`: exact uploaded reference dataset and its upload-time SHA-256.
+- `request.context.aoi_dataset_id` and `aoi_dataset_sha256`: exact uploaded AOI boundary and its upload-time SHA-256.
 - Exact product version, pilot area, reference source, primary stratum and task profile identifiers.
 - Actual coverage footprint evidence and `coverage_status`.
 - Frozen-gate metrics and, when coverage is declared verified, a complete `CoverageEvidenceAttestation`.
 
-The API checks that both datasets belong to the target project, that the product role is `dem`, that the reference role is `ground_control_points` or `reference_elevation_observations`, and that stored file bytes still match the upload-time SHA-256. The metrics attestation's source checksum must equal the exact reference dataset checksum.
+The API checks that all three datasets belong to the target project, that the product role is `dem`, the AOI role is `aoi_boundary`, the reference role is `ground_control_points` or `reference_elevation_observations`, and that stored file bytes still match the upload-time SHA-256. The metrics attestation's source checksum must equal the exact reference dataset checksum. The attested footprint reference must match the latest persisted DEM/AOI inspection for the same product and AOI dataset IDs/checksums.
 
 ## Attestation fields
 
@@ -49,7 +64,7 @@ Records can be listed and retrieved through the project-scoped GET routes. A det
 
 ## Scientific boundary
 
-- Uploaded file integrity is checked; raster contents are not yet interpreted by this coverage workflow.
+- Uploaded file integrity is checked. The DEM coverage inspector reads the first-band validity mask and affine metadata, but not elevation values; it does not derive reference-observation counts from the reference file.
 - The exact product footprint and metric values are caller-attested, not independently derived by the API.
 - A sufficient coverage result is not datum readiness, source independence, accuracy validation, fitness-for-purpose approval or product ranking.
 - The report remains scoped to the exact product release, pilot polygon, reference source, primary stratum and task profile.
