@@ -1,0 +1,42 @@
+# DEM/reference residual computation
+
+The optional file-backed accuracy engine samples DEM raster tiles at reference observation points and calculates direct residual metrics. It is a computation primitive, not a complete readiness decision.
+
+## Reference CSV
+
+Required columns:
+
+`point_id,x,y,elevation_m,terrain_stratum,uncertainty_m`
+
+- `x,y` are in the declared `reference_horizontal_crs`.
+- `elevation_m` and `uncertainty_m` are metres.
+- Point IDs must be unique; values must be finite; uncertainty must be non-negative.
+- Maximum 100,000 observations and 100 MiB reference file.
+
+## Mandatory metadata gates
+
+The input must declare the DEM and reference vertical datums, units, DSM/DTM surface types and epochs, horizontal CRS, metadata references, source/release, and an attributable independence review record.
+
+The v1 engine refuses to compute residuals when vertical datums, surface types, units or epochs are incompatible. It does not apply a geoid or vertical transformation. Reference points are transformed horizontally to the DEM CRS.
+
+## Sampling and metrics
+
+- Sample the containing raster cell; no interpolation.
+- Nodata points are excluded and counted by reason.
+- Overlapping valid tiles are compared; a value conflict beyond a numerical equality tolerance excludes that point.
+- Residual sign is **DEM minus reference**.
+- Direct metrics: bias, MAE, RMSE, sample residual standard deviation, median, NMAD and empirical LE90.
+- Empirical LE90 is calculated directly by nearest-rank on absolute residuals; no LE90-to-RMSE conversion is used.
+- Metrics are also reported by terrain stratum.
+
+A task-specific `AccuracyRequirement` must carry a metric, maximum value, minimum sample count, requirement reference, approver and timezone-aware freeze timestamp. No universal accuracy threshold is supplied.
+
+## Interpretation
+
+- `accuracy_requirement_met_for_declared_use` means only that the selected metric met the frozen requirement for this declared scope.
+- `accuracy_requirement_not_met` is a measured failure of that requirement.
+- Unresolved/dependent references produce descriptive-only metrics and `not_evaluable` for accuracy claims.
+- Conditional independence remains `conditional_limited_use`.
+- Every output keeps `readiness_disposition=not_assessed`; coverage, provenance, scientific review and task-specific readiness remain separate gates.
+
+This engine does not authenticate reviewer identity, independently verify reference-source independence, or prove that the supplied metadata references are correct.
