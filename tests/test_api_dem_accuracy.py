@@ -258,6 +258,26 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert chain.status_code == 200
     assert chain.json()["valid"] is True
     assert chain.json()["record_count"] == 1
+
+    # Coverage is persisted in the AOI dataset summary, not in the source file.
+    # Verify that replacing that stored inspection invalidates the evidence chain.
+    coverage_snapshot = store.get_dataset_coverage_inspection(aoi.json()["id"])
+    changed_coverage = dict(coverage_snapshot)
+    changed_coverage["coverage_footprint_reference"] = "tampered coverage snapshot"
+    store.save_dataset_coverage_inspection(aoi.json()["id"], changed_coverage)
+    changed_coverage_chain = client.get(
+        f"/api/v1/projects/{project['id']}/dem/accuracy-assessments/chain"
+    )
+    assert changed_coverage_chain.status_code == 200
+    changed_chain = changed_coverage_chain.json()
+    assert changed_chain["record_chain_valid"] is True
+    assert changed_chain["dependency_integrity_valid"] is False
+    assert changed_chain["valid"] is False
+    assert {
+        item["code"] for item in changed_chain["dependency_errors"]
+    } == {"coverage_inspection_dependency_integrity_mismatch"}
+    store.save_dataset_coverage_inspection(aoi.json()["id"], coverage_snapshot)
+
     retrieved = client.get(
         f"/api/v1/projects/{project['id']}/dem/accuracy-assessments/{record['id']}"
     )
