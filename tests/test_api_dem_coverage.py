@@ -18,6 +18,7 @@ def _coverage_payload():
             "aoi_dataset_id": "dataset-aoi-1",
             "aoi_dataset_sha256": "c" * 64,
             "product_version_id": "copernicus-glo30-release-x",
+            "dem_epoch": "2025-01-01",
             "pilot_area_id": "yemen-pilot-west-01",
             "reference_source_id": "icesat2-atl08-release-x",
             "primary_stratum_id": "steep-bare",
