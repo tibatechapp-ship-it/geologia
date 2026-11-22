@@ -52,7 +52,7 @@ def test_workspace_create_upload_inspect_plan_and_language(app_url, browser_page
     dataset.locator("button.provenance-button").click()
     provenance = dataset.locator("pre.provenance-report")
     expect(provenance).to_be_visible()
-    provenance_data = json.loads(provenance.inner_text().split("\\n", 1)[1])
+    provenance_data = json.loads(provenance.inner_text().split("\n", 1)[1])
     assert provenance_data["chain_integrity"] == "verified"
     assert provenance_data["content_integrity"] == "verified"
 
