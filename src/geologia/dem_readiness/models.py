@@ -298,6 +298,7 @@ class ReadinessInput(BaseModel):
     accepted_restrictions: tuple[ReasonRecord, ...] = ()
     scope_exceptions: tuple[ScopeException, ...] = ()
     independent_review: IndependentReviewEvidence | None = None
+    accuracy_assessment: AccuracyAssessmentEvidence | None = None
 
     @model_validator(mode="after")
     def validate_scope_exceptions(self) -> "ReadinessInput":
