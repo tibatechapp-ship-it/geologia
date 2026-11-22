@@ -175,6 +175,7 @@ def _not_evaluable_report(
         "reason_codes": [reason],
         "product_version_id": metadata.product_version_id,
         "product_manifest_sha256": product_manifest_sha256,
+        "input_hash_scheme": "canonical-json-v1",
         "product_manifest_hash_binding": "verified_canonical_manifest",
         "reference_dataset_sha256": reference_dataset_sha256,
         "aoi_dataset_sha256": aoi_dataset_sha256,
