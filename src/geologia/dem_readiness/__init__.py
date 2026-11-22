@@ -14,10 +14,32 @@ from .models import (
     ValidationStatus,
 )
 from .readiness import assess_readiness
-from .thresholds import FROZEN_V1_THRESHOLDS
+from .coverage import (
+    CoverageAssessment,
+    CoverageEvidence,
+    CoverageMetric,
+    CoverageOutcome,
+    CoverageRecord,
+    PrecisionStatus,
+    SourceIndependenceStatus,
+    evaluate_coverage,
+)
+from .report import (
+    AnalogueComparisonRecord,
+    DEMReadinessReport,
+    RepresentativenessStatus,
+    build_readiness_report,
+)from .thresholds import FROZEN_V1_THRESHOLDS
 
 __all__ = [
     "Availability",
+    "AnalogueComparisonRecord",
+    "CoverageAssessment",
+    "CoverageEvidence",
+    "CoverageMetric",
+    "CoverageOutcome",
+    "CoverageRecord",
+    "DEMReadinessReport",
     "DeclaredUseContext",
     "EvidenceValue",
     "FROZEN_V1_THRESHOLDS",
@@ -25,9 +47,14 @@ __all__ = [
     "ReadinessAssessment",
     "ReadinessDisposition",
     "ReadinessInput",
+    "RepresentativenessStatus",
     "ReasonCode",
     "ReasonRecord",
     "ScopeException",
+    "SourceIndependenceStatus",
+    "PrecisionStatus",
     "ValidationStatus",
     "assess_readiness",
+    "build_readiness_report",
+    "evaluate_coverage",
 ]
