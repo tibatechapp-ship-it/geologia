@@ -342,7 +342,7 @@ def inspect_las(path: Path) -> dict[str, Any]:
 
 
 def _polygonal_aoi(payload: dict[str, Any]):
-    shapely = _dependency("shapely")
+    _dependency("shapely")
     from shapely.geometry import shape
     from shapely.ops import unary_union
 
