@@ -339,3 +339,235 @@ def inspect_las(path: Path) -> dict[str, Any]:
         raise
     except Exception as exc:
         raise FormatValidationError("LAS file is corrupt, truncated, or unsupported") from exc
+
+
+def _polygonal_aoi(payload: dict[str, Any]):
+    shapely = _dependency("shapely")
+    from shapely.geometry import shape
+    from shapely.ops import unary_union
+
+    kind = payload.get("type")
+    if kind == "FeatureCollection":
+        features = payload.get("features")
+        if not isinstance(features, list):
+            raise FormatValidationError("AOI FeatureCollection.features must be an array")
+        geometries = [
+            feature.get("geometry")
+            for feature in features
+            if isinstance(feature, dict)
+            and feature.get("type") == "Feature"
+            and feature.get("geometry") is not None
+        ]
+    elif kind == "Feature":
+        geometries = [payload.get("geometry")]
+    elif kind in {"Polygon", "MultiPolygon"}:
+        geometries = [payload]
+    else:
+        raise FormatValidationError("AOI must be a Polygon or MultiPolygon GeoJSON")
+
+    try:
+        parsed = [shape(geometry) for geometry in geometries if isinstance(geometry, dict)]
+        if not parsed:
+            raise FormatValidationError("AOI contains no polygon geometry")
+        aoi = unary_union(parsed)
+    except FormatValidationError:
+        raise
+    except Exception as exc:
+        raise FormatValidationError("AOI polygon geometry cannot be decoded") from exc
+    if aoi.geom_type not in {"Polygon", "MultiPolygon"} or aoi.is_empty:
+        raise FormatValidationError("AOI must resolve to a non-empty Polygon or MultiPolygon")
+    if not aoi.is_valid or aoi.area <= 0:
+        raise FormatValidationError("AOI polygon must be valid and have positive area")
+    if len(aoi.wkb) > 16 * 1024 * 1024:
+        raise FormatValidationError("AOI geometry exceeds the supported complexity limit")
+    return aoi
+
+
+def inspect_dem_aoi_coverage(
+    dem_path: Path,
+    aoi_payload: dict[str, Any],
+    aoi_crs: str,
+) -> dict[str, Any]:
+    """Measure a DEM raster extent and valid-data mask against one declared AOI.
+
+    This is a coverage inspection, not an accuracy test. It reads raster masks
+    block-by-block, not elevation values, and reports pixel-center area estimates
+    separately from the exact polygon extent intersection.
+    """
+    size = _check_file(Path(dem_path))
+    rasterio = _dependency("rasterio")
+    numpy = _dependency("numpy")
+    pyproj = _dependency("pyproj")
+    from rasterio.features import geometry_mask
+    from shapely.geometry import Polygon, mapping
+    from shapely.ops import transform as transform_geometry
+
+    try:
+        aoi = _polygonal_aoi(aoi_payload)
+        aoi_source_crs = pyproj.CRS.from_user_input(aoi_crs)
+        if aoi_source_crs.is_compound or aoi_source_crs.is_vertical:
+            raise FormatValidationError("AOI CRS must be a horizontal 2D CRS")
+        area_crs = pyproj.CRS.from_epsg(6933)
+        to_area = pyproj.Transformer.from_crs(
+            aoi_source_crs, area_crs, always_xy=True
+        )
+        aoi_area_geometry = transform_geometry(to_area.transform, aoi)
+        aoi_area_m2 = float(aoi_area_geometry.area)
+        if not math.isfinite(aoi_area_m2) or aoi_area_m2 <= 0:
+            raise FormatValidationError("AOI area cannot be measured in the equal-area CRS")
+
+        with rasterio.open(Path(dem_path), "r") as dataset:
+            width, height, bands = dataset.width, dataset.height, dataset.count
+            if width <= 0 or height <= 0 or bands <= 0:
+                raise FormatValidationError("DEM dimensions and band count must be positive")
+            if width * height > MAX_RASTER_PIXELS or bands > MAX_RASTER_BANDS:
+                raise FormatValidationError("DEM dimensions exceed inspection limits")
+            if dataset.crs is None:
+                raise FormatValidationError("DEM must declare a horizontal CRS")
+            raster_crs = pyproj.CRS.from_user_input(dataset.crs)
+            if not raster_crs.is_projected or raster_crs.is_compound:
+                raise FormatValidationError(
+                    "DEM must use a projected horizontal CRS for area-based coverage inspection"
+                )
+            axes = raster_crs.axis_info
+            if len(axes) < 2:
+                raise FormatValidationError("DEM projected CRS must declare two horizontal axes")
+            factor_x = float(axes[0].unit_conversion_factor or 0)
+            factor_y = float(axes[1].unit_conversion_factor or 0)
+            if (
+                not math.isfinite(factor_x)
+                or not math.isfinite(factor_y)
+                or factor_x <= 0
+                or factor_y <= 0
+            ):
+                raise FormatValidationError("DEM CRS axis units cannot be converted to metres")
+
+            transform = dataset.transform
+            affine_values = [
+                float(transform.a), float(transform.b), float(transform.c),
+                float(transform.d), float(transform.e), float(transform.f),
+            ]
+            if not all(math.isfinite(value) for value in affine_values):
+                raise FormatValidationError("DEM affine transform must be finite")
+            determinant = abs(transform.a * transform.e - transform.b * transform.d)
+            pixel_area_m2 = determinant * factor_x * factor_y
+            if not math.isfinite(pixel_area_m2) or pixel_area_m2 <= 0:
+                raise FormatValidationError("DEM pixel area must be positive and finite")
+
+            block_shapes = [tuple(shape) for shape in dataset.block_shapes]
+            if any(
+                block_height * block_width * numpy.dtype(dataset.dtypes[index]).itemsize
+                > MAX_RASTER_BLOCK_BYTES
+                for index, (block_height, block_width) in enumerate(block_shapes)
+            ):
+                raise FormatValidationError("DEM block size exceeds the memory safety limit")
+
+            to_raster = pyproj.Transformer.from_crs(
+                aoi_source_crs, raster_crs, always_xy=True
+            )
+            aoi_in_raster = transform_geometry(to_raster.transform, aoi)
+            if aoi_in_raster.is_empty or not aoi_in_raster.is_valid:
+                raise FormatValidationError("AOI cannot be transformed to the DEM CRS")
+
+            corners = [
+                transform * (0, 0),
+                transform * (width, 0),
+                transform * (width, height),
+                transform * (0, height),
+            ]
+            raster_footprint = Polygon(corners)
+            if raster_footprint.is_empty or not raster_footprint.is_valid:
+                raise FormatValidationError("DEM affine transform does not form a valid footprint")
+            intersection = aoi_in_raster.intersection(raster_footprint)
+            if intersection.is_empty:
+                intersection_area_m2 = 0.0
+            else:
+                to_area_from_raster = pyproj.Transformer.from_crs(
+                    raster_crs, area_crs, always_xy=True
+                )
+                intersection_area_m2 = float(
+                    transform_geometry(
+                        to_area_from_raster.transform, intersection
+                    ).area
+                )
+
+            aoi_pixel_count_in_raster = 0
+            valid_aoi_pixel_count = 0
+            if not intersection.is_empty and intersection_area_m2 > 0:
+                aoi_mapping = mapping(aoi_in_raster)
+                for _, window in dataset.block_windows(1):
+                    window_height = int(window.height)
+                    window_width = int(window.width)
+                    inside = geometry_mask(
+                        [aoi_mapping],
+                        out_shape=(window_height, window_width),
+                        transform=dataset.window_transform(window),
+                        invert=True,
+                        all_touched=False,
+                    )
+                    inside_count = int(numpy.count_nonzero(inside))
+                    if inside_count == 0:
+                        continue
+                    valid_mask = dataset.read_masks(1, window=window) > 0
+                    aoi_pixel_count_in_raster += inside_count
+                    valid_aoi_pixel_count += int(numpy.count_nonzero(inside & valid_mask))
+
+            valid_pixel_area_estimate_m2 = valid_aoi_pixel_count * pixel_area_m2
+            extent_fraction = intersection_area_m2 / aoi_area_m2
+            valid_area_fraction = valid_pixel_area_estimate_m2 / aoi_area_m2
+            valid_fraction_within_extent = (
+                valid_aoi_pixel_count / aoi_pixel_count_in_raster
+                if aoi_pixel_count_in_raster
+                else 0.0
+            )
+            if intersection_area_m2 == 0:
+                coverage_status = "no_extent_overlap"
+            elif valid_aoi_pixel_count == 0:
+                coverage_status = "overlap_without_valid_pixels"
+            elif valid_aoi_pixel_count < aoi_pixel_count_in_raster:
+                coverage_status = "partial_valid_data_within_raster_extent"
+            else:
+                coverage_status = "valid_pixels_present_within_raster_extent"
+
+            return {
+                "format": "dem_aoi_coverage_inspection",
+                "inspection_status": "measured",
+                "coverage_status": coverage_status,
+                "file_size_bytes": size,
+                "raster_width": width,
+                "raster_height": height,
+                "raster_band_count": bands,
+                "raster_crs": raster_crs.to_string(),
+                "aoi_crs": aoi_source_crs.to_string(),
+                "raster_extent_bounds": [
+                    float(value) for value in dataset.bounds
+                ],
+                "aoi_area_m2": aoi_area_m2,
+                "raster_extent_intersection_area_m2": intersection_area_m2,
+                "raster_extent_intersection_fraction_of_aoi": extent_fraction,
+                "aoi_pixel_centres_inside_raster": aoi_pixel_count_in_raster,
+                "valid_aoi_pixel_centres": valid_aoi_pixel_count,
+                "valid_pixel_fraction_within_raster_extent": valid_fraction_within_extent,
+                "pixel_area_m2": pixel_area_m2,
+                "valid_pixel_area_estimate_m2": valid_pixel_area_estimate_m2,
+                "valid_pixel_coverage_fraction_estimate": valid_area_fraction,
+                "resolution_x_m": math.hypot(transform.a, transform.d) * factor_x,
+                "resolution_y_m": math.hypot(transform.b, transform.e) * factor_y,
+                "mask_band": 1,
+                "mask_method": "rasterio read_masks; block-wise",
+                "aoi_pixel_selection": "pixel centre (all_touched=False)",
+                "area_estimation_limit": (
+                    "valid pixel area is a pixel-count estimate; AOI boundary pixels "
+                    "are not fractionally clipped, so the estimate can differ by "
+                    "approximately one pixel along the boundary"
+                ),
+                "vertical_datum_verified": False,
+                "dem_accuracy_validated": False,
+                "scientific_interpretation": False,
+            }
+    except FormatValidationError:
+        raise
+    except Exception as exc:
+        raise FormatValidationError(
+            "DEM/AOI coverage inspection failed because an input is invalid or unsupported"
+        ) from exc
