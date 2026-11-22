@@ -247,8 +247,6 @@ def test_persistent_assessment_rejects_dataset_integrity_mismatch(tmp_path, monk
 
 
 def test_dem_aoi_coverage_inspection_api_persists_measured_footprint(tmp_path, monkeypatch):
-    import json
-
     import pytest
 
     rasterio = pytest.importorskip("rasterio")
