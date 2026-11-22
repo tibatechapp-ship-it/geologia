@@ -53,6 +53,18 @@ class CoverageGateCode(StrEnum):
     TEMPORAL_MATCH = "temporal_match"
 
 
+class CoverageUnitContext(BaseModel):
+    """Exact reporting unit: product release × area × reference × stratum × task."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    product_version_id: NonEmpty
+    pilot_area_id: NonEmpty
+    reference_source_id: NonEmpty
+    primary_stratum_id: NonEmpty
+    task_profile_id: NonEmpty
+
+
 class CoverageMetrics(BaseModel):
     """Precomputed counts from the exact registered polygon and reference source."""
 
@@ -106,9 +118,20 @@ class CoverageGate(BaseModel):
     explanation: NonEmpty
 
 
+class CoverageAssessmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    context: CoverageUnitContext
+    phase: CoveragePhase
+    actual_coverage: EvidenceValue
+    coverage_status: CoverageStatus
+    metrics: CoverageMetrics
+
+
 class CoverageAssessment(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    context: CoverageUnitContext
     phase: CoveragePhase
     status: CoverageDecisionStatus
     actual_coverage: EvidenceValue
@@ -158,11 +181,7 @@ def _gate(
 
 
 def evaluate_coverage_sufficiency(
-    *,
-    actual_coverage: EvidenceValue,
-    coverage_status: CoverageStatus,
-    metrics: CoverageMetrics,
-    phase: CoveragePhase,
+    request: CoverageAssessmentRequest,
 ) -> CoverageAssessment:
     """Evaluate frozen spatial/temporal screening gates for one coverage unit.
 
@@ -170,8 +189,15 @@ def evaluate_coverage_sufficiency(
     and measurements computed inside the registered polygon. Analogue-region
     labels and Saudi–Yemen representativeness records are deliberately absent.
     """
+    context = request.context
+    phase = request.phase
+    actual_coverage = request.actual_coverage
+    coverage_status = request.coverage_status
+    metrics = request.metrics
+
     if coverage_status is CoverageStatus.NOT_ASSESSED:
         return CoverageAssessment(
+            context=context,
             phase=phase,
             status=CoverageDecisionStatus.NOT_ASSESSED,
             actual_coverage=actual_coverage,
@@ -190,6 +216,7 @@ def evaluate_coverage_sufficiency(
         or not isinstance(actual_coverage.value, str)
     ):
         return CoverageAssessment(
+            context=context,
             phase=phase,
             status=CoverageDecisionStatus.NOT_EVALUABLE,
             actual_coverage=actual_coverage,
@@ -362,6 +389,7 @@ def evaluate_coverage_sufficiency(
         )
 
     return CoverageAssessment(
+        context=context,
         phase=phase,
         status=status,
         actual_coverage=actual_coverage,
