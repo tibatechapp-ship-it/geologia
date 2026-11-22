@@ -104,6 +104,62 @@ def _dataset_dependency_matches(
     )
 
 
+def _coverage_inspection_matches_accuracy_evidence(
+    *,
+    project_id: str,
+    aoi_dataset_id: str,
+    aoi_dataset_sha256: str,
+    product_dataset_ids: list[str],
+    product_dataset_sha256s: list[str],
+    aoi_crs: str | None,
+    coverage_footprint_reference: str | None,
+    inspection: dict | None,
+) -> bool:
+    """Verify coverage report's self-hash, canonical reference, and exact scope."""
+    if inspection is None:
+        return False
+    inspection_sha256 = inspection.get("inspection_sha256")
+    footprint_reference = inspection.get("coverage_footprint_reference")
+    if not isinstance(inspection_sha256, str) or not isinstance(
+        footprint_reference, str
+    ):
+        return False
+    payload = {
+        key: value
+        for key, value in inspection.items()
+        if key not in {"inspection_sha256", "coverage_footprint_reference"}
+    }
+    try:
+        canonical = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+    except (TypeError, ValueError):
+        return False
+    actual_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    expected_reference = (
+        f"coverage-inspection-mosaic:{project_id}:{actual_sha256}"
+    )
+    return (
+        inspection_sha256 == actual_sha256
+        and footprint_reference == expected_reference
+        and footprint_reference == coverage_footprint_reference
+        and inspection.get("format") == "dem_tile_collection_coverage_inspection"
+        and inspection.get("inspection_status") == "measured"
+        and inspection.get("project_id") == project_id
+        and inspection.get("product_dataset_ids") == product_dataset_ids
+        and inspection.get("product_dataset_sha256s") == product_dataset_sha256s
+        and inspection.get("aoi_dataset_id") == aoi_dataset_id
+        and inspection.get("aoi_dataset_sha256") == aoi_dataset_sha256
+        and inspection.get("aoi_crs") == aoi_crs
+        and inspection.get("aoi_fully_within_raster_extent") is True
+        and inspection.get("all_aoi_pixel_centres_valid") is True
+    )
+
+
 ALLOWED_DATA_ROLES = {
     "dem", "geology_map", "recharge_estimate", "water_levels_timeseries", "well_logs",
     "structural_orientations", "contacts", "waveforms_or_catalog", "station_metadata",
