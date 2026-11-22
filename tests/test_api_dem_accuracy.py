@@ -298,6 +298,7 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert readiness_record["assessment"]["accuracy_assessment_id"] == record["id"]
 
     sidecar_path = Path(store.get_dataset_content_path(sidecar.json()["id"]))
+    original_sidecar_bytes = sidecar_path.read_bytes()
     sidecar_path.write_text("{}\n", encoding="utf-8")
     stale_sidecar_readiness = client.post(
         f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
@@ -319,6 +320,8 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
             "code": "reference_uncertainty_sidecar_integrity_mismatch",
         }
     ]
+    # Restore the sidecar so the following readiness-chain baseline is valid.
+    sidecar_path.write_bytes(original_sidecar_bytes)
 
     without_accuracy = dict(readiness_request)
     without_accuracy.pop("accuracy_assessment_id")
@@ -335,6 +338,29 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert readiness_chain.status_code == 200
     assert readiness_chain.json()["valid"] is True
     assert readiness_chain.json()["record_count"] == 2
+    assert readiness_chain.json()["dependency_integrity_valid"] is True
+    assert readiness_chain.json()["accuracy_chain_checked"] is True
+    assert readiness_chain.json()["accuracy_chain_valid"] is True
+
+    # A readiness record must not remain "valid" after its source manifest
+    # changes, even though its own append-only record hash is unchanged.
+    manifest_path = Path(store.get_dataset_content_path(manifest.json()["id"]))
+    original_manifest_bytes = manifest_path.read_bytes()
+    manifest_path.write_bytes(b"tampered manifest after readiness assessment")
+    broken_readiness_chain = client.get(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments/chain"
+    )
+    assert broken_readiness_chain.status_code == 200
+    broken_chain = broken_readiness_chain.json()
+    assert broken_chain["record_chain_valid"] is True
+    assert broken_chain["dependency_integrity_valid"] is False
+    assert broken_chain["accuracy_chain_valid"] is False
+    assert broken_chain["valid"] is False
+    assert any(
+        item["code"] == "product_manifest_dependency_integrity_mismatch"
+        for item in broken_chain["dependency_errors"]
+    )
+    manifest_path.write_bytes(original_manifest_bytes)
 
     def dependency_error_codes():
         response = client.get(
