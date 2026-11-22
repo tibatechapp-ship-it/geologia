@@ -37,7 +37,8 @@ from geologia.dem_readiness.coverage import (
     CoverageAssessmentSubmission,
     evaluate_coverage_sufficiency,
 )
-from geologia.dem_readiness.manifest import DEMTileManifest\nfrom geologia.dem_readiness.product_metadata import DEMProductMetadata
+from geologia.dem_readiness.manifest import DEMTileManifest
+from geologia.dem_readiness.product_metadata import DEMProductMetadata
 from geologia.dem_readiness.thresholds import FROZEN_V1_THRESHOLDS
 from geologia import __version__
 from geologia import knowledge, store
