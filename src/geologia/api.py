@@ -145,6 +145,14 @@ class DEMAccuracyAssessmentInput(BaseModel):
     requirement: AccuracyRequirement | None = None
     created_by: str = Field(..., min_length=1, max_length=128)
 
+    @field_validator("created_by")
+    @classmethod
+    def nonblank_creator(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("created_by must be non-empty")
+        return normalized
+
 
 class ClaimInput(BaseModel):
     statement: str = Field(..., min_length=8, max_length=2000)
