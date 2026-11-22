@@ -1,0 +1,276 @@
+{
+  "schema": "geologia-upstream-geoid-control-points/1",
+  "generated_at_utc": "2026-11-22T07:37:23Z",
+  "note": "Imported upstream frozen geoid sample values. These are regression reference points from Ali-Algomori's parser; they are not GEOLOGIA's independent scientific validation. Any local parser must compare against them only after the exact pinned grid bytes are available.",
+  "grids": [
+    {
+      "model_id": "EGM96",
+      "grid_sha256": "db493027562c9b004d7220fa881f5603adada4e1c5029b933fa7de4547b0e78d",
+      "nodes": [
+        {
+          "lat": 90,
+          "lon": -180,
+          "undulation_m": 13.606245
+        },
+        {
+          "lat": 90,
+          "lon": -108.25,
+          "undulation_m": 13.606245
+        },
+        {
+          "lat": 90,
+          "lon": -36.5,
+          "undulation_m": 13.606245
+        },
+        {
+          "lat": 90,
+          "lon": 35.25,
+          "undulation_m": 13.606245
+        },
+        {
+          "lat": 90,
+          "lon": 107,
+          "undulation_m": 13.606245
+        },
+        {
+          "lat": 90,
+          "lon": 178.75,
+          "undulation_m": 13.606245
+        },
+        {
+          "lat": 54,
+          "lon": -180,
+          "undulation_m": 4.927594
+        },
+        {
+          "lat": 54,
+          "lon": -108.25,
+          "undulation_m": -24.882971
+        },
+        {
+          "lat": 54,
+          "lon": -36.5,
+          "undulation_m": 56.623493
+        },
+        {
+          "lat": 54,
+          "lon": 35.25,
+          "undulation_m": 15.684148
+        },
+        {
+          "lat": 54,
+          "lon": 107,
+          "undulation_m": -32.556721
+        },
+        {
+          "lat": 54,
+          "lon": 178.75,
+          "undulation_m": 2.949641
+        },
+        {
+          "lat": 18,
+          "lon": -180,
+          "undulation_m": 6.084729
+        },
+        {
+          "lat": 18,
+          "lon": -108.25,
+          "undulation_m": -30.158972
+        },
+        {
+          "lat": 18,
+          "lon": -36.5,
+          "undulation_m": -4.891282
+        },
+        {
+          "lat": 18,
+          "lon": 35.25,
+          "undulation_m": 3.754969
+        },
+        {
+          "lat": 18,
+          "lon": 107,
+          "undulation_m": -19.484041
+        },
+        {
+          "lat": 18,
+          "lon": 178.75,
+          "undulation_m": 6.75153
+        },
+        {
+          "lat": -18,
+          "lon": -180,
+          "undulation_m": 50.024876
+        },
+        {
+          "lat": -18,
+          "lon": -108.25,
+          "undulation_m": -2.610152
+        },
+        {
+          "lat": -18,
+          "lon": -36.5,
+          "undulation_m": -9.492653
+        },
+        {
+          "lat": -18,
+          "lon": 35.25,
+          "undulation_m": -9.78653
+        },
+        {
+          "lat": -18,
+          "lon": 107,
+          "undulation_m": -29.72418
+        },
+        {
+          "lat": -18,
+          "lon": 178.75,
+          "undulation_m": 53.301586
+        },
+        {
+          "lat": -54,
+          "lon": -180,
+          "undulation_m": -31.150944
+        }
+      ]
+    },
+    {
+      "model_id": "EGM2008",
+      "grid_sha256": "4191d471eefebf24091b56dbc604353cb3b8cf8cc70e448bb9ae56a272bef17a",
+      "nodes": [
+        {
+          "lat": 90,
+          "lon": -180,
+          "undulation_m": 14.898501
+        },
+        {
+          "lat": 90,
+          "lon": -108.041667,
+          "undulation_m": 14.898501
+        },
+        {
+          "lat": 90,
+          "lon": -36.083333,
+          "undulation_m": 14.898501
+        },
+        {
+          "lat": 90,
+          "lon": 35.875,
+          "undulation_m": 14.898501
+        },
+        {
+          "lat": 90,
+          "lon": 107.833333,
+          "undulation_m": 14.898501
+        },
+        {
+          "lat": 90,
+          "lon": 179.791667,
+          "undulation_m": 14.898501
+        },
+        {
+          "lat": 54,
+          "lon": -180,
+          "undulation_m": 5.855245
+        },
+        {
+          "lat": 54,
+          "lon": -108.041667,
+          "undulation_m": -24.873514
+        },
+        {
+          "lat": 54,
+          "lon": -36.083333,
+          "undulation_m": 57.830467
+        },
+        {
+          "lat": 54,
+          "lon": 35.875,
+          "undulation_m": 15.039648
+        },
+        {
+          "lat": 54,
+          "lon": 107.833333,
+          "undulation_m": -32.29932
+        },
+        {
+          "lat": 54,
+          "lon": 179.791667,
+          "undulation_m": 6.76431
+        },
+        {
+          "lat": 18,
+          "lon": -180,
+          "undulation_m": 5.911119
+        },
+        {
+          "lat": 18,
+          "lon": -108.041667,
+          "undulation_m": -29.805016
+        },
+        {
+          "lat": 18,
+          "lon": -36.083333,
+          "undulation_m": -3.516821
+        },
+        {
+          "lat": 18,
+          "lon": 35.875,
+          "undulation_m": 3.353215
+        },
+        {
+          "lat": 18,
+          "lon": 107.833333,
+          "undulation_m": -17.662884
+        },
+        {
+          "lat": 18,
+          "lon": 179.791667,
+          "undulation_m": 6.079661
+        },
+        {
+          "lat": -18,
+          "lon": -180,
+          "undulation_m": 50.457855
+        },
+        {
+          "lat": -18,
+          "lon": -108.041667,
+          "undulation_m": -2.559841
+        },
+        {
+          "lat": -18,
+          "lon": -36.083333,
+          "undulation_m": -4.405676
+        },
+        {
+          "lat": -18,
+          "lon": 35.875,
+          "undulation_m": -9.859194
+        },
+        {
+          "lat": -18,
+          "lon": 107.833333,
+          "undulation_m": -27.73447
+        },
+        {
+          "lat": -18,
+          "lon": 179.791667,
+          "undulation_m": 50.50338
+        },
+        {
+          "lat": -54,
+          "lon": -180,
+          "undulation_m": -31.098242
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "repository": "tibatechapp-ship-it/Ali-Algomori",
+    "commit": "ca72da2599f6664fe8548047eeec593aab955682",
+    "source_path": "src/geologia/data/reference/geoid_golden_nodes.json",
+    "source_git_blob_sha": "405aaefe4154eaa040d31491d54efba6fbb00cc4",
+    "interpretation": "Upstream parser's frozen sample values; provenance and exact grid hash are retained. Not independently recomputed in GEOLOGIA and not a vertical transformation authorization."
+  }
+}
