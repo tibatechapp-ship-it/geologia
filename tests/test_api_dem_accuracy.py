@@ -215,6 +215,32 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert retrieved.status_code == 200
     assert retrieved.json()["record_hash"] == record["record_hash"]
 
+    product_metadata_payload = {
+        "schema": "geologia.dem-product-metadata.v1",
+        "product_version_id": "dem-release-2026-01",
+        "horizontal_crs": "EPSG:32638",
+        "spec_source": "official product specification",
+        "spec_date": "2026-01-01",
+        "metric_type": "elevation",
+        "vertical_datum": "NAVD88",
+        "surface_type": "DTM",
+        "spatial_resolution_x": 30.0,
+        "spatial_resolution_y": 30.0,
+        "resolution_unit": "metre",
+        "license_reference": "license://dem/release-1",
+        "license_disposition": "compatible",
+        "evidence_reference": "metadata://dem/release-1",
+        "reviewer": "metadata-reviewer",
+        "reviewed_at": reviewed_at,
+    }
+    product_metadata = _upload(
+        project["id"],
+        "product-metadata.json",
+        json.dumps(product_metadata_payload).encode("utf-8"),
+        "dem_product_metadata",
+    )
+    assert product_metadata.status_code == 201, product_metadata.text
+
     readiness_request = {
         "product_manifest_dataset_id": manifest.json()["id"],
         "product_metadata_dataset_id": product_metadata.json()["id"],
