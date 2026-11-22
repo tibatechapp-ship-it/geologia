@@ -649,3 +649,113 @@ The readiness report must therefore show a separate disposition for each product
 The primary intended user of the v1 assessment is a **geological researcher or geospatial analyst preparing regional exploratory geological/geomorphological maps and interpretations** for research, screening and hypothesis development. The assessment is written to support that professional analytical workflow; it is not a general-purpose assurance statement for every GEOLOGIA platform user, public end user, government land-use decision-maker, or engineering practitioner.
 
 GEOLOGIA may display the assessment to other audiences, but the interface and exported report must preserve the intended-user statement, evaluated area, task profile, limitations and disposition together. A bare “ready” label must never be shown without its declared use and scope. Any government planning, operational land allocation, infrastructure, engineering or other materially different decision context requires a separately specified task profile and fit-for-purpose assessment before the product is represented as suitable for that context.
+
+## 42. Terrain representativeness of the Makkah 5 m DEM case study
+
+This section defines how the Makkah study may, and may not, inform interpretation of Yemen terrain classes. It does not transfer the study's reported accuracy to Yemen and does not create a Yemen DEM ranking.
+
+### 42.1 What the published study actually establishes
+
+Mirza, Dawod and Al-Ghamdi (2011) describe a Makkah metropolitan study area of approximately 1,593 km², bounded by 39°35′–40°02′ E and 21°09′–21°37′ N. The paper describes the metropolitan terrain as complex and notes several mountainous areas. It reports 200 first-order terrestrial GPS control points with known orthometric heights distributed across the metropolitan study area.
+
+The paper reports the following elevation ranges for the DEM surfaces, which must not be mistaken for the distribution of the 200 GPS control-point elevations:
+
+| Dataset surface | Published elevation range | Interpretation |
+|---|---:|---|
+| ASTER DEM | 117–914 m | Raster-surface range reported by the study |
+| SRTM3 DEM | 84–933 m | Raster-surface range reported by the study |
+| National 5 m DEM | 80–982 m | Raster-surface range reported by the study |
+
+The publication does not provide a machine-readable control-point file, a tabulated elevation distribution for the 200 control points, a quantitative slope-class distribution for those points, or a quantified land-cover composition of the point sample. The map showing control-point locations is not a substitute for those missing point-level data. Accordingly, the study's terrain representativeness for a specific Yemen stratum is **unquantified** until the original point data and suitable ancillary characterization data are obtained and checked.
+
+### 42.2 Required comparison dimensions
+
+A representativeness assessment must compare the Makkah study sample and the target Yemen pilot stratum using the same documented definitions and spatial support. Record at least:
+
+| Requirement | Value to report | Source | Note |
+|---|---|---|---|
+| Study footprint | Published polygon/bounds and area | Original study and georeferenced study boundary | The published bounds are not the control-point distribution |
+| Control-point sample | Valid point count, coordinates, spatial blocks and point-level elevations | Original GPS control data and study metadata | The paper reports 200 points but does not publish a reusable point table in the cited text |
+| Elevation distribution | Min, max, median, quartiles and declared elevation-bin proportions | Original point elevations; target Yemen reference data | Do not substitute DEM-wide elevation extrema for point elevations |
+| Slope distribution | Slope definition, derivation surface, support, class counts and proportions | Independently documented terrain characterization for both areas | Do not derive the comparison from the DEM being evaluated |
+| Land-cover composition | Class definitions, observation date, sample counts and proportions | Date-appropriate authoritative land-cover data or documented interpretation | Urban/built-up, agricultural/vegetated, bare, water/shoreline and unknown must remain distinguishable |
+| Spatial sampling | Point density, spatial-block occupancy, clustering and unsampled areas | Original point coordinates and pilot polygon | A nominal total of 200 does not establish uniform or independent coverage |
+| Surface semantics | DSM/DTM status and correspondence to control-point surface | Exact product metadata and survey description | Urban structures and vegetation can create semantic mismatch |
+| Temporal compatibility | Survey date, DEM acquisition/production date and land-cover observation date | Original study metadata and product records | Publication date is not acquisition date |
+
+### 42.3 Reproducible representativeness procedure
+
+When original control-point coordinates and suitable ancillary data are available:
+
+1. Freeze the exact Makkah study footprint, original GPS point set, target Yemen pilot polygon, coordinate reference systems, terrain-class definitions and ancillary-data versions before examining DEM residuals.
+2. Characterize both point samples using the same independently sourced elevation, slope and land-cover layers. Do not use the candidate DEM under evaluation as the sole source for the terrain covariates used to establish its own representativeness.
+3. Match spatial support to the intended comparison. Record whether covariates are sampled at point locations or summarized over a declared neighborhood/footprint; do not silently mix point and raster-cell support.
+4. Report sample counts, missingness, empirical distributions, class proportions, quantiles and spatial-block coverage separately for Makkah and each Yemen target stratum.
+5. Quantify distributional overlap and differences using named statistics selected in the pre-analysis record. State their definitions, units, sample sizes and uncertainty. Do not invent universal cutoffs for elevation difference, slope similarity or land-cover proportion.
+6. Set any threshold for calling two environments sufficiently comparable from the declared geological/geomorphological task and a cited methodological or operational requirement before viewing DEM residuals. If no defensible threshold exists, publish the descriptive comparisons without a pass/fail representativeness label.
+
+### 42.4 Permitted interpretation and current disposition
+
+Until the missing point-level terrain characterization is obtained, assign the Makkah case study:
+
+- \`representativeness_status = unquantified\`
+- \`evidence_scope = urban_metropolitan_study_with_complex_and_mountainous_terrain\`
+- \`transfer_to_yemen_accuracy = prohibited\`
+
+The study may be cited as a neighboring-region case study demonstrating that a national 5 m DEM was evaluated against first-order GPS controls in a complex urban/metropolitan setting in western Saudi Arabia. It may motivate a future comparison with a Yemen urban or urban-adjacent mountainous task profile, but it does not establish that the study sample represents Yemen's western highlands, Tihama coastal plain, wadis, agricultural areas or any other Yemen class.
+
+If point-level data later become available, the status may be revised only through a dated, evidence-linked amendment reporting the full comparison dimensions above. A partial match must be named as partial and limited to the dimensions and strata actually supported. Missing evidence remains \`unquantified\`; it must not be converted into either a claim of representativeness or a claim that the Saudi product is unsuitable.
+
+Reference: Mirza, M., Dawod, G. and Al-Ghamdi, K. (2011), “Accuracy and relevance of Digital Elevation Models for Geomatics applications – A case study of Makkah Municipality, Saudi Arabia,” *International Journal of Geomatics and Geosciences*, 1(4), 803–812. The original paper reports the study footprint, sample count, terrain description and DEM elevation ranges; it does not supply the point-level terrain distributions required for a quantitative transferability test.
+
+### 42.5 Cross-border southern highlands: Saudi regional analogues
+
+The southern Asir–Sarawat highlands and the western Yemeni highlands form a connected regional physiographic belt along the western Arabian Peninsula. The USGS regional synthesis describes the Great Escarpment and adjacent highlands extending south through the Asir highlands into Yemen, overlooking the Red Sea coastal plain and the Tihama sectors. This supports treating selected southern Saudi terrain as a **regional geomorphic analogue candidate** for selected Yemen pilot strata.
+
+This regional continuity is a reason to include Saudi comparison areas, not a substitute for measured terrain equivalence. It does not establish that all Asir, Najran and Yemen terrain classes are interchangeable. Najran includes both elevated western terrain and lower eastern basin/plains; these must not be collapsed into one “mountain” class. Geological terrane correlations across the southern Arabian Shield also retain documented uncertainties and must not be inferred solely from geographic adjacency.
+
+Apply the following comparison design:
+
+| Saudi comparison area | Yemen comparison target | Initial status | Required evidence before a representativeness claim |
+|---|---|---|---|
+| Asir western highlands / Sarawat escarpment | Yemen western highlands / Sarawat escarpment | Priority regional analogue candidate | Comparable elevation and slope distributions, land-cover composition, lithology/geomorphic setting, spatial support and independent source coverage |
+| Asir western escarpment and foothills | Yemen western escarpment and foothills | Priority regional analogue candidate | Separate escarpment from foothill strata; quantify relief, slope, drainage dissection and surface cover |
+| Najran western mountainous belt | Adjacent northern Yemeni highland strata, where geographically and geomorphically appropriate | Conditional analogue candidate | Demonstrate continuity and comparable terrain distributions using actual coverage on both sides of the border |
+| Najran basin, Wadi Najran and eastern plains | Yemeni interior basins or wadi/plain strata only where independently shown comparable | Separate basin/wadi comparison; not a highland proxy | Compare basin position, alluvial setting, slope, elevation, drainage and land cover |
+| Makkah metropolitan study | Yemen urban/urban-adjacent terrain only where task and terrain conditions match | Separate urban/metropolitan case study | Original control-point data and point-level terrain characterization remain required; no transfer of its reported accuracy |
+
+The Saudi national 5 m DEM discussed in the Makkah publication remains a **Makkah study product/evidence item** unless an exact, independently documented product release is obtained that demonstrates coverage of Asir or Najran. Do not describe it as an Asir/Najran DEM, a Saudi-wide 5 m coverage, or a satellite acquisition merely because it is called a national DEM in the paper. For any Saudi product proposed for cross-border comparison, record the exact product name, producer, release/version, acquisition or compilation method, coverage polygon, resolution, DSM/DTM semantics, vertical datum, license, checksum and access date. Coverage must be verified from the actual file or authoritative coverage metadata.
+
+The current scientific decision is therefore:
+
+- Include Asir/Sarawat and selected Najran terrain as **priority Saudi regional comparison areas** in the study design.
+- Treat regional physiographic continuity as the rationale for comparison, not as a completed representativeness result.
+- Keep each terrain stratum separate; do not use Najran's basin/plains to represent mountain terrain or vice versa.
+- Mark each Saudi–Yemen stratum pair as unquantified until the required matched terrain data are available and analyzed.
+- Do not transfer the Makkah study's reported 5 m DEM accuracy statistics to Asir, Najran or Yemen.
+- Do not issue a DEM product ranking until the previously defined product-file, regional-coverage and independent-reference gates pass for the relevant region and terrain class.
+
+The USGS regional synthesis supports the broad physiographic continuity of the western highlands and Great Escarpment into Yemen. It does not establish quantitative terrain equivalence or DEM accuracy transfer. Published work on the southern Arabian Shield also notes that detailed terrane correlation near the Saudi–Yemen border remains uncertain where critical field and geochronological data are sparse.
+
+### 42.6 Separate actual product coverage from proposed analogue geography
+
+Every Saudi comparison record must distinguish two non-interchangeable geographic concepts:
+
+- `actual_coverage`: the geographic footprint demonstrably covered by the exact product file/release being assessed. Record the coverage polygon or authoritative footprint identifier, source of the footprint, spatial resolution, tile identifiers, coverage-verification method, verification date and evidence reference. A study-area boundary or a regional name is not proof that a product file covers that area.
+- `analogue_region`: a proposed geographic area selected for geomorphological comparison (for example, Asir western highlands, Sarawat escarpment, Najran western mountains, Najran basin/Wadi Najran/eastern plains, or the Makkah metropolitan study area). Record the rationale and the paired Yemen target stratum separately. This field expresses a comparison hypothesis, not product coverage.
+
+For the currently cited Makkah study, the documented study footprint remains the Makkah metropolitan area described in Section 42.1. It must not be expanded to Asir or Najran without an exact product release and authoritative coverage evidence. If the product footprint is not independently available, set `actual_coverage_status = unverified`; do not infer coverage from the product's “national” label or from the study's regional context.
+
+### 42.7 Measurable test of each Saudi–Yemen analogue pair
+
+Treat each proposed Saudi–Yemen pair as a testable geomorphological hypothesis. Before interpreting a pair as representative, freeze the data sources, dates, spatial support, class definitions and comparison statistics for both sides. At minimum, evaluate:
+
+- Elevation distribution: declared range, quantiles and elevation-class proportions.
+- Slope distribution: slope algorithm, input surface/resolution, neighborhood/support, class proportions and distributional differences.
+- Drainage dissection: drainage-density definition and units, flow-accumulation threshold, channel/extraction method, contributing-area basis and uncertainty. Do not compare drainage-density values generated with materially different extraction settings as if equivalent.
+- Land cover: class scheme, observation date, spatial resolution and class proportions, with unknown/mixed classes retained.
+- Where the task requires it, add local relief, aspect, lithology/geomorphic setting, basin position, aridity or other justified covariates; declare these before analysis rather than selecting them after seeing a favorable match.
+
+Keep the following strata separate in the analysis: Asir western highlands; Asir escarpment and foothills; Najran western mountainous belt; Najran basin/Wadi Najran/eastern plains; and the Makkah metropolitan study. Pair each only with a named Yemen target stratum supported by geographic and geomorphic rationale. In particular, Najran basin and eastern plains are a separate basin/wadi/plain comparison and must not stand in for the western mountain belt.
+
+Report the paired distributions, sample sizes, missingness, spatial support, dates and uncertainty. Use named distributional comparison statistics and any task-specific equivalence margins fixed before examining DEM residuals. Visual similarity, geographic proximity or continuity of a mountain chain may justify testing a pair, but cannot by themselves establish quantitative representativeness. If the required matched data are unavailable, retain `representativeness_status = unquantified`; this is absence of evidence, not evidence of unsuitability.
