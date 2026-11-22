@@ -105,6 +105,11 @@ class ReprojectInput(BaseModel):
     target_crs: str = Field(..., min_length=1, max_length=200)
 
 
+class CoverageInspectionInput(BaseModel):
+    aoi_dataset_id: str = Field(..., min_length=1, max_length=64)
+    aoi_crs: str = Field(..., min_length=1, max_length=200)
+
+
 class ClaimInput(BaseModel):
     statement: str = Field(..., min_length=8, max_length=2000)
     created_by: str = Field(..., min_length=1, max_length=200)
@@ -224,10 +229,15 @@ def dem_coverage_assessment_save(
     context = body.request.context
     product = store.get_dataset(context.product_dataset_id)
     reference = store.get_dataset(context.reference_dataset_id)
-    if product is None or reference is None:
-        raise HTTPException(status_code=404, detail="product or reference dataset not found")
-    if product["project_id"] != project_id or reference["project_id"] != project_id:
-        raise HTTPException(status_code=404, detail="product or reference dataset not found")
+    aoi = store.get_dataset(context.aoi_dataset_id)
+    if product is None or reference is None or aoi is None:
+        raise HTTPException(status_code=404, detail="product, reference or AOI dataset not found")
+    if (
+        product["project_id"] != project_id
+        or reference["project_id"] != project_id
+        or aoi["project_id"] != project_id
+    ):
+        raise HTTPException(status_code=404, detail="product, reference or AOI dataset not found")
     if (
         product["sha256"] != context.product_dataset_sha256
         or reference["sha256"] != context.reference_dataset_sha256
@@ -236,6 +246,12 @@ def dem_coverage_assessment_save(
             status_code=409,
             detail="request dataset checksums do not match the stored upload records",
         )
+    if aoi["data_role"] != "aoi_boundary":
+        raise HTTPException(status_code=422, detail="AOI dataset must have data_role=aoi_boundary")
+    if product["sha256"] != context.product_dataset_sha256:
+        raise HTTPException(status_code=409, detail="product dataset checksum does not match request")
+    if aoi["sha256"] != context.aoi_dataset_sha256:
+        raise HTTPException(status_code=409, detail="AOI dataset checksum does not match request")
     if product["data_role"] != "dem":
         raise HTTPException(status_code=422, detail="product dataset must have data_role=dem")
     if reference["data_role"] not in {
@@ -250,13 +266,30 @@ def dem_coverage_assessment_save(
             ),
         )
 
-    for item in (product, reference):
+    for item in (product, reference, aoi):
         stored_path = store.get_dataset_content_path(item["id"])
         if stored_path is None or not _dataset_content_matches(item, Path(stored_path)):
             raise HTTPException(
                 status_code=409,
                 detail="product or reference dataset failed upload-time integrity verification",
             )
+
+    inspection = store.get_dataset_coverage_inspection(product["id"])
+    evidence = body.request.evidence
+    if (
+        inspection is None
+        or evidence is None
+        or inspection.get("inspection_status") != "measured"
+        or inspection.get("coverage_footprint_reference")
+        != evidence.coverage_footprint_reference
+        or inspection.get("product_dataset_sha256") != product["sha256"]
+        or inspection.get("aoi_dataset_id") != aoi["id"]
+        or inspection.get("aoi_dataset_sha256") != aoi["sha256"]
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="verified coverage must cite the latest persisted DEM/AOI coverage inspection",
+        )
 
     assessment = evaluate_coverage_sufficiency(body.request)
     try:
@@ -725,6 +758,87 @@ def dataset_inspect(dataset_id: str) -> dict:
         "scientific_interpretation": False,
     })
     store.save_dataset_inspection(dataset_id, report)
+    return report
+
+
+
+@app.post("/api/v1/datasets/{dataset_id}/coverage-inspection", status_code=200)
+def dataset_coverage_inspect(
+    dataset_id: str,
+    body: CoverageInspectionInput,
+) -> dict:
+    """Measure raster extent and valid-data mask against a declared AOI polygon."""
+    from geologia.formats import (
+        FormatDependencyError,
+        FormatValidationError,
+        inspect_dem_aoi_coverage,
+    )
+
+    product = store.get_dataset(dataset_id)
+    aoi = store.get_dataset(body.aoi_dataset_id)
+    if product is None or aoi is None:
+        raise HTTPException(status_code=404, detail="DEM or AOI dataset not found")
+    if product["project_id"] != aoi["project_id"]:
+        raise HTTPException(status_code=404, detail="DEM or AOI dataset not found")
+    if product["data_role"] != "dem":
+        raise HTTPException(status_code=422, detail="dataset must have data_role=dem")
+    if aoi["data_role"] != "aoi_boundary":
+        raise HTTPException(status_code=422, detail="AOI dataset must have data_role=aoi_boundary")
+    if product["format"] not in {"tif", "tiff"}:
+        raise HTTPException(status_code=415, detail="coverage inspection requires a GeoTIFF DEM")
+    if aoi["format"] not in {"geojson", "json"}:
+        raise HTTPException(status_code=415, detail="AOI must be a GeoJSON dataset")
+
+    dem_path = store.get_dataset_content_path(product["id"])
+    aoi_path = store.get_dataset_content_path(aoi["id"])
+    for item, path in ((product, dem_path), (aoi, aoi_path)):
+        if path is None or not _dataset_content_matches(item, Path(path)):
+            raise HTTPException(
+                status_code=409,
+                detail="DEM or AOI dataset failed upload-time integrity verification",
+            )
+
+    try:
+        payload = _read_json(Path(aoi_path))
+        inspect_geojson(payload)
+        report = inspect_dem_aoi_coverage(Path(dem_path), payload, body.aoi_crs)
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"invalid AOI GeoJSON: {exc}") from exc
+    except FormatDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except FormatValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    report.update({
+        "product_dataset_id": product["id"],
+        "product_dataset_sha256": product["sha256"],
+        "aoi_dataset_id": aoi["id"],
+        "aoi_dataset_sha256": aoi["sha256"],
+        "inspected_at_utc": store.utc_now(),
+    })
+    canonical = json.dumps(
+        report,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    report_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    report["inspection_sha256"] = report_sha256
+    report["coverage_footprint_reference"] = (
+        f"coverage-inspection:{product['id']}:{report_sha256}"
+    )
+    store.save_dataset_coverage_inspection(product["id"], report)
+    return report
+
+
+@app.get("/api/v1/datasets/{dataset_id}/coverage-inspection")
+def dataset_coverage_inspection_get(dataset_id: str) -> dict:
+    if store.get_dataset(dataset_id) is None:
+        raise HTTPException(status_code=404, detail="dataset not found")
+    report = store.get_dataset_coverage_inspection(dataset_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="coverage inspection not found")
     return report
 
 
