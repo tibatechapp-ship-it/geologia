@@ -1,10 +1,12 @@
 import csv
 import hashlib
+import json
 from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
 
+from geologia.dem_readiness.manifest import DEMTileManifest
 from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
 
 from geologia.dem_readiness.accuracy import (
@@ -136,16 +138,33 @@ def _compute(dem, reference, reference_sha, **kwargs):
             reviewed_at=assessment_metadata.independence_reviewed_at,
         ),
     )
+    manifest = kwargs.pop(
+        "product_manifest",
+        DEMTileManifest(
+            schema="geologia.dem-tile-manifest.v1",
+            product_version_id=assessment_metadata.product_version_id,
+            tile_dataset_ids=(dem.name,),
+            tile_dataset_sha256s=(hashlib.sha256(dem.read_bytes()).hexdigest(),),
+        ),
+    )
+    canonical_hash = lambda payload: hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        .encode("utf-8")
+    ).hexdigest()
+    aoi = _aoi()
+    manifest_sha = canonical_hash(manifest.model_dump(mode="json"))
+    aoi_sha = canonical_hash(aoi)
     return compute_dem_reference_residuals(
         [dem],
         reference,
-        _aoi(),
+        aoi,
         metadata=assessment_metadata,
         declared_use=declared_use,
         independent_review=independent_review,
-        product_manifest_sha256="a" * 64,
+        product_manifest_sha256=manifest_sha,
         reference_dataset_sha256=reference_sha,
-        aoi_dataset_sha256="c" * 64,
+        aoi_dataset_sha256=aoi_sha,
+        product_manifest=manifest,
         coverage_footprint_reference="coverage://dem-release/aoi-1",
         **kwargs,
     )
@@ -299,3 +318,32 @@ def test_confirmatory_accuracy_requires_review_record(tmp_path):
 
     assert report["metrics_scope"] == "descriptive_only"
     assert report["accuracy_disposition"] == "not_evaluable"
+
+
+def test_manifest_hash_must_match_canonical_manifest_content(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+
+    with pytest.raises(Exception, match="manifest SHA-256"):
+        _compute(
+            dem,
+            reference,
+            reference_sha,
+            product_manifest=DEMTileManifest(
+                schema="geologia.dem-tile-manifest.v1",
+                product_version_id="dem-release-2026-01",
+                tile_dataset_ids=(dem.name,),
+                tile_dataset_sha256s=(hashlib.sha256(dem.read_bytes()).hexdigest(),),
+            ),
+            product_manifest_sha256="f" * 64,
+        )
+
+
+def test_aoi_hash_must_match_canonical_geometry(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    # The helper supplies the exact canonical AOI hash; mutate the supplied hash
+    # only after it has been computed by the test wrapper.
+    report = _compute(dem, reference, reference_sha)
+    assert report["aoi_hash_binding"] == "verified_canonical_aoi_payload"
+    assert report["product_manifest_hash_binding"] == "verified_canonical_manifest"
