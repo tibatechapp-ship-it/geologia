@@ -1,5 +1,4 @@
 import csv
-import hashlib
 import json
 from datetime import UTC, datetime
 
@@ -35,8 +34,6 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     rasterio = pytest.importorskip("rasterio")
     numpy = pytest.importorskip("numpy")
     from rasterio.transform import from_origin
-
-    from geologia import store
 
     project = _create_project(tmp_path, monkeypatch)
     tile_ids = []
@@ -100,7 +97,7 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
         for point in points:
             writer.writerow([*point, "steep_bare", 0.2])
     reference = _upload(
-        project["id",],
+        project["id"],
         "reference.csv",
         reference_path.read_bytes(),
         "reference_elevation_observations",
