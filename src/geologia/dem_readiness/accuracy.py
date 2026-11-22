@@ -53,6 +53,10 @@ class DEMAccuracyMetadata(BaseModel):
 
     @model_validator(mode="after")
     def require_timezone(self) -> "DEMAccuracyMetadata":
+        for name in self.model_fields:
+            value = getattr(self, name)
+            if isinstance(value, str) and not value.strip():
+                raise ValueError(f"{name} must be non-empty")
         if (
             self.independence_reviewed_at.tzinfo is None
             or self.independence_reviewed_at.utcoffset() is None
@@ -82,6 +86,10 @@ class AccuracyRequirement(BaseModel):
 
     @model_validator(mode="after")
     def require_timezone(self) -> "AccuracyRequirement":
+        for name in self.model_fields:
+            value = getattr(self, name)
+            if isinstance(value, str) and not value.strip():
+                raise ValueError(f"{name} must be non-empty")
         if self.frozen_at.tzinfo is None or self.frozen_at.utcoffset() is None:
             raise ValueError("frozen_at must have a valid UTC offset")
         return self

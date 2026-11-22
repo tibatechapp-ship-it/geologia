@@ -118,7 +118,7 @@ def test_legacy_job_database_is_migrated_without_losing_records(tmp_path, monkey
     store.initialize()
     store.initialize()
     with store.connect() as migrated_connection:
-        assert migrated_connection.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert migrated_connection.execute("PRAGMA user_version").fetchone()[0] == 3
     migrated = store.get_job("job-1")
     assert migrated is not None
     assert migrated["status"] == "planned"
