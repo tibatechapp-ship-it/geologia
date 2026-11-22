@@ -383,7 +383,10 @@ def project_dem_accuracy_assessment_save(
     ):
         raise HTTPException(
             status_code=409,
-            detail="accuracy assessment requires full persisted coverage for the exact manifest and AOI",
+            detail=(
+                "accuracy assessment requires full persisted coverage for "
+                "the exact manifest and AOI"
+            ),
         )
 
     reference_path = store.get_dataset_content_path(reference["id"])
