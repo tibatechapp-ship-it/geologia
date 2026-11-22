@@ -5,10 +5,14 @@ from pydantic import ValidationError
 
 from geologia.dem_readiness.models import (
     Availability,
+    DependenceStatus,
+    ElevationUncertainty,
     EvidenceValue,
     MandatoryProductContext,
     AnalogueRepresentativenessContext,
     RepresentativenessStatus,
+    UncertaintyKind,
+    UncertaintyScope,
 )
 
 
@@ -92,13 +96,6 @@ def test_reason_record_requires_evidence_reference():
             recorded_at=datetime(2026, 11, 22, tzinfo=UTC),
         )
 
-
-from geologia.dem_readiness.models import (
-    DependenceStatus,
-    ElevationUncertainty,
-    UncertaintyKind,
-    UncertaintyScope,
-)
 
 
 def _uncertainty(**overrides):
