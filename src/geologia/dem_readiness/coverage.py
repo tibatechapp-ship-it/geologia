@@ -118,7 +118,7 @@ class CoverageEvidence(BaseModel):
         return self
 
     @property
-    def temporal_match_fraction_within_5_years(self) -> CoverageMetric:
+    def temporal_bin_total(self) -> float | None:
         bins = (
             self.observations_0_3_years,
             self.observations_3_5_years,
@@ -126,15 +126,18 @@ class CoverageEvidence(BaseModel):
             self.observations_over_10_years,
         )
         if not all(item.available and item.value is not None for item in bins):
-            return CoverageMetric(
-                available=False,
-                missing_reason="One or more registered temporal histogram bins are unavailable.",
-                reviewer="coverage-evaluator",
-                recorded_at=datetime.now().astimezone(),
-            )
-        total = sum(item.value or 0 for item in bins)
-        within_five = (bins[0].value or 0) + (bins[1].value or 0)
-        return CoverageMetric(value=(within_five / total if total else 0.0), available=True)
+            return None
+        return sum(item.value or 0 for item in bins)
+
+    @property
+    def temporal_match_fraction_within_5_years(self) -> float | None:
+        total = self.temporal_bin_total
+        if total is None:
+            return None
+        within_five = (self.observations_0_3_years.value or 0) + (
+            self.observations_3_5_years.value or 0
+        )
+        return within_five / total if total else 0.0
 
 
 class CoverageRecord(BaseModel):
@@ -364,11 +367,39 @@ def evaluate_coverage(record: CoverageRecord) -> CoverageAssessment:
             section17.maximum_observation_fraction_in_one_block,
             ReasonCode.SPATIALLY_CLUSTERED,
         ),
-        _minimum_check(
-            "temporal_match_fraction_within_5_years",
-            evidence.temporal_match_fraction_within_5_years,
-            section17.confirmatory_temporal_match_fraction,
-            ReasonCode.TEMPORAL_MISMATCH,
+        (
+            GateCheck(
+                metric="temporal_match_fraction_within_5_years",
+                observed=None,
+                comparison="at_least",
+                threshold=section17.confirmatory_temporal_match_fraction,
+                outcome=CoverageOutcome.NOT_EVALUABLE,
+                reason_code=ReasonCode.UNRESOLVED,
+            )
+            if evidence.temporal_match_fraction_within_5_years is None
+            else GateCheck(
+                metric="temporal_match_fraction_within_5_years",
+                observed=evidence.temporal_match_fraction_within_5_years,
+                comparison="at_least",
+                threshold=section17.confirmatory_temporal_match_fraction,
+                outcome=(
+                    CoverageOutcome.FAIL
+                    if evidence.temporal_bin_total == 0
+                    or evidence.temporal_match_fraction_within_5_years
+                    < section17.confirmatory_temporal_match_fraction
+                    else CoverageOutcome.PASS
+                ),
+                reason_code=(
+                    ReasonCode.NO_REFERENCE_DATA
+                    if evidence.temporal_bin_total == 0
+                    else (
+                        ReasonCode.TEMPORAL_MISMATCH
+                        if evidence.temporal_match_fraction_within_5_years
+                        < section17.confirmatory_temporal_match_fraction
+                        else None
+                    )
+                ),
+            )
         ),
     ]
 
