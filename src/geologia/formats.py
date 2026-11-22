@@ -383,6 +383,48 @@ def _polygonal_aoi(payload: dict[str, Any]):
     return aoi
 
 
+def _densify_geometry_for_crs(geometry: Any, crs: Any, pyproj: Any):
+    """Densify polygon edges before CRS transformation to limit chord error."""
+    if crs.is_geographic:
+        max_segment_length = 0.01  # approximately 1.1 km north-south
+    else:
+        axes = crs.axis_info
+        factors = [
+            float(axis.unit_conversion_factor or 0)
+            for axis in axes[:2]
+        ]
+        if len(factors) < 2 or any(
+            not math.isfinite(factor) or factor <= 0 for factor in factors
+        ):
+            raise FormatValidationError(
+                "CRS axis units cannot be converted for boundary densification"
+            )
+        max_segment_length = 1000.0 / min(factors)
+
+    polygons = list(geometry.geoms) if geometry.geom_type == "MultiPolygon" else [geometry]
+    estimated_segments = 0
+    for polygon in polygons:
+        rings = [polygon.exterior, *polygon.interiors]
+        for ring in rings:
+            coordinates = list(ring.coords)
+            for first, second in zip(coordinates, coordinates[1:]):
+                length = math.hypot(
+                    second[0] - first[0],
+                    second[1] - first[1],
+                )
+                estimated_segments += max(1, math.ceil(length / max_segment_length))
+                if estimated_segments > 1_000_000:
+                    raise FormatValidationError(
+                        "AOI boundary exceeds the CRS densification complexity limit"
+                    )
+    try:
+        return geometry.segmentize(max_segment_length)
+    except AttributeError as exc:
+        raise FormatValidationError(
+            "AOI CRS transformation requires Shapely with geometry segmentize support"
+        ) from exc
+
+
 def inspect_dem_aoi_coverage(
     dem_path: Path,
     aoi_payload: dict[str, Any],
@@ -411,7 +453,10 @@ def inspect_dem_aoi_coverage(
         to_area = pyproj.Transformer.from_crs(
             aoi_source_crs, area_crs, always_xy=True
         )
-        aoi_area_geometry = transform_geometry(to_area.transform, aoi)
+        aoi_area_geometry = transform_geometry(
+            to_area.transform,
+            _densify_geometry_for_crs(aoi, aoi_source_crs, pyproj),
+        )
         aoi_area_m2 = float(aoi_area_geometry.area)
         if not math.isfinite(aoi_area_m2) or aoi_area_m2 <= 0:
             raise FormatValidationError("AOI area cannot be measured in the equal-area CRS")
@@ -465,7 +510,10 @@ def inspect_dem_aoi_coverage(
             to_raster = pyproj.Transformer.from_crs(
                 aoi_source_crs, raster_crs, always_xy=True
             )
-            aoi_in_raster = transform_geometry(to_raster.transform, aoi)
+            aoi_in_raster = transform_geometry(
+                to_raster.transform,
+                _densify_geometry_for_crs(aoi, aoi_source_crs, pyproj),
+            )
             if aoi_in_raster.is_empty or not aoi_in_raster.is_valid:
                 raise FormatValidationError("AOI cannot be transformed to the DEM CRS")
 
@@ -486,9 +534,12 @@ def inspect_dem_aoi_coverage(
                 intersection_area_m2 = 0.0
                 representative_point = raster_footprint.representative_point()
             else:
+                intersection_for_area = _densify_geometry_for_crs(
+                    intersection, raster_crs, pyproj
+                )
                 intersection_area_m2 = float(
                     transform_geometry(
-                        to_area_from_raster.transform, intersection
+                        to_area_from_raster.transform, intersection_for_area
                     ).area
                 )
                 representative_point = intersection.representative_point()
@@ -583,6 +634,9 @@ def inspect_dem_aoi_coverage(
                 "pixel_area_m2": pixel_area_m2,
                 "pixel_area_estimation_method": (
                     "representative pixel transformed to EPSG:6933; local estimate"
+                ),
+                "crs_boundary_densification": (
+                    "AOI edges densified to approximately 1 km before CRS transformations"
                 ),
                 "valid_pixel_area_estimate_m2": valid_pixel_area_estimate_m2,
                 "valid_pixel_coverage_fraction_estimate": valid_area_fraction,
