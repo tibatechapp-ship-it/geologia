@@ -707,3 +707,32 @@ The study may be cited as a neighboring-region case study demonstrating that a n
 If point-level data later become available, the status may be revised only through a dated, evidence-linked amendment reporting the full comparison dimensions above. A partial match must be named as partial and limited to the dimensions and strata actually supported. Missing evidence remains \`unquantified\`; it must not be converted into either a claim of representativeness or a claim that the Saudi product is unsuitable.
 
 Reference: Mirza, M., Dawod, G. and Al-Ghamdi, K. (2011), “Accuracy and relevance of Digital Elevation Models for Geomatics applications – A case study of Makkah Municipality, Saudi Arabia,” *International Journal of Geomatics and Geosciences*, 1(4), 803–812. The original paper reports the study footprint, sample count, terrain description and DEM elevation ranges; it does not supply the point-level terrain distributions required for a quantitative transferability test.
+
+### 42.5 Cross-border southern highlands: Saudi regional analogues
+
+The southern Asir–Sarawat highlands and the western Yemeni highlands form a connected regional physiographic belt along the western Arabian Peninsula. The USGS regional synthesis describes the Great Escarpment and adjacent highlands extending south through the Asir highlands into Yemen, overlooking the Red Sea coastal plain and the Tihama sectors. This supports treating selected southern Saudi terrain as a **regional geomorphic analogue candidate** for selected Yemen pilot strata.
+
+This regional continuity is a reason to include Saudi comparison areas, not a substitute for measured terrain equivalence. It does not establish that all Asir, Najran and Yemen terrain classes are interchangeable. Najran includes both elevated western terrain and lower eastern basin/plains; these must not be collapsed into one “mountain” class. Geological terrane correlations across the southern Arabian Shield also retain documented uncertainties and must not be inferred solely from geographic adjacency.
+
+Apply the following comparison design:
+
+| Saudi comparison area | Yemen comparison target | Initial status | Required evidence before a representativeness claim |
+|---|---|---|---|
+| Asir western highlands / Sarawat escarpment | Yemen western highlands / Sarawat escarpment | Priority regional analogue candidate | Comparable elevation and slope distributions, land-cover composition, lithology/geomorphic setting, spatial support and independent source coverage |
+| Asir western escarpment and foothills | Yemen western escarpment and foothills | Priority regional analogue candidate | Separate escarpment from foothill strata; quantify relief, slope, drainage dissection and surface cover |
+| Najran western mountainous belt | Adjacent northern Yemeni highland strata, where geographically and geomorphically appropriate | Conditional analogue candidate | Demonstrate continuity and comparable terrain distributions using actual coverage on both sides of the border |
+| Najran basin, Wadi Najran and eastern plains | Yemeni interior basins or wadi/plain strata only where independently shown comparable | Separate basin/wadi comparison; not a highland proxy | Compare basin position, alluvial setting, slope, elevation, drainage and land cover |
+| Makkah metropolitan study | Yemen urban/urban-adjacent terrain only where task and terrain conditions match | Separate urban/metropolitan case study | Original control-point data and point-level terrain characterization remain required; no transfer of its reported accuracy |
+
+The Saudi national 5 m DEM discussed in the Makkah publication remains a **Makkah study product/evidence item** unless an exact, independently documented product release is obtained that demonstrates coverage of Asir or Najran. Do not describe it as an Asir/Najran DEM, a Saudi-wide 5 m coverage, or a satellite acquisition merely because it is called a national DEM in the paper. For any Saudi product proposed for cross-border comparison, record the exact product name, producer, release/version, acquisition or compilation method, coverage polygon, resolution, DSM/DTM semantics, vertical datum, license, checksum and access date. Coverage must be verified from the actual file or authoritative coverage metadata.
+
+The current scientific decision is therefore:
+
+- Include Asir/Sarawat and selected Najran terrain as **priority Saudi regional comparison areas** in the study design.
+- Treat regional physiographic continuity as the rationale for comparison, not as a completed representativeness result.
+- Keep each terrain stratum separate; do not use Najran's basin/plains to represent mountain terrain or vice versa.
+- Mark each Saudi–Yemen stratum pair as unquantified until the required matched terrain data are available and analyzed.
+- Do not transfer the Makkah study's reported 5 m DEM accuracy statistics to Asir, Najran or Yemen.
+- Do not issue a DEM product ranking until the previously defined product-file, regional-coverage and independent-reference gates pass for the relevant region and terrain class.
+
+The USGS regional synthesis supports the broad physiographic continuity of the western highlands and Great Escarpment into Yemen. It does not establish quantitative terrain equivalence or DEM accuracy transfer. Published work on the southern Arabian Shield also notes that detailed terrane correlation near the Saudi–Yemen border remains uncertain where critical field and geochronological data are sparse.
