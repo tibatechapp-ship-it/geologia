@@ -45,10 +45,7 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
         blocking = unexcepted
         if data.unresolved_items:
             codes = tuple(dict.fromkeys((*codes,)))
-    elif (
-        data.context.validation_status.value == "not_assessed"
-        or any(record.code.value == "not_assessed" for record in data.unresolved_items)
-    ):
+    elif data.context.validation_status.value == "not_assessed":
         disposition = ReadinessDisposition.NOT_ASSESSED
         explanation = "The validation has not been performed; no readiness claim is made."
         blocking = ()
