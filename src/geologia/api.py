@@ -83,6 +83,7 @@ ALLOWED_DATA_ROLES = {
     "geochemistry_samples", "geophysics_surveys", "aoi_boundary", "data_layers",
     "crs_definition", "imagery", "ground_control_points",
     "reference_elevation_observations", "dem_tile_manifest",
+    "reference_uncertainty_sidecar",
 }
 
 
@@ -146,6 +147,7 @@ class DEMTileCollectionCoverageInput(BaseModel):
 class DEMAccuracyAssessmentInput(BaseModel):
     product_manifest_dataset_id: str = Field(..., min_length=1, max_length=64)
     reference_dataset_id: str = Field(..., min_length=1, max_length=64)
+    reference_uncertainty_sidecar_dataset_id: str | None = Field(default=None, max_length=64)
     aoi_dataset_id: str = Field(..., min_length=1, max_length=64)
     metadata: DEMAccuracyMetadata
     declared_use: DeclaredUseContext
