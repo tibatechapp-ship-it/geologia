@@ -226,10 +226,26 @@ class ReadinessInput(BaseModel):
             if self.context.validation_status.value != ValidationStatus.INDEPENDENTLY_REVIEWED.value:
                 raise ValueError("independent review evidence requires independently_reviewed status")
             review = self.independent_review
-            expected = (self.declared_use.product_version_id, self.declared_use.pilot_area_id, self.declared_use.task_profile_id)
-            actual = (review.product_version_id, review.pilot_area_id, review.task_profile_id)
+            expected = (
+                self.declared_use.product_version_id,
+                self.declared_use.pilot_area_id,
+                self.declared_use.task_profile_id,
+            )
+            actual = (
+                review.product_version_id,
+                review.pilot_area_id,
+                review.task_profile_id,
+            )
             if actual != expected:
                 raise ValueError("independent review evidence must match the exact declared use")
+            product_version = self.context.product_version
+            if (
+                product_version.availability is Availability.AVAILABLE
+                and product_version.value != self.declared_use.product_version_id
+            ):
+                raise ValueError(
+                    "declared product version must match the mandatory product context"
+                )
         return self
 
 
