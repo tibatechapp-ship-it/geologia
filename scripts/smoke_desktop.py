@@ -68,13 +68,16 @@ def main() -> None:
             if os.name == "nt":
                 # The packaged Windows app may leave a worker process holding SQLite
                 # handles after the parent exits; terminate the full process tree.
-                subprocess.run(
-                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                    check=False,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=15,
-                )
+                try:
+                    subprocess.run(
+                        ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                        check=False,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=15,
+                    )
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
             if process.poll() is None:
                 process.terminate()
             try:
