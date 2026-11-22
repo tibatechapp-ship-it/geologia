@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from scripts.inspect_geoid_grid_metadata import inspect_directory, inspect_grid
 
 rasterio = pytest.importorskip("rasterio")
+np = pytest.importorskip("numpy")
 Affine = pytest.importorskip("affine").Affine
 from_origin = rasterio.transform.from_origin
 
