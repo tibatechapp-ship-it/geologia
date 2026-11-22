@@ -355,6 +355,10 @@ def project_dem_readiness_assessment_save(
             status_code=409,
             detail="manifest, product metadata and declared use must match the exact version",
         )
+    if product_metadata.reviewed_at.astimezone(timezone.utc) > datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=409, detail="product metadata review timestamp is in the future"
+        )
 
     dem_paths = []
     for tile_id, tile_sha256 in zip(
