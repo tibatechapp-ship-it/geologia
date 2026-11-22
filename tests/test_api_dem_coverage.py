@@ -198,6 +198,13 @@ def test_persistent_assessment_rejects_dataset_integrity_mismatch(tmp_path, monk
         b'{"type":"FeatureCollection","features":[]}',
         "reference_elevation_observations",
     )
+    aoi = _upload_coverage_dataset(
+        project["id"],
+        "pilot-aoi.geojson",
+        b'{"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[[500000,1699700],[500300,1699700],[500300,1700000],[500000,1700000],[500000,1699700]]]}}',
+        "aoi_boundary",
+    )
+    assert aoi.status_code == 201
     payload = _coverage_payload()
     payload["context"]["product_dataset_id"] = product.json()["id"]
     payload["context"]["product_dataset_sha256"] = product.json()["sha256"]
