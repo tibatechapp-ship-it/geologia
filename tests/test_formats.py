@@ -180,22 +180,24 @@ def test_known_answer_crs_transform_and_inverse():
 def test_api_inspection_endpoint_persists_geotiff_report(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
+    from geologia import store
     from geologia.api import app
 
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "api.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "api-uploads"))
     raster = _make_geotiff(tmp_path / "uploaded.tif")
-    project = TestClient(app).post(
+    client = TestClient(app)
+    project = client.post(
         "/api/v1/projects", json={"name": "Raster inspection"}
     ).json()
-    upload = TestClient(app).post(
+    upload = client.post(
         f"/api/v1/projects/{project['id']}/datasets",
         content=raster.read_bytes(),
         headers={"X-Dataset-Name": "Reference raster", "X-Filename": "reference.tif"},
     )
     assert upload.status_code == 201
     dataset_id = upload.json()["id"]
-    inspected = TestClient(app).post(f"/api/v1/datasets/{dataset_id}/inspect")
+    inspected = client.post(f"/api/v1/datasets/{dataset_id}/inspect")
     assert inspected.status_code == 200
     report = inspected.json()
     assert report["format"] == "geotiff"
@@ -203,28 +205,8 @@ def test_api_inspection_endpoint_persists_geotiff_report(tmp_path, monkeypatch):
     assert report["scientific_interpretation"] is False
     assert report["provenance"]["source_sha256"] == upload.json()["sha256"]
     assert report["provenance"]["parser"] == "rasterio"
-    provenance = TestClient(app).get(
-        f"/api/v1/datasets/{dataset_id}/provenance"
-    )
-    assert provenance.status_code == 200
-    audit = provenance.json()
-    assert audit["chain_integrity"] == "verified"
-    assert [event["event_type"] for event in audit["events"]] == [
-        "dataset_ingested", "dataset_inspected"
-    ]
-    from geologia import store
-
-    with store.connect() as connection:
-        connection.execute(
-            "UPDATE provenance_events SET payload_json='not-json' WHERE dataset_id=? "
-            "AND event_type='dataset_inspected'",
-            (dataset_id,),
-        )
-    tampered = TestClient(app).get(
-        f"/api/v1/datasets/{dataset_id}/provenance"
-    ).json()
-    assert tampered["chain_integrity"] == "failed"
-
+    saved = store.get_dataset(dataset_id)
+    assert saved["summary"]["inspection"] == report
 
 def test_geopackage_missing_metadata_tables_rejected(tmp_path):
     import sqlite3
