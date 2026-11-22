@@ -11,7 +11,7 @@ import math
 from collections import Counter, defaultdict
 from datetime import date, datetime
 from statistics import median
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -19,7 +19,7 @@ from geologia.formats import FormatValidationError
 from .coverage import CoverageMetrics
 
 
-NON_EMPTY = Field(min_length=1)
+NonEmpty = Annotated[str, Field(min_length=1)]
 MAX_GRID_CELLS = 100_000
 EQUAL_AREA_CRS = "EPSG:6933"
 COMPUTATION_METHOD = "reference-coverage-v1.0"
@@ -30,10 +30,10 @@ class IndependenceReviewAttestation(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    reference: str = NON_EMPTY
-    reviewer: str = NON_EMPTY
+    reference: NonEmpty
+    reviewer: NonEmpty
     reviewed_at: datetime
-    definition: str = NON_EMPTY
+    definition: NonEmpty
     source_lineage_reviewed: bool
     spatial_independence_reviewed: bool
     source_dependence_conflicts: bool = False
@@ -48,9 +48,9 @@ class IndependenceReviewAttestation(BaseModel):
 class ReferenceCoverageMetricsRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    aoi_dataset_id: str = NON_EMPTY
-    aoi_crs: str = NON_EMPTY
-    reference_crs: str = NON_EMPTY
+    aoi_dataset_id: NonEmpty
+    aoi_crs: NonEmpty
+    reference_crs: NonEmpty
     dem_epoch: date
     independence_review: IndependenceReviewAttestation
 
@@ -374,7 +374,10 @@ def compute_reference_coverage_metrics(
         _cell_for_point(record["point"], 5000, eligible_5km)
         for record in site_list
     } if site_list else set()
-    block_counts = Counter(cells_5km)
+    block_counts = Counter(
+        _cell_for_point(record["point"], 5000, eligible_5km)
+        for record in site_list
+    )
     max_block_fraction = (
         max(block_counts.values()) / len(site_list) if site_list else None
     )
@@ -413,6 +416,8 @@ def compute_reference_coverage_metrics(
     else:
         review_status = "attested_complete"
         reason_codes = []
+    if not metadata_completeness["complete_for_all_fields"]:
+        reason_codes.append("metadata_insufficient")
 
     return {
         "report_type": "reference_coverage_metrics",
