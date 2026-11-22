@@ -43,7 +43,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
-ALLOWED_FORMATS = {".geojson", ".json", ".gpkg", ".tif", ".tiff", ".csv", ".las"}
+ALLOWED_FORMATS = {".geojson", ".json", ".gpkg", ".tif", ".tiff", ".hgt", ".csv", ".las"}
 def _dataset_content_matches(item: dict, path: Path) -> bool:
     """Verify stored bytes against the upload-time size and SHA-256 before reading them."""
     digest = hashlib.sha256()
@@ -108,6 +108,22 @@ class ReprojectInput(BaseModel):
 class CoverageInspectionInput(BaseModel):
     aoi_dataset_id: str = Field(..., min_length=1, max_length=64)
     aoi_crs: str = Field(..., min_length=1, max_length=200)
+
+
+class DEMTileCollectionCoverageInput(BaseModel):
+    dem_dataset_ids: list[str] = Field(..., min_length=1, max_length=256)
+    aoi_dataset_id: str = Field(..., min_length=1, max_length=64)
+    aoi_crs: str = Field(..., min_length=1, max_length=200)
+
+    @field_validator("dem_dataset_ids")
+    @classmethod
+    def validate_unique_dem_dataset_ids(cls, values: list[str]) -> list[str]:
+        normalized = [value.strip() for value in values]
+        if any(not value or len(value) > 64 for value in normalized):
+            raise ValueError("DEM dataset IDs must be non-empty and at most 64 characters")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("DEM dataset IDs must be unique")
+        return normalized
 
 
 class ClaimInput(BaseModel):
@@ -834,6 +850,111 @@ def dataset_coverage_inspect(
         f"coverage-inspection:{product['id']}:{report_sha256}"
     )
     store.save_dataset_coverage_inspection(product["id"], report)
+    return report
+
+
+@app.post(
+    "/api/v1/projects/{project_id}/dem/tile-collection-coverage-inspection",
+    status_code=200,
+)
+def project_dem_tile_collection_coverage_inspect(
+    project_id: str,
+    body: DEMTileCollectionCoverageInput,
+) -> dict:
+    """Measure a bounded aligned DEM tile collection against one AOI and persist its report."""
+    from geologia.formats import (
+        FormatDependencyError,
+        FormatValidationError,
+        inspect_dem_tile_collection_coverage,
+    )
+
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    aoi = store.get_dataset(body.aoi_dataset_id)
+    if (
+        aoi is None
+        or aoi["project_id"] != project_id
+        or aoi["data_role"] != "aoi_boundary"
+        or aoi["format"] not in {"geojson", "json"}
+    ):
+        raise HTTPException(status_code=404, detail="AOI dataset not found")
+    aoi_path = store.get_dataset_content_path(aoi["id"])
+    if aoi_path is None or not _dataset_content_matches(aoi, Path(aoi_path)):
+        raise HTTPException(status_code=409, detail="AOI dataset failed integrity verification")
+
+    products = []
+    paths = []
+    for dataset_id in body.dem_dataset_ids:
+        item = store.get_dataset(dataset_id)
+        if (
+            item is None
+            or item["project_id"] != project_id
+            or item["data_role"] != "dem"
+            or item["format"] not in {"tif", "tiff", "hgt"}
+        ):
+            raise HTTPException(status_code=404, detail="DEM tile dataset not found")
+        content_path = store.get_dataset_content_path(item["id"])
+        if content_path is None or not _dataset_content_matches(item, Path(content_path)):
+            raise HTTPException(
+                status_code=409, detail="DEM tile dataset failed integrity verification"
+            )
+        products.append(item)
+        paths.append(Path(content_path))
+
+    try:
+        aoi_payload = _read_json(Path(aoi_path))
+        inspect_geojson(aoi_payload)
+        report = inspect_dem_tile_collection_coverage(
+            paths, aoi_payload, body.aoi_crs
+        )
+    except FormatDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except FormatValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"invalid AOI GeoJSON: {exc}") from exc
+
+    report.update({
+        "project_id": project_id,
+        "product_dataset_ids": [item["id"] for item in products],
+        "product_dataset_sha256s": [item["sha256"] for item in products],
+        "aoi_dataset_id": aoi["id"],
+        "aoi_dataset_sha256": aoi["sha256"],
+        "inspected_at_utc": store.utc_now(),
+        "geologia_version": __version__,
+    })
+    canonical = json.dumps(
+        report,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    report_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    report["inspection_sha256"] = report_sha256
+    report["coverage_footprint_reference"] = (
+        f"coverage-inspection-mosaic:{project_id}:{report_sha256}"
+    )
+    # Attach the collection report to its AOI dataset; the report itself names every DEM tile.
+    store.save_dataset_coverage_inspection(aoi["id"], report)
+    return report
+
+
+@app.get(
+    "/api/v1/projects/{project_id}/dem/tile-collection-coverage-inspection/{aoi_dataset_id}"
+)
+def project_dem_tile_collection_coverage_inspection_get(
+    project_id: str,
+    aoi_dataset_id: str,
+) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    aoi = store.get_dataset(aoi_dataset_id)
+    if aoi is None or aoi["project_id"] != project_id:
+        raise HTTPException(status_code=404, detail="AOI dataset not found")
+    report = store.get_dataset_coverage_inspection(aoi_dataset_id)
+    if report is None or report.get("format") != "dem_tile_collection_coverage_inspection":
+        raise HTTPException(status_code=404, detail="tile collection coverage report not found")
     return report
 
 
