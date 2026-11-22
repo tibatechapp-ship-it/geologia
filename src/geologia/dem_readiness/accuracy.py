@@ -99,7 +99,7 @@ def _canonical_json_sha256(payload: object) -> str:
     import json
 
     encoded = json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
@@ -188,7 +188,7 @@ def compute_dem_reference_residuals(
     product_manifest_sha256: str,
     reference_dataset_sha256: str,
     aoi_dataset_sha256: str,
-    product_manifest: DEMTileManifest | None = None,
+    product_manifest: DEMTileManifest,
     coverage_footprint_reference: str,
     requirement: AccuracyRequirement | None = None,
     declared_use: DeclaredUseContext | None = None,
@@ -229,10 +229,6 @@ def compute_dem_reference_residuals(
             char not in "0123456789abcdefABCDEF" for char in value
         ):
             raise FormatValidationError("accuracy input checksums must be SHA-256 values")
-    if product_manifest is None:
-        raise FormatValidationError(
-            "accuracy assessment requires the typed DEM tile manifest"
-        )
     canonical_manifest_sha = _canonical_json_sha256(
         product_manifest.model_dump(mode="json")
     )
@@ -314,8 +310,8 @@ def compute_dem_reference_residuals(
             "sha256": digest,
         })
 
-    if sorted(product_manifest.tile_dataset_sha256s) != sorted(
-        record["sha256"] for record in tile_records
+    if sorted(value.lower() for value in product_manifest.tile_dataset_sha256s) != sorted(
+        record["sha256"].lower() for record in tile_records
     ):
         raise FormatValidationError(
             "manifest tile SHA-256 membership does not match the supplied DEM files"
