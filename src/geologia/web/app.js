@@ -77,7 +77,7 @@ async function loadDatasets(){
       const report=await api("/api/v1/datasets/"+encodeURIComponent(d.id)+"/provenance");
       const label=status=>status==="verified"?tr("integrityVerified"):status==="failed"?tr("integrityFailed"):status==="missing"?tr("integrityMissing"):tr("integrityUnknown");
       const output=document.createElement("pre");output.className="inspection-report provenance-report";output.setAttribute("aria-live","polite");
-      output.textContent=tr("provenanceTitle")+"\\n"+tr("chainIntegrity")+": "+label(report.chain_integrity)+"\\n"+tr("contentIntegrity")+": "+label(report.content_integrity)+"\\n"+tr("provenanceBoundary")+"\\n\\n"+JSON.stringify(report,null,2);
+      output.textContent=tr("provenanceTitle")+"\n"+tr("chainIntegrity")+": "+label(report.chain_integrity)+"\n"+tr("contentIntegrity")+": "+label(report.content_integrity)+"\n"+tr("provenanceBoundary")+"\n\n"+JSON.stringify(report,null,2);
       row.querySelector(".provenance-report")?.remove();row.append(output);
      }catch(err){feedback("uploadStatus",tr("datasetProvenance")+": "+err.message,true)}
      finally{provenance.disabled=false;provenance.textContent=tr("datasetProvenance")}
