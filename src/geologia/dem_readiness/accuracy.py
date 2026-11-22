@@ -212,7 +212,10 @@ def _reference_uncertainty_summary(
         "maximum": max(numeric),
         "scope_counts": dict(sorted(scope_counts.items())),
         "dependence_counts": dict(sorted(dependence_counts.items())),
-        "note": "Descriptive distribution of declared metadata only; not propagated or interpreted as DEM accuracy.",
+        "note": (
+            "Descriptive distribution of declared metadata only; not propagated "
+            "or interpreted as DEM accuracy."
+        ),
     }
 
 def _canonical_json_sha256(payload: object) -> str:
