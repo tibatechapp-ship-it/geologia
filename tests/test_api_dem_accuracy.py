@@ -335,3 +335,29 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert readiness_chain.status_code == 200
     assert readiness_chain.json()["valid"] is True
     assert readiness_chain.json()["record_count"] == 2
+
+    def dependency_error_codes():
+        response = client.get(
+            f"/api/v1/projects/{project['id']}/dem/accuracy-assessments/chain"
+        )
+        assert response.status_code == 200
+        return {
+            item["code"] for item in response.json()["dependency_errors"]
+        }
+
+    reference_path = Path(store.get_dataset_content_path(reference.json()["id"]))
+    reference_path.write_bytes(b"tampered reference bytes")
+    assert "reference_dataset_integrity_mismatch" in dependency_error_codes()
+
+    aoi_path = Path(store.get_dataset_content_path(aoi.json()["id"]))
+    aoi_path.write_bytes(b"tampered AOI bytes")
+    assert "aoi_dataset_integrity_mismatch" in dependency_error_codes()
+
+    tile_path = Path(store.get_dataset_content_path(tile_ids[0]))
+    tile_path.write_bytes(b"tampered DEM tile bytes")
+    assert "dem_tile_dataset_integrity_mismatch" in dependency_error_codes()
+
+    manifest_path = Path(store.get_dataset_content_path(manifest.json()["id"]))
+    manifest_path.write_bytes(b"tampered manifest bytes")
+    assert "product_manifest_dataset_integrity_mismatch" in dependency_error_codes()
+

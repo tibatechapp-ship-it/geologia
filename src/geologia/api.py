@@ -78,6 +78,32 @@ def _dataset_content_matches(item: dict, path: Path) -> bool:
     return size == item["size_bytes"] and digest.hexdigest() == item["sha256"]
 
 
+def _dataset_dependency_matches(
+    project_id: str,
+    dataset_id: str | None,
+    expected_sha256: str | None,
+    *,
+    roles: tuple[str, ...],
+    formats: tuple[str, ...],
+) -> bool:
+    """Verify a persisted assessment input still matches its upload record and bytes."""
+    if not dataset_id or not expected_sha256:
+        return False
+    item = store.get_dataset(dataset_id)
+    if (
+        item is None
+        or item["project_id"] != project_id
+        or item["data_role"] not in roles
+        or item["format"] not in formats
+        or item["sha256"] != expected_sha256
+    ):
+        return False
+    content_path = store.get_dataset_content_path(dataset_id)
+    return content_path is not None and _dataset_content_matches(
+        item, Path(content_path)
+    )
+
+
 ALLOWED_DATA_ROLES = {
     "dem", "geology_map", "recharge_estimate", "water_levels_timeseries", "well_logs",
     "structural_orientations", "contacts", "waveforms_or_catalog", "station_metadata",
@@ -879,32 +905,133 @@ def project_dem_accuracy_assessment_chain(project_id: str) -> dict:
         for record in records:
             request = record["request"]
             assessment = record["assessment"]
+            dependencies = (
+                (
+                    "product_manifest_dataset",
+                    "product_manifest_dataset_id",
+                    "product_manifest_dataset_id",
+                    "product_manifest_dataset_sha256",
+                    ("dem_tile_manifest",),
+                    ("json",),
+                ),
+                (
+                    "reference_dataset",
+                    "reference_dataset_id",
+                    "reference_dataset_id",
+                    "reference_dataset_sha256",
+                    (
+                        "ground_control_points",
+                        "reference_elevation_observations",
+                    ),
+                    ("csv",),
+                ),
+                (
+                    "aoi_dataset",
+                    "aoi_dataset_id",
+                    "aoi_dataset_id",
+                    "aoi_dataset_file_sha256",
+                    ("aoi_boundary",),
+                    ("geojson", "json"),
+                ),
+            )
+            for (
+                label,
+                request_id_key,
+                assessment_id_key,
+                expected_sha_key,
+                roles,
+                formats,
+            ) in dependencies:
+                dataset_id = assessment.get(assessment_id_key)
+                expected_sha = assessment.get(expected_sha_key)
+                if (
+                    request.get(request_id_key) != dataset_id
+                    or not _dataset_dependency_matches(
+                        project_id,
+                        dataset_id,
+                        expected_sha,
+                        roles=roles,
+                        formats=formats,
+                    )
+                ):
+                    dependency_errors.append(
+                        {
+                            "record_id": record["id"],
+                            "code": f"{label}_integrity_mismatch",
+                        }
+                    )
+
+            manifest_id = assessment.get("product_manifest_dataset_id")
+            manifest_path = (
+                store.get_dataset_content_path(manifest_id)
+                if manifest_id is not None
+                else None
+            )
+            if manifest_path is not None and _dataset_dependency_matches(
+                project_id,
+                manifest_id,
+                assessment.get("product_manifest_dataset_sha256"),
+                roles=("dem_tile_manifest",),
+                formats=("json",),
+            ):
+                try:
+                    manifest = DEMTileManifest.model_validate(
+                        _read_json(Path(manifest_path))
+                    )
+                except (UnicodeDecodeError, ValueError, ValidationError):
+                    dependency_errors.append(
+                        {
+                            "record_id": record["id"],
+                            "code": "dem_tile_manifest_invalid",
+                        }
+                    )
+                else:
+                    for tile_id, tile_sha256 in zip(
+                        manifest.tile_dataset_ids,
+                        manifest.tile_dataset_sha256s,
+                        strict=True,
+                    ):
+                        if not _dataset_dependency_matches(
+                            project_id,
+                            tile_id,
+                            tile_sha256,
+                            roles=("dem",),
+                            formats=("tif", "tiff", "hgt"),
+                        ):
+                            dependency_errors.append(
+                                {
+                                    "record_id": record["id"],
+                                    "code": "dem_tile_dataset_integrity_mismatch",
+                                }
+                            )
+            else:
+                dependency_errors.append(
+                    {
+                        "record_id": record["id"],
+                        "code": "dem_tile_manifest_dependency_unavailable",
+                    }
+                )
+
             sidecar_id = assessment.get(
                 "reference_uncertainty_sidecar_dataset_id"
             )
-            if sidecar_id is None:
-                continue
-            sidecar = store.get_dataset(sidecar_id)
-            sidecar_path = store.get_dataset_content_path(sidecar_id)
-            expected_sha256 = assessment.get(
-                "reference_uncertainty_sidecar_dataset_sha256"
-            )
-            report_sha256 = assessment.get(
-                "reference_uncertainty_sidecar_sha256"
-            )
-            valid_dependency = (
+            if sidecar_id is not None and (
                 request.get("reference_uncertainty_sidecar_dataset_id")
-                == sidecar_id
-                and sidecar is not None
-                and sidecar["project_id"] == project_id
-                and sidecar["data_role"] == "reference_uncertainty_sidecar"
-                and sidecar["format"] == "json"
-                and sidecar["sha256"] == expected_sha256
-                and sidecar["sha256"] == report_sha256
-                and sidecar_path is not None
-                and _dataset_content_matches(sidecar, Path(sidecar_path))
-            )
-            if not valid_dependency:
+                != sidecar_id
+                or not _dataset_dependency_matches(
+                    project_id,
+                    sidecar_id,
+                    assessment.get(
+                        "reference_uncertainty_sidecar_dataset_sha256"
+                    ),
+                    roles=("reference_uncertainty_sidecar",),
+                    formats=("json",),
+                )
+                or assessment.get("reference_uncertainty_sidecar_sha256")
+                != assessment.get(
+                    "reference_uncertainty_sidecar_dataset_sha256"
+                )
+            ):
                 dependency_errors.append(
                     {
                         "record_id": record["id"],
