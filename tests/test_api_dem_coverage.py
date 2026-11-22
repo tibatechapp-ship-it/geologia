@@ -142,10 +142,41 @@ def _save_test_coverage_inspection(product, aoi, *, full=True):
         "aoi_dataset_id": aoi["id"],
         "aoi_dataset_sha256": aoi["sha256"],
         "coverage_footprint_reference": reference,
+        "inspected_at_utc": "2026-11-22T02:00:00+00:00",
     }
     store.save_dataset_coverage_inspection(product["id"], report)
     return reference
 
+
+
+
+def _save_test_reference_metrics(reference, aoi, payload):
+    from geologia import store
+    from geologia.dem_readiness.coverage import CoverageMetrics
+
+    report_reference = f"reference-coverage-metrics:{reference['id']}:test-record"
+    report = {
+        "status": "measured",
+        "independence_review_status": "attested_complete",
+        "reference_dataset_sha256": reference["sha256"],
+        "aoi_dataset_id": aoi["id"],
+        "aoi_dataset_sha256": aoi["sha256"],
+        "dem_epoch": payload["context"]["dem_epoch"],
+        "metrics": CoverageMetrics.model_validate(
+            payload["metrics"]
+        ).model_dump(mode="json"),
+        "metrics_reference": report_reference,
+        "computation_method": "reference-coverage-v1.0",
+        "computed_by": "analyst-1",
+        "computed_at_utc": "2026-11-22T02:05:00+00:00",
+        "analysis_code_commit": "a1b2c3d4",
+    }
+    store.save_reference_coverage_metrics(reference["id"], report)
+    payload["evidence"]["metrics_source_reference"] = report_reference
+    payload["evidence"]["metrics_computation_method"] = report["computation_method"]
+    payload["evidence"]["metrics_computed_by"] = report["computed_by"]
+    payload["evidence"]["metrics_computed_at"] = report["computed_at_utc"]
+    payload["evidence"]["analysis_code_commit"] = report["analysis_code_commit"]
 
 def test_project_coverage_assessment_is_persisted_and_chain_verified(tmp_path, monkeypatch):
     project = _create_project(tmp_path, monkeypatch)
@@ -179,6 +210,7 @@ def test_project_coverage_assessment_is_persisted_and_chain_verified(tmp_path, m
     footprint_reference = _save_test_coverage_inspection(product.json(), aoi.json())
     payload["actual_coverage"]["value"] = footprint_reference
     payload["evidence"]["coverage_footprint_reference"] = footprint_reference
+    _save_test_reference_metrics(reference.json(), aoi.json(), payload)
     saved = client.post(
         f"/api/v1/projects/{project['id']}/dem/coverage-assessments",
         json={"created_by": "operator-1", "request": payload},
@@ -350,6 +382,7 @@ def test_verified_assessment_rejects_partial_dem_footprint(tmp_path, monkeypatch
     )
     payload["actual_coverage"]["value"] = footprint_reference
     payload["evidence"]["coverage_footprint_reference"] = footprint_reference
+    _save_test_reference_metrics(reference.json(), aoi.json(), payload)
 
     response = client.post(
         f"/api/v1/projects/{project['id']}/dem/coverage-assessments",
