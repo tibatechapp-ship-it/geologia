@@ -128,3 +128,47 @@ def test_dem_aoi_inspection_marks_full_only_when_extent_and_all_centres_are_vali
     assert report["coverage_status"] == "full_aoi_extent_and_valid_pixels"
     assert report["aoi_fully_within_raster_extent"] is True
     assert report["all_aoi_pixel_centres_valid"] is True
+
+
+
+def test_geographic_aoi_is_transformed_to_projected_dem_crs_with_margin(tmp_path):
+    pytest.importorskip("pyproj")
+    from pyproj import Transformer
+
+    dem = tmp_path / "dem.tif"
+    _write_dem(dem)
+    transformer = Transformer.from_crs("EPSG:32638", "EPSG:4326", always_xy=True)
+    corners = [
+        transformer.transform(500015, 1699715),
+        transformer.transform(500285, 1699715),
+        transformer.transform(500285, 1699985),
+        transformer.transform(500015, 1699985),
+    ]
+    coordinates = [[*corners, corners[0]]]
+    geographic_aoi = {"type": "Polygon", "coordinates": coordinates}
+
+    report = inspect_dem_aoi_coverage(dem, geographic_aoi, "EPSG:4326")
+
+    assert report["inspection_status"] == "measured"
+    assert report["aoi_fully_within_raster_extent"] is True
+    assert report["raster_extent_intersection_fraction_of_aoi"] > 0.99
+    assert "densified" in report["crs_boundary_densification"]
+
+
+def test_antimeridian_crossing_aoi_is_rejected_explicitly(tmp_path):
+    from geologia.formats import FormatValidationError
+
+    dem = tmp_path / "dem.tif"
+    _write_dem(dem)
+    aoi = {
+        "type": "Polygon",
+        "coordinates": [[
+            [179.5, 15.0],
+            [-179.5, 15.0],
+            [-179.5, 16.0],
+            [179.5, 16.0],
+            [179.5, 15.0],
+        ]],
+    }
+    with pytest.raises(FormatValidationError, match="antimeridian"):
+        inspect_dem_aoi_coverage(dem, aoi, "EPSG:4326")
