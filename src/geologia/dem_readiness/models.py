@@ -19,6 +19,15 @@ class Availability(StrEnum):
     NOT_AVAILABLE = "not_available"
 
 
+class ValidationStatus(StrEnum):
+    PLANNED = "planned"
+    COVERAGE_CHECKED = "coverage_checked"
+    REFERENCE_READY = "reference_ready"
+    ANALYZED = "analyzed"
+    INDEPENDENTLY_REVIEWED = "independently_reviewed"
+    NOT_ASSESSED = "not_assessed"
+
+
 class ReadinessDisposition(StrEnum):
     READY = "ready_for_declared_use"
     CONDITIONAL = "conditional_limited_use"
@@ -95,6 +104,15 @@ class MandatoryProductContext(BaseModel):
     spatial_resolution_x: EvidenceValue
     spatial_resolution_y: EvidenceValue
     validation_status: EvidenceValue
+
+    @model_validator(mode="after")
+    def validate_validation_status(self) -> "MandatoryProductContext":
+        status = self.validation_status
+        if status.availability is Availability.AVAILABLE:
+            allowed = {item.value for item in ValidationStatus}
+            if not isinstance(status.value, str) or status.value not in allowed:
+                raise ValueError(f"validation_status must be one of: {', '.join(sorted(allowed))}")
+        return self
 
     def unavailable_fields(self) -> list[str]:
         return [
