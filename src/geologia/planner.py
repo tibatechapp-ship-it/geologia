@@ -75,7 +75,7 @@ INTENTS = [
         "preferred_engines": ["geochemistry-pi", "geopytool"],
         "inputs": ["geochemistry_samples", "sample_locations", "qc_report"],
         "keywords": [
-            "جيوكيمي", "تحليل عنصري", "تحليل كيميائي للصخور", "عينات الصخور",
+            "جيوكيمي", "تحليل عنصري", "تحليل كيميائي للصخور", "عينات الصخور", "عينات",
             "geochemistry", "geochem", "elemental analysis", "rock classification",
             "геохимия", "геохимический анализ", "地球化学", "元素分析",
         ],
@@ -87,8 +87,8 @@ INTENTS = [
         "keywords": [
             "ذهب", "الذهب", "معدن", "المعادن", "تنقيب", "استكشاف معدني",
             "gold", "mineral", "minerals", "exploration", "prospectivity",
-            "золото", "минералы", "полезные ископаемые", "геохимия", "разведка",
-            "金矿", "矿产", "矿物勘查", "地球化学", "找矿",
+            "золото", "минералы", "полезные ископаемые", "разведка",
+            "金矿", "矿产", "矿物勘查", "找矿",
         ],
     },
     {
@@ -195,6 +195,7 @@ def agent_status() -> dict:
         "agent_id": AGENT_ID,
         "name_ar": AGENT_NAME_AR,
         "name_en": AGENT_NAME_EN,
+        "supported_domains": list(SUPPORTED_DOMAINS),
         "architecture": "deterministic_rule_based",
         "runtime": "local",
         "model_required": False,
@@ -282,6 +283,8 @@ def classify_request(request: str) -> dict:
             matches.remove(weak)
             by_domain.pop(rule["weak"], None)
     if matches:
+        for item in matches:
+            item.pop("matched_keywords_norm", None)
         return {
             "classification_status": "matched",
             "needs_clarification": False,
