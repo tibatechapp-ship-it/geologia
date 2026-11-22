@@ -1,6 +1,12 @@
 import pytest
 
-from geologia.planner import agent_status, build_plan, classify_request
+from geologia.planner import (
+    PREPARED_INTENTS,
+    _prepare_intents,
+    agent_status,
+    build_plan,
+    classify_request,
+)
 
 
 def test_arabic_groundwater_request_routes_with_explicit_evidence():
@@ -159,6 +165,8 @@ def test_planner_candidates_are_derived_from_registry_domains():
 
 
 def test_preferred_engine_with_wrong_registry_domain_fails_closed():
+    from geologia.registry import ENGINES
+
     with pytest.raises(RuntimeError, match="belongs to"):
         _prepare_intents(
             [{"domain": "exploration", "preferred_engines": ["geopytool"]}],
