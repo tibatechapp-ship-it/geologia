@@ -147,3 +147,40 @@ def test_not_assessed_status_is_not_a_pass():
         )
     )
     assert result.disposition is ReadinessDisposition.NOT_ASSESSED
+
+
+def test_analyzed_without_independent_review_is_not_evaluable():
+    result = assess_readiness(
+        ReadinessInput(
+            context=context(validation_status=evidence("analyzed")),
+            declared_use=use(),
+        )
+    )
+    assert result.disposition is ReadinessDisposition.NOT_EVALUABLE
+    assert ReasonCode.UNRESOLVED in result.reason_codes
+
+
+def test_validation_status_cannot_be_bypassed_by_scope_exception():
+    missing = EvidenceValue(
+        availability=Availability.NOT_AVAILABLE,
+        reason="No validation workflow status is recorded.",
+        reviewer="reviewer-1",
+        recorded_at=NOW,
+    )
+    exception = ScopeException(
+        field_name="validation_status",
+        rationale="The declared task is a simple visualization only.",
+        evidence_reference="evidence://task-profile/view-only",
+        reviewer="reviewer-1",
+        recorded_at=NOW,
+        compensating_controls=("Suppress all readiness labels",),
+    )
+    result = assess_readiness(
+        ReadinessInput(
+            context=context(validation_status=missing),
+            declared_use=use(),
+            scope_exceptions=(exception,),
+        )
+    )
+    assert result.disposition is ReadinessDisposition.NOT_EVALUABLE
+    assert "validation_status" in result.blocking_fields
