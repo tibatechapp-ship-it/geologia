@@ -11,7 +11,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .models import ReasonCode
+from .models import Availability, EvidenceValue, ReasonCode
 from .thresholds import FROZEN_V1_THRESHOLDS
 
 
@@ -151,10 +151,10 @@ class CoverageRecord(BaseModel):
     primary_stratum_id: NonEmpty
     product_epoch: NonEmpty
     equal_area_crs: NonEmpty
-    reference_coverage_geometry_reference: NonEmpty
-    coverage_map_reference: NonEmpty
-    coverage_verification_method: NonEmpty
-    coverage_verified_at: datetime
+    reference_coverage_geometry_reference: EvidenceValue
+    coverage_map_reference: EvidenceValue
+    coverage_verification_method: EvidenceValue
+    coverage_verified_at: datetime | None = None
     source_independence_status: SourceIndependenceStatus
     source_independence_rationale: NonEmpty
     source_independence_evidence_reference: str | None = None
@@ -170,9 +170,18 @@ class CoverageRecord(BaseModel):
             raise ValueError("density grid width must match frozen protocol v1")
         if self.spatial_block_width_km != FROZEN_V1_THRESHOLDS.section_17.spatial_block_width_km:
             raise ValueError("spatial block width must match frozen protocol v1")
-        for field_name in ("coverage_verified_at", "source_independence_recorded_at"):
-            if getattr(self, field_name).tzinfo is None:
-                raise ValueError(f"{field_name} must be timezone-aware")
+        if self.source_independence_recorded_at.tzinfo is None:
+            raise ValueError("source_independence_recorded_at must be timezone-aware")
+        coverage_fields = (
+            self.reference_coverage_geometry_reference,
+            self.coverage_map_reference,
+            self.coverage_verification_method,
+        )
+        if all(item.availability is Availability.AVAILABLE for item in coverage_fields):
+            if self.coverage_verified_at is None or self.coverage_verified_at.tzinfo is None:
+                raise ValueError("verified reference coverage requires timezone-aware coverage_verified_at")
+        elif self.coverage_verified_at is not None and self.coverage_verified_at.tzinfo is None:
+            raise ValueError("coverage_verified_at must be timezone-aware when supplied")
         if (
             self.source_independence_status
             in {SourceIndependenceStatus.INDEPENDENT, SourceIndependenceStatus.DEPENDENT}
@@ -273,6 +282,33 @@ def _maximum_check(
     )
 
 
+def _coverage_documentation_checks(record: CoverageRecord) -> list[GateCheck]:
+    fields = {
+        "reference_coverage_geometry": record.reference_coverage_geometry_reference,
+        "coverage_map": record.coverage_map_reference,
+        "coverage_verification_method": record.coverage_verification_method,
+    }
+    return [
+        GateCheck(
+            metric=name,
+            observed=None,
+            comparison="must_be_available",
+            threshold=1.0,
+            outcome=(
+                CoverageOutcome.PASS
+                if item.availability is Availability.AVAILABLE
+                else CoverageOutcome.NOT_EVALUABLE
+            ),
+            reason_code=(
+                None
+                if item.availability is Availability.AVAILABLE
+                else ReasonCode.UNRESOLVED
+            ),
+        )
+        for name, item in fields.items()
+    ]
+
+
 def _independence_check(record: CoverageRecord) -> GateCheck:
     status = record.source_independence_status
     if status is SourceIndependenceStatus.INDEPENDENT:
@@ -301,7 +337,9 @@ def evaluate_coverage(record: CoverageRecord) -> CoverageAssessment:
     evidence = record.evidence
 
     independence_check = _independence_check(record)
+    documentation_checks = _coverage_documentation_checks(record)
     exploratory_checks = [
+        *documentation_checks,
         independence_check,
         _minimum_check(
             "observations_per_primary_cell",
@@ -336,6 +374,7 @@ def evaluate_coverage(record: CoverageRecord) -> CoverageAssessment:
     ]
 
     confirmatory_checks = [
+        *documentation_checks,
         independence_check,
         _minimum_check(
             "observations_per_primary_cell",
