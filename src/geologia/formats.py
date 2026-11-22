@@ -402,7 +402,19 @@ def _densify_geometry_for_crs(geometry: Any, crs: Any):
             )
         max_segment_length = 1000.0 / min(factors)
 
-    polygons = list(geometry.geoms) if geometry.geom_type == "MultiPolygon" else [geometry]
+    if geometry.geom_type == "Polygon":
+        polygons = [geometry]
+    elif geometry.geom_type == "MultiPolygon":
+        polygons = list(geometry.geoms)
+    elif geometry.geom_type == "GeometryCollection":
+        polygons = [
+            item for item in geometry.geoms
+            if item.geom_type in {"Polygon", "MultiPolygon"}
+        ]
+        if not polygons:
+            return geometry
+    else:
+        return geometry
     estimated_segments = 0
     for polygon in polygons:
         rings = [polygon.exterior, *polygon.interiors]
@@ -671,4 +683,400 @@ def inspect_dem_aoi_coverage(
     except Exception as exc:
         raise FormatValidationError(
             "DEM/AOI coverage inspection failed because an input is invalid or unsupported"
+        ) from exc
+
+
+MAX_DEM_COVERAGE_TILE_BYTES = 2 * 1024 * 1024 * 1024
+MAX_DEM_COVERAGE_TILES = 256
+MAX_DEM_COVERAGE_TOTAL_BYTES = 50 * 1024 * 1024 * 1024
+MAX_DEM_MOSAIC_PIXELS = 1_000_000_000
+DEM_COVERAGE_WINDOW_SIZE = 512
+
+
+def inspect_dem_tile_collection_coverage(
+    dem_paths: list[Path],
+    aoi_payload: dict[str, Any],
+    aoi_crs: str,
+) -> dict[str, Any]:
+    """Inspect a same-grid DEM tile collection against an AOI, window by window.
+
+    Tile footprints are unioned so overlap is not double-counted and gaps remain
+    visible. Valid pixel centres are counted once on the common mosaic grid.
+    This is coverage inspection, not DEM accuracy validation.
+    """
+    import hashlib
+    from contextlib import ExitStack
+
+    rasterio = _dependency("rasterio")
+    numpy = _dependency("numpy")
+    pyproj = _dependency("pyproj")
+    from affine import Affine
+    from rasterio.features import geometry_mask
+    from rasterio.windows import Window
+    from shapely.geometry import Polygon, mapping
+    from shapely.ops import transform as transform_geometry, unary_union
+
+    if not dem_paths or len(dem_paths) > MAX_DEM_COVERAGE_TILES:
+        raise FormatValidationError(
+            f"DEM tile collection must contain 1 to {MAX_DEM_COVERAGE_TILES} files"
+        )
+    paths = [Path(item) for item in dem_paths]
+    if len({path.resolve() for path in paths}) != len(paths):
+        raise FormatValidationError("DEM tile collection contains duplicate paths")
+
+    def sha256_file(path: Path) -> tuple[int, str]:
+        digest = hashlib.sha256()
+        total = 0
+        try:
+            with path.open("rb") as source:
+                for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                    total += len(chunk)
+                    if total > MAX_DEM_COVERAGE_TILE_BYTES:
+                        raise FormatValidationError(
+                            "DEM tile exceeds the 2 GiB coverage-inspection limit"
+                        )
+                    digest.update(chunk)
+        except OSError as exc:
+            raise FormatValidationError("DEM tile cannot be read") from exc
+        if total == 0:
+            raise FormatValidationError("DEM tile must be non-empty")
+        return total, digest.hexdigest()
+
+    try:
+        aoi = _polygonal_aoi(aoi_payload)
+        source_crs = pyproj.CRS.from_user_input(aoi_crs)
+        if (
+            source_crs.is_compound
+            or source_crs.is_vertical
+            or not (source_crs.is_geographic or source_crs.is_projected)
+        ):
+            raise FormatValidationError("AOI CRS must be a horizontal 2D CRS")
+        if source_crs.is_geographic and aoi.bounds[2] - aoi.bounds[0] > 180:
+            raise FormatValidationError(
+                "AOI crosses the antimeridian; split it into non-crossing polygons"
+            )
+
+        with ExitStack() as stack:
+            tiles: list[dict[str, Any]] = []
+            total_file_size_bytes = 0
+            reference_transform = None
+            reference_crs = None
+            for path in paths:
+                size_bytes, digest = sha256_file(path)
+                total_file_size_bytes += size_bytes
+                if total_file_size_bytes > MAX_DEM_COVERAGE_TOTAL_BYTES:
+                    raise FormatValidationError(
+                        "DEM tile collection exceeds the 50 GiB total file-size limit"
+                    )
+                if path.suffix.lower() not in {".tif", ".tiff", ".hgt"}:
+                    raise FormatValidationError(
+                        "DEM tile collection supports GeoTIFF and HGT files only"
+                    )
+                try:
+                    dataset = stack.enter_context(rasterio.open(path, "r"))
+                except Exception as exc:
+                    raise FormatValidationError("DEM tile cannot be opened") from exc
+                if dataset.width <= 0 or dataset.height <= 0 or dataset.count < 1:
+                    raise FormatValidationError("DEM tile dimensions and bands must be positive")
+                if dataset.width * dataset.height > MAX_RASTER_PIXELS:
+                    raise FormatValidationError("DEM tile exceeds the per-file pixel limit")
+                if dataset.crs is None:
+                    raise FormatValidationError("DEM tile must declare a horizontal CRS")
+                tile_crs = pyproj.CRS.from_user_input(dataset.crs)
+                if not (tile_crs.is_projected or tile_crs.is_geographic):
+                    raise FormatValidationError(
+                        "DEM tiles must use a common horizontal projected or geographic CRS"
+                    )
+                transform = dataset.transform
+                affine_values = (
+                    transform.a, transform.b, transform.c,
+                    transform.d, transform.e, transform.f,
+                )
+                if not all(math.isfinite(float(value)) for value in affine_values):
+                    raise FormatValidationError("DEM tile affine transform must be finite")
+                determinant = transform.a * transform.e - transform.b * transform.d
+                if not math.isfinite(determinant) or abs(determinant) <= 0:
+                    raise FormatValidationError("DEM tile affine transform is singular")
+                for index, (block_height, block_width) in enumerate(dataset.block_shapes):
+                    block_bytes = (
+                        block_height * block_width
+                        * numpy.dtype(dataset.dtypes[index]).itemsize
+                    )
+                    if block_bytes > MAX_RASTER_BLOCK_BYTES:
+                        raise FormatValidationError(
+                            "DEM tile block size exceeds the memory safety limit"
+                        )
+
+                if reference_transform is None:
+                    reference_transform = transform
+                    reference_crs = tile_crs
+                else:
+                    if not tile_crs.equals(reference_crs):
+                        raise FormatValidationError(
+                            "DEM tiles must share one CRS; reproject tiles before inspection"
+                        )
+                    if any(
+                        not math.isclose(left, right, rel_tol=0, abs_tol=1e-9)
+                        for left, right in zip(
+                            (transform.a, transform.b, transform.d, transform.e),
+                            (
+                                reference_transform.a, reference_transform.b,
+                                reference_transform.d, reference_transform.e,
+                            ),
+                        )
+                    ):
+                        raise FormatValidationError(
+                            "DEM tiles must share identical pixel-grid orientation "
+                            "and resolution"
+                        )
+                offset_col, offset_row = (~reference_transform) * (
+                    transform.c, transform.f
+                )
+                rounded_col, rounded_row = round(offset_col), round(offset_row)
+                if (
+                    not math.isclose(offset_col, rounded_col, abs_tol=1e-6)
+                    or not math.isclose(offset_row, rounded_row, abs_tol=1e-6)
+                ):
+                    raise FormatValidationError(
+                        "DEM tile origins are not aligned to the common pixel grid"
+                    )
+                footprint = Polygon([
+                    transform * (0, 0),
+                    transform * (dataset.width, 0),
+                    transform * (dataset.width, dataset.height),
+                    transform * (0, dataset.height),
+                ])
+                if footprint.is_empty or not footprint.is_valid:
+                    raise FormatValidationError("DEM tile footprint is invalid")
+                tiles.append({
+                    "path": path.name,
+                    "size_bytes": size_bytes,
+                    "sha256": digest,
+                    "dataset": dataset,
+                    "transform": transform,
+                    "width": dataset.width,
+                    "height": dataset.height,
+                    "offset_col": int(rounded_col),
+                    "offset_row": int(rounded_row),
+                    "footprint": footprint,
+                })
+
+            min_col = min(tile["offset_col"] for tile in tiles)
+            min_row = min(tile["offset_row"] for tile in tiles)
+            max_col = max(
+                tile["offset_col"] + tile["width"] for tile in tiles
+            )
+            max_row = max(
+                tile["offset_row"] + tile["height"] for tile in tiles
+            )
+            mosaic_width, mosaic_height = max_col - min_col, max_row - min_row
+            if mosaic_width <= 0 or mosaic_height <= 0:
+                raise FormatValidationError("DEM tile mosaic dimensions are invalid")
+            if mosaic_width * mosaic_height > MAX_DEM_MOSAIC_PIXELS:
+                raise FormatValidationError("DEM tile mosaic exceeds the processing pixel limit")
+            for tile in tiles:
+                tile["mosaic_col"] = tile["offset_col"] - min_col
+                tile["mosaic_row"] = tile["offset_row"] - min_row
+            mosaic_transform = reference_transform * Affine.translation(min_col, min_row)
+
+            aoi_in_mosaic = transform_geometry(
+                pyproj.Transformer.from_crs(
+                    source_crs, reference_crs, always_xy=True
+                ).transform,
+                _densify_geometry_for_crs(aoi, source_crs),
+            )
+            if aoi_in_mosaic.is_empty or not aoi_in_mosaic.is_valid:
+                raise FormatValidationError("AOI cannot be transformed to the common DEM grid")
+
+            tile_union = unary_union([tile["footprint"] for tile in tiles])
+            intersection = aoi_in_mosaic.intersection(tile_union)
+            area_crs = pyproj.CRS.from_epsg(6933)
+            to_area = pyproj.Transformer.from_crs(
+                reference_crs, area_crs, always_xy=True
+            )
+            aoi_area = float(
+                transform_geometry(
+                    pyproj.Transformer.from_crs(
+                        source_crs, area_crs, always_xy=True
+                    ).transform,
+                    _densify_geometry_for_crs(aoi, source_crs),
+                ).area
+            )
+            if not math.isfinite(aoi_area) or aoi_area <= 0:
+                raise FormatValidationError(
+                    "AOI area cannot be measured in the equal-area CRS"
+                )
+            union_area = float(
+                transform_geometry(
+                    to_area.transform,
+                    _densify_geometry_for_crs(tile_union, reference_crs),
+                ).area
+            )
+            intersection_area = (
+                float(
+                    transform_geometry(
+                        to_area.transform,
+                        _densify_geometry_for_crs(intersection, reference_crs),
+                    ).area
+                )
+                if not intersection.is_empty
+                else 0.0
+            )
+            gap_geometry = aoi_in_mosaic.difference(tile_union)
+            gap_area = (
+                float(
+                    transform_geometry(
+                        to_area.transform,
+                        _densify_geometry_for_crs(gap_geometry, reference_crs),
+                    ).area
+                )
+                if not gap_geometry.is_empty
+                else 0.0
+            )
+            sum_tile_area = sum(
+                float(
+                    transform_geometry(
+                        to_area.transform,
+                        _densify_geometry_for_crs(tile["footprint"], reference_crs),
+                    ).area
+                )
+                for tile in tiles
+            )
+            overlap_area = max(0.0, sum_tile_area - union_area)
+            full_extent = bool(tile_union.covers(aoi_in_mosaic))
+
+            inside_count = 0
+            valid_count = 0
+            aoi_mapping = mapping(aoi_in_mosaic)
+            for row in range(0, mosaic_height, DEM_COVERAGE_WINDOW_SIZE):
+                window_height = min(DEM_COVERAGE_WINDOW_SIZE, mosaic_height - row)
+                for col in range(0, mosaic_width, DEM_COVERAGE_WINDOW_SIZE):
+                    window_width = min(DEM_COVERAGE_WINDOW_SIZE, mosaic_width - col)
+                    inside = geometry_mask(
+                        [aoi_mapping],
+                        out_shape=(window_height, window_width),
+                        transform=mosaic_transform * Affine.translation(col, row),
+                        invert=True,
+                        all_touched=False,
+                    )
+                    count_inside = int(numpy.count_nonzero(inside))
+                    if count_inside == 0:
+                        continue
+                    valid = numpy.zeros((window_height, window_width), dtype=bool)
+                    for tile in tiles:
+                        tile_col, tile_row = tile["mosaic_col"], tile["mosaic_row"]
+                        overlap_col = max(col, tile_col)
+                        overlap_row = max(row, tile_row)
+                        overlap_col_end = min(col + window_width, tile_col + tile["width"])
+                        overlap_row_end = min(row + window_height, tile_row + tile["height"])
+                        if overlap_col >= overlap_col_end or overlap_row >= overlap_row_end:
+                            continue
+                        overlap_width = overlap_col_end - overlap_col
+                        overlap_height = overlap_row_end - overlap_row
+                        source_window = Window(
+                            overlap_col - tile_col,
+                            overlap_row - tile_row,
+                            overlap_width,
+                            overlap_height,
+                        )
+                        source_mask = tile["dataset"].read_masks(1, window=source_window) > 0
+                        target_rows = slice(overlap_row - row, overlap_row_end - row)
+                        target_cols = slice(overlap_col - col, overlap_col_end - col)
+                        valid[target_rows, target_cols] |= source_mask
+                    inside_count += count_inside
+                    valid_count += int(numpy.count_nonzero(inside & valid))
+
+            pixel_polygon = Polygon([
+                mosaic_transform * (0, 0),
+                mosaic_transform * (1, 0),
+                mosaic_transform * (1, 1),
+                mosaic_transform * (0, 1),
+            ])
+            pixel_area = float(
+                transform_geometry(to_area.transform, pixel_polygon).area
+            )
+            if not math.isfinite(pixel_area) or pixel_area <= 0:
+                raise FormatValidationError("mosaic pixel area must be positive and finite")
+            valid_pixel_area_estimate = valid_count * pixel_area
+            extent_fraction = (
+                min(1.0, max(0.0, intersection_area / aoi_area))
+                if aoi_area > 0
+                else 0.0
+            )
+            valid_area_fraction = (
+                valid_pixel_area_estimate / aoi_area if aoi_area > 0 else None
+            )
+            all_centres_valid = inside_count > 0 and valid_count == inside_count
+            if intersection_area <= 0:
+                status = "no_extent_overlap"
+            elif valid_count == 0:
+                status = "overlap_without_valid_pixels"
+            elif full_extent and all_centres_valid:
+                status = "full_aoi_extent_and_valid_pixels"
+            elif valid_count < inside_count:
+                status = "partial_valid_data_within_raster_extent"
+            else:
+                status = "partial_aoi_extent_with_valid_pixels"
+
+            return {
+                "format": "dem_tile_collection_coverage_inspection",
+                "inspection_status": "measured",
+                "coverage_status": status,
+                "aoi_fully_within_raster_extent": full_extent,
+                "all_aoi_pixel_centres_valid": all_centres_valid,
+                "tile_count": len(tiles),
+                "total_file_size_bytes": total_file_size_bytes,
+                "tiles": [
+                    {
+                        "filename": tile["path"],
+                        "file_size_bytes": tile["size_bytes"],
+                        "sha256": tile["sha256"],
+                        "width": tile["width"],
+                        "height": tile["height"],
+                        "mosaic_column_offset": tile["mosaic_col"],
+                        "mosaic_row_offset": tile["mosaic_row"],
+                        "affine_transform": [
+                            float(tile["transform"].a), float(tile["transform"].b),
+                            float(tile["transform"].c), float(tile["transform"].d),
+                            float(tile["transform"].e), float(tile["transform"].f),
+                        ],
+                    }
+                    for tile in tiles
+                ],
+                "mosaic_width": mosaic_width,
+                "mosaic_height": mosaic_height,
+                "mosaic_crs": reference_crs.to_string(),
+                "mosaic_transform": [
+                    float(mosaic_transform.a), float(mosaic_transform.b),
+                    float(mosaic_transform.c), float(mosaic_transform.d),
+                    float(mosaic_transform.e), float(mosaic_transform.f),
+                ],
+                "aoi_area_m2": aoi_area,
+                "raster_extent_intersection_area_m2": intersection_area,
+                "raster_extent_intersection_fraction_of_aoi": extent_fraction,
+                "uncovered_aoi_area_m2": gap_area,
+                "overlap_area_m2": overlap_area,
+                "aoi_pixel_centres_in_mosaic": inside_count,
+                "valid_aoi_pixel_centres": valid_count,
+                "valid_pixel_fraction_within_mosaic": (
+                    valid_count / inside_count if inside_count else 0.0
+                ),
+                "valid_pixel_area_estimate_m2": valid_pixel_area_estimate,
+                "valid_pixel_coverage_fraction_estimate": valid_area_fraction,
+                "pixel_area_m2": pixel_area,
+                "pixel_area_estimation_method": (
+                    "one mosaic-grid pixel transformed to EPSG:6933; local estimate"
+                ),
+                "mask_method": "windowed union of rasterio read_masks across aligned tiles",
+                "aoi_pixel_selection": "pixel centre; overlaps counted once on common grid",
+                "vertical_datum_verified": False,
+                "dem_accuracy_validated": False,
+                "scientific_interpretation": False,
+            }
+    except FormatValidationError:
+        raise
+    except Exception as exc:
+        raise FormatValidationError(
+            "DEM tile collection coverage inspection failed because an input "
+            "is invalid or unsupported"
         ) from exc
