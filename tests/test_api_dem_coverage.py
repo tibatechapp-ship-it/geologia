@@ -9,6 +9,10 @@ client = TestClient(app)
 def _coverage_payload():
     return {
         "context": {
+            "product_dataset_id": "dataset-dem-1",
+            "product_dataset_sha256": "b" * 64,
+            "reference_dataset_id": "dataset-reference-1",
+            "reference_dataset_sha256": "a" * 64,
             "product_version_id": "copernicus-glo30-release-x",
             "pilot_area_id": "yemen-pilot-west-01",
             "reference_source_id": "icesat2-atl08-release-x",
@@ -21,6 +25,18 @@ def _coverage_payload():
             "value": "coverage://glo30/release-x/yemen-pilot-west-01",
         },
         "coverage_status": "verified",
+        "evidence": {
+            "coverage_footprint_reference": "coverage://glo30/release-x/yemen-pilot-west-01",
+            "coverage_verification_method": "Raster footprint intersected with registered AOI.",
+            "coverage_reviewer": "reviewer-1",
+            "coverage_verified_at": "2026-11-22T02:00:00Z",
+            "metrics_source_reference": "evidence://reference-observations/1",
+            "metrics_computation_method": "Frozen equal-area grid count script.",
+            "metrics_computed_by": "analyst-1",
+            "metrics_computed_at": "2026-11-22T02:05:00Z",
+            "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "analysis_code_commit": "a1b2c3d4",
+        },
         "metrics": {
             "valid_independent_locations": 60,
             "polygon_area_km2": 3.0,
@@ -61,3 +77,103 @@ def test_dem_coverage_threshold_endpoint_exposes_frozen_protocol():
     assert thresholds["protocol_version"] == "1"
     assert thresholds["section_17"]["confirmatory_valid_locations_per_km2"] == 40
     assert thresholds["section_20"]["bootstrap_replicates"] == 2000
+
+
+def _create_project(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "coverage.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    response = client.post("/api/v1/projects", json={"name": "DEM coverage audit"})
+    assert response.status_code == 201
+    return response.json()
+
+
+def _upload_coverage_dataset(project_id, filename, data, role):
+    return client.post(
+        f"/api/v1/projects/{project_id}/datasets",
+        content=data,
+        headers={
+            "X-Dataset-Name": filename,
+            "X-Filename": filename,
+            "X-Data-Role": role,
+        },
+    )
+
+
+def test_project_coverage_assessment_is_persisted_and_chain_verified(tmp_path, monkeypatch):
+    project = _create_project(tmp_path, monkeypatch)
+    product = _upload_coverage_dataset(
+        project["id"], "candidate.tif", b"dem-placeholder-bytes", "dem"
+    )
+    reference = _upload_coverage_dataset(
+        project["id"],
+        "reference.geojson",
+        b'{"type":"FeatureCollection","features":[]}',
+        "reference_elevation_observations",
+    )
+    assert product.status_code == 201
+    assert reference.status_code == 201
+
+    payload = _coverage_payload()
+    payload["context"]["product_dataset_id"] = product.json()["id"]
+    payload["context"]["product_dataset_sha256"] = product.json()["sha256"]
+    payload["context"]["reference_dataset_id"] = reference.json()["id"]
+    payload["context"]["reference_dataset_sha256"] = reference.json()["sha256"]
+    payload["evidence"]["source_sha256"] = reference.json()["sha256"]
+    saved = client.post(
+        f"/api/v1/projects/{project['id']}/dem/coverage-assessments",
+        json={"created_by": "operator-1", "request": payload},
+    )
+    assert saved.status_code == 201
+    record = saved.json()
+    assert record["assessment"]["status"] == "sufficient"
+    assert record["created_by"] == "operator-1"
+    assert record["record_hash"]
+
+    listed = client.get(
+        f"/api/v1/projects/{project['id']}/dem/coverage-assessments"
+    )
+    assert listed.status_code == 200
+    assert listed.json()["count"] == 1
+    assert listed.json()["assessments"][0]["id"] == record["id"]
+
+    detail = client.get(
+        f"/api/v1/projects/{project['id']}/dem/coverage-assessments/{record['id']}"
+    )
+    assert detail.status_code == 200
+    assert detail.json()["record_hash"] == record["record_hash"]
+
+    integrity = client.get(
+        f"/api/v1/projects/{project['id']}/dem/coverage-assessments/integrity"
+    )
+    assert integrity.status_code == 200
+    assert integrity.json()["valid"] is True
+    assert integrity.json()["record_count"] == 1
+
+
+def test_persistent_assessment_rejects_dataset_integrity_mismatch(tmp_path, monkeypatch):
+    from geologia import store
+
+    project = _create_project(tmp_path, monkeypatch)
+    product = _upload_coverage_dataset(
+        project["id"], "candidate.tif", b"dem-placeholder-bytes", "dem"
+    )
+    reference = _upload_coverage_dataset(
+        project["id"],
+        "reference.geojson",
+        b'{"type":"FeatureCollection","features":[]}',
+        "reference_elevation_observations",
+    )
+    payload = _coverage_payload()
+    payload["context"]["product_dataset_id"] = product.json()["id"]
+    payload["context"]["product_dataset_sha256"] = product.json()["sha256"]
+    payload["context"]["reference_dataset_id"] = reference.json()["id"]
+    payload["context"]["reference_dataset_sha256"] = reference.json()["sha256"]
+    payload["evidence"]["source_sha256"] = reference.json()["sha256"]
+    product_path = store.get_dataset_content_path(product.json()["id"])
+    with open(product_path, "ab") as target:
+        target.write(b"tampered")
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/dem/coverage-assessments",
+        json={"created_by": "operator-1", "request": payload},
+    )
+    assert response.status_code == 409

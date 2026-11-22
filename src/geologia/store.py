@@ -163,7 +163,26 @@ def initialize() -> None:
             "CREATE INDEX IF NOT EXISTS idx_job_events_job_created "
             "ON job_events(job_id, id)"
         )
-
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS coverage_assessments (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT NOT NULL UNIQUE,
+                project_id TEXT NOT NULL REFERENCES projects(id),
+                created_by TEXT NOT NULL,
+                request_json TEXT NOT NULL,
+                assessment_json TEXT NOT NULL,
+                request_sha256 TEXT NOT NULL,
+                assessment_sha256 TEXT NOT NULL,
+                previous_hash TEXT,
+                record_hash TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_coverage_assessments_project_sequence "
+            "ON coverage_assessments(project_id, sequence)"
+        )
+        conn.execute("PRAGMA user_version = 2")
 
 
 def create_project(name: str, description: str, language: str) -> dict[str, Any]:
@@ -594,3 +613,188 @@ def get_dataset_validation(dataset_id: str) -> dict[str, Any] | None:
     if item is None:
         return None
     return item["summary"].get("validation_report")
+
+
+def _canonical_json(payload: dict[str, Any]) -> str:
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+
+
+def _coverage_record_hash(
+    *,
+    record_id: str,
+    project_id: str,
+    created_by: str,
+    request_sha256: str,
+    assessment_sha256: str,
+    previous_hash: str | None,
+    created_at: str,
+) -> str:
+    payload = {
+        "id": record_id,
+        "project_id": project_id,
+        "created_by": created_by,
+        "request_sha256": request_sha256,
+        "assessment_sha256": assessment_sha256,
+        "previous_hash": previous_hash,
+        "created_at": created_at,
+    }
+    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def save_coverage_assessment(
+    project_id: str,
+    request: dict[str, Any],
+    assessment: dict[str, Any],
+    created_by: str,
+) -> dict[str, Any]:
+    """Persist a coverage assessment in a per-project tamper-evident hash chain."""
+    if not created_by.strip():
+        raise ValueError("created_by must not be empty")
+    request_json = _canonical_json(request)
+    assessment_json = _canonical_json(assessment)
+    request_sha256 = hashlib.sha256(request_json.encode("utf-8")).hexdigest()
+    assessment_sha256 = hashlib.sha256(assessment_json.encode("utf-8")).hexdigest()
+    record_id = str(uuid4())
+    created_at = utc_now()
+    initialize()
+    with connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        if conn.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone() is None:
+            raise ValueError("project not found")
+        previous = conn.execute(
+            "SELECT record_hash FROM coverage_assessments "
+            "WHERE project_id=? ORDER BY sequence DESC LIMIT 1",
+            (project_id,),
+        ).fetchone()
+        previous_hash = previous["record_hash"] if previous else None
+        record_hash = _coverage_record_hash(
+            record_id=record_id,
+            project_id=project_id,
+            created_by=created_by.strip(),
+            request_sha256=request_sha256,
+            assessment_sha256=assessment_sha256,
+            previous_hash=previous_hash,
+            created_at=created_at,
+        )
+        conn.execute(
+            "INSERT INTO coverage_assessments("
+            "id,project_id,created_by,request_json,assessment_json,request_sha256,"
+            "assessment_sha256,previous_hash,record_hash,created_at"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (
+                record_id,
+                project_id,
+                created_by.strip(),
+                request_json,
+                assessment_json,
+                request_sha256,
+                assessment_sha256,
+                previous_hash,
+                record_hash,
+                created_at,
+            ),
+        )
+    result = get_coverage_assessment(record_id)
+    if result is None:
+        raise RuntimeError("coverage assessment was not persisted")
+    return result
+
+
+def _coverage_assessment_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "project_id": row["project_id"],
+        "created_by": row["created_by"],
+        "request": json.loads(row["request_json"]),
+        "assessment": json.loads(row["assessment_json"]),
+        "request_sha256": row["request_sha256"],
+        "assessment_sha256": row["assessment_sha256"],
+        "previous_hash": row["previous_hash"],
+        "record_hash": row["record_hash"],
+        "created_at": row["created_at"],
+    }
+
+
+def get_coverage_assessment(record_id: str) -> dict[str, Any] | None:
+    initialize()
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM coverage_assessments WHERE id=?", (record_id,)
+        ).fetchone()
+    return _coverage_assessment_row(row) if row else None
+
+
+def list_coverage_assessments(
+    project_id: str,
+    *,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict[str, Any]:
+    if limit < 1 or limit > 200 or offset < 0:
+        raise ValueError("invalid coverage assessment pagination")
+    initialize()
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM coverage_assessments WHERE project_id=? "
+            "ORDER BY sequence DESC LIMIT ? OFFSET ?",
+            (project_id, limit, offset),
+        ).fetchall()
+        count = conn.execute(
+            "SELECT COUNT(*) FROM coverage_assessments WHERE project_id=?",
+            (project_id,),
+        ).fetchone()[0]
+    return {
+        "count": count,
+        "limit": limit,
+        "offset": offset,
+        "assessments": [_coverage_assessment_row(row) for row in rows],
+    }
+
+
+def verify_coverage_assessment_chain(project_id: str) -> dict[str, Any]:
+    """Verify per-project sequence links and canonical payload/record hashes."""
+    initialize()
+    errors: list[dict[str, Any]] = []
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM coverage_assessments WHERE project_id=? ORDER BY sequence",
+            (project_id,),
+        ).fetchall()
+    previous_hash = None
+    for row in rows:
+        request_json = row["request_json"]
+        assessment_json = row["assessment_json"]
+        request_hash = hashlib.sha256(request_json.encode("utf-8")).hexdigest()
+        assessment_hash = hashlib.sha256(assessment_json.encode("utf-8")).hexdigest()
+        if request_hash != row["request_sha256"]:
+            errors.append({"record_id": row["id"], "code": "request_hash_mismatch"})
+        if assessment_hash != row["assessment_sha256"]:
+            errors.append({"record_id": row["id"], "code": "assessment_hash_mismatch"})
+        if row["previous_hash"] != previous_hash:
+            errors.append({"record_id": row["id"], "code": "previous_hash_mismatch"})
+        expected = _coverage_record_hash(
+            record_id=row["id"],
+            project_id=row["project_id"],
+            created_by=row["created_by"],
+            request_sha256=row["request_sha256"],
+            assessment_sha256=row["assessment_sha256"],
+            previous_hash=row["previous_hash"],
+            created_at=row["created_at"],
+        )
+        if expected != row["record_hash"]:
+            errors.append({"record_id": row["id"], "code": "record_hash_mismatch"})
+        previous_hash = row["record_hash"]
+    return {
+        "project_id": project_id,
+        "valid": not errors,
+        "record_count": len(rows),
+        "last_record_hash": previous_hash,
+        "errors": errors,
+        "tamper_evident_not_tamper_proof": True,
+    }

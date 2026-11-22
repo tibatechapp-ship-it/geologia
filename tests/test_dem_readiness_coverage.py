@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from geologia.dem_readiness.coverage import (
     CoverageDecisionStatus,
     CoverageAssessmentRequest,
+    CoverageEvidenceAttestation,
     CoverageMetrics,
     CoveragePhase,
     CoverageUnitContext,
@@ -17,11 +18,30 @@ from geologia.dem_readiness.models import Availability, EvidenceValue, ReasonCod
 
 def unit_context():
     return CoverageUnitContext(
+        product_dataset_id="dataset-dem-1",
+        product_dataset_sha256="b" * 64,
+        reference_dataset_id="dataset-reference-1",
+        reference_dataset_sha256="a" * 64,
         product_version_id="copernicus-glo30-release-x",
         pilot_area_id="yemen-pilot-west-01",
         reference_source_id="icesat2-atl08-release-x",
         primary_stratum_id="steep-bare",
         task_profile_id="regional-reconnaissance-v1",
+    )
+
+
+def evidence_attestation():
+    return CoverageEvidenceAttestation(
+        coverage_footprint_reference="coverage://product-release/pilot-polygon-v1",
+        coverage_verification_method="Raster footprint intersected with registered AOI.",
+        coverage_reviewer="reviewer-1",
+        coverage_verified_at=datetime(2026, 11, 22, tzinfo=UTC),
+        metrics_source_reference="evidence://reference-observations/1",
+        metrics_computation_method="Frozen equal-area 1 km and 5 km grid count script.",
+        metrics_computed_by="analyst-1",
+        metrics_computed_at=datetime(2026, 11, 22, tzinfo=UTC),
+        source_sha256="a" * 64,
+        analysis_code_commit="a1b2c3d4",
     )
 
 
@@ -32,6 +52,9 @@ def assess_coverage(*, actual_coverage, coverage_status, metrics, phase):
         coverage_status=coverage_status,
         metrics=metrics,
         phase=phase,
+        evidence=evidence_attestation()
+        if coverage_status is CoverageStatus.VERIFIED
+        else None,
     )
     return evaluate_coverage_sufficiency(request)
 
@@ -163,3 +186,28 @@ def test_not_assessed_coverage_status_does_not_run_sufficiency_gates():
     )
     assert result.status is CoverageDecisionStatus.NOT_ASSESSED
     assert result.gates == ()
+
+
+def test_verified_coverage_requires_explicit_evidence_attestation():
+    with pytest.raises(ValidationError):
+        CoverageAssessmentRequest(
+            context=unit_context(),
+            phase=CoveragePhase.EXPLORATORY,
+            actual_coverage=verified_coverage(),
+            coverage_status=CoverageStatus.VERIFIED,
+            metrics=exploratory_metrics(),
+        )
+
+
+def test_metrics_attestation_checksum_must_match_reference_dataset():
+    with pytest.raises(ValidationError):
+        CoverageAssessmentRequest(
+            context=unit_context(),
+            phase=CoveragePhase.EXPLORATORY,
+            actual_coverage=verified_coverage(),
+            coverage_status=CoverageStatus.VERIFIED,
+            metrics=exploratory_metrics(),
+            evidence=evidence_attestation().model_copy(
+                update={"source_sha256": "c" * 64}
+            ),
+        )

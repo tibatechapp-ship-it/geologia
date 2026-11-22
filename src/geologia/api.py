@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from geologia.dem_readiness.coverage import (
     CoverageAssessmentRequest,
+    CoverageAssessmentSubmission,
     evaluate_coverage_sufficiency,
 )
 from geologia.dem_readiness.thresholds import FROZEN_V1_THRESHOLDS
@@ -64,6 +65,7 @@ ALLOWED_DATA_ROLES = {
     "structural_orientations", "contacts", "waveforms_or_catalog", "station_metadata",
     "geochemistry_samples", "geophysics_surveys", "aoi_boundary", "data_layers",
     "crs_definition", "imagery", "ground_control_points",
+    "reference_elevation_observations",
 }
 
 
@@ -208,6 +210,92 @@ def dem_coverage_thresholds() -> dict:
 def dem_coverage_assessment(body: CoverageAssessmentRequest) -> dict:
     """Assess reference coverage only for one exact product/area/source/stratum/task unit."""
     return evaluate_coverage_sufficiency(body).model_dump(mode="json")
+
+
+@app.post("/api/v1/projects/{project_id}/dem/coverage-assessments", status_code=201)
+def dem_coverage_assessment_save(
+    project_id: str,
+    body: CoverageAssessmentSubmission,
+) -> dict:
+    """Persist a caller-attributed coverage assessment in the project's hash chain."""
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+
+    context = body.request.context
+    product = store.get_dataset(context.product_dataset_id)
+    reference = store.get_dataset(context.reference_dataset_id)
+    if product is None or reference is None:
+        raise HTTPException(status_code=404, detail="product or reference dataset not found")
+    if product["project_id"] != project_id or reference["project_id"] != project_id:
+        raise HTTPException(status_code=404, detail="product or reference dataset not found")
+    if (
+        product["sha256"] != context.product_dataset_sha256
+        or reference["sha256"] != context.reference_dataset_sha256
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="request dataset checksums do not match the stored upload records",
+        )
+    if product["data_role"] != "dem":
+        raise HTTPException(status_code=422, detail="product dataset must have data_role=dem")
+    if reference["data_role"] not in {
+        "ground_control_points",
+        "reference_elevation_observations",
+    }:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "reference dataset must be ground_control_points or "
+                "reference_elevation_observations"
+            ),
+        )
+
+    for item in (product, reference):
+        stored_path = store.get_dataset_content_path(item["id"])
+        if stored_path is None or not _dataset_content_matches(item, Path(stored_path)):
+            raise HTTPException(
+                status_code=409,
+                detail="product or reference dataset failed upload-time integrity verification",
+            )
+
+    assessment = evaluate_coverage_sufficiency(body.request)
+    try:
+        return store.save_coverage_assessment(
+            project_id,
+            body.request.model_dump(mode="json"),
+            assessment.model_dump(mode="json"),
+            body.created_by,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/projects/{project_id}/dem/coverage-assessments")
+def dem_coverage_assessments_list(
+    project_id: str,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return store.list_coverage_assessments(project_id, limit=limit, offset=offset)
+
+
+@app.get("/api/v1/projects/{project_id}/dem/coverage-assessments/integrity")
+def dem_coverage_assessments_integrity(project_id: str) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return store.verify_coverage_assessment_chain(project_id)
+
+
+@app.get("/api/v1/projects/{project_id}/dem/coverage-assessments/{assessment_id}")
+def dem_coverage_assessment_get(project_id: str, assessment_id: str) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    item = store.get_coverage_assessment(assessment_id)
+    if item is None or item["project_id"] != project_id:
+        raise HTTPException(status_code=404, detail="coverage assessment not found")
+    return item
 
 
 @app.get("/api/v1/agent/status")
