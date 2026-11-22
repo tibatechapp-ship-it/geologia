@@ -831,6 +831,29 @@ def test_legacy_review_check_migrates_without_losing_document_chunk(tmp_path, mo
             "INSERT INTO knowledge_chunks VALUES "
             "('old-chunk','old-doc',0,'preserved evidence','')"
         )
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute(
+            "CREATE TABLE knowledge_claims ("
+            "claim_id TEXT PRIMARY KEY, statement TEXT NOT NULL, "
+            "created_by TEXT NOT NULL, created_at TEXT NOT NULL)"
+        )
+        connection.execute(
+            "CREATE TABLE knowledge_claim_evidence ("
+            "annotation_id TEXT PRIMARY KEY, "
+            "claim_id TEXT NOT NULL REFERENCES knowledge_claims(claim_id) ON DELETE CASCADE, "
+            "chunk_id TEXT NOT NULL REFERENCES knowledge_chunks(chunk_id) ON DELETE RESTRICT, "
+            "relation TEXT NOT NULL, rationale TEXT NOT NULL, recorded_by TEXT NOT NULL, "
+            "recorded_at TEXT NOT NULL, UNIQUE(claim_id,chunk_id))"
+        )
+        connection.execute(
+            "INSERT INTO knowledge_claims VALUES "
+            "('old-claim','A preserved legacy claim','reviewer','2026-11-21T00:00:00Z')"
+        )
+        connection.execute(
+            "INSERT INTO knowledge_claim_evidence VALUES "
+            "('old-evidence','old-claim','old-chunk','supports',"
+            "'Legacy source supports claim','reviewer','2026-11-21T00:00:00Z')"
+        )
 
     knowledge.initialize()
     with closing(knowledge._connect()) as connection:
@@ -845,10 +868,20 @@ def test_legacy_review_check_migrates_without_losing_document_chunk(tmp_path, mo
             "SELECT sql FROM sqlite_master WHERE type='table' "
             "AND name='knowledge_documents'"
         ).fetchone()["sql"]
+        evidence = connection.execute(
+            "SELECT claim_id,chunk_id,relation,rationale "
+            "FROM knowledge_claim_evidence WHERE annotation_id='old-evidence'"
+        ).fetchone()
+        foreign_key_violations = connection.execute("PRAGMA foreign_key_check").fetchall()
     assert document["source_id"] == "old-source"
     assert document["scientific_review_status"] == "not_assessed"
     assert chunk["document_id"] == "old-doc"
     assert chunk["body"] == "preserved evidence"
+    assert evidence["claim_id"] == "old-claim"
+    assert evidence["chunk_id"] == "old-chunk"
+    assert evidence["relation"] == "supports"
+    assert evidence["rationale"] == "Legacy source supports claim"
+    assert foreign_key_violations == []
     assert "'peer_reviewed'" in schema
 
     source = tmp_path / "new-peer-reviewed.txt"
