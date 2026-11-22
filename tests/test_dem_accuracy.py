@@ -422,6 +422,10 @@ def test_legacy_reference_uncertainty_is_explicitly_unknown_and_not_propagated(t
     assert model["kind"] == "unknown"
     assert model["interpretation"] == "legacy_untyped_not_propagated"
     assert "not converted, combined" in model["note"]
+    assert report["reference_uncertainty_summary"] == {
+        "status": "not_evaluable",
+        "reason": "legacy_uncertainty_semantics_unknown",
+    }
     assert report["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
     assert all(
         record["reference_uncertainty_kind"] == "unknown"
@@ -475,6 +479,14 @@ def test_hash_bound_typed_reference_uncertainty_is_recorded_not_propagated(tmp_p
         report["reference_uncertainty_model"]["interpretation"]
         == "typed_metadata_not_propagated"
     )
+    summary = report["reference_uncertainty_summary"]
+    assert summary["status"] == "descriptive_metadata_only"
+    assert summary["kind"] == "standard_uncertainty"
+    assert summary["unit"] == "m"
+    assert summary["count"] == 4
+    assert summary["minimum"] == pytest.approx(0.15)
+    assert summary["median"] == pytest.approx(0.15)
+    assert summary["maximum"] == pytest.approx(0.15)
     assert report["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
     assert all(
         item["reference_uncertainty"]["kind"] == "standard_uncertainty"
@@ -514,3 +526,82 @@ def test_reference_uncertainty_sidecar_hash_is_verified(tmp_path):
             reference_uncertainty_sidecar_path=sidecar,
             reference_uncertainty_sidecar_sha256="0" * 64,
         )
+
+
+def test_mixed_typed_uncertainty_kinds_block_descriptive_summary(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    sidecar, _ = _write_uncertainty_sidecar(tmp_path, reference_sha)
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    expanded = payload["records"]["p2"]
+    expanded["kind"] = "expanded_uncertainty"
+    expanded["value"] = 0.3
+    expanded["coverage_factor"] = 2.0
+    expanded["coverage_convention"] = "documented k=2 coverage convention"
+    sidecar.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    sidecar_sha = hashlib.sha256(sidecar.read_bytes()).hexdigest()
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        reference_uncertainty_sidecar_path=sidecar,
+        reference_uncertainty_sidecar_sha256=sidecar_sha,
+    )
+
+    assert report["reference_uncertainty_summary"] == {
+        "status": "not_evaluable",
+        "reason": "mixed_uncertainty_kinds",
+    }
+    assert report["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
+
+
+def test_expanded_uncertainty_summary_requires_matching_coverage_convention(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    sidecar, _ = _write_uncertainty_sidecar(tmp_path, reference_sha)
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    for record in payload["records"].values():
+        record["kind"] = "expanded_uncertainty"
+        record["coverage_factor"] = 2.0
+        record["coverage_convention"] = "documented k=2 coverage convention"
+    payload["records"]["p2"]["coverage_factor"] = 1.96
+    sidecar.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    sidecar_sha = hashlib.sha256(sidecar.read_bytes()).hexdigest()
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        reference_uncertainty_sidecar_path=sidecar,
+        reference_uncertainty_sidecar_sha256=sidecar_sha,
+    )
+
+    assert report["reference_uncertainty_summary"] == {
+        "status": "not_evaluable",
+        "reason": "mixed_expanded_uncertainty_coverage",
+    }
+
+
+def test_summary_does_not_mix_point_specific_and_shared_scope(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    sidecar, _ = _write_uncertainty_sidecar(tmp_path, reference_sha)
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    payload["records"]["p2"]["scope"] = "shared_systematic"
+    payload["records"]["p2"]["dependence"] = "unknown"
+    sidecar.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    sidecar_sha = hashlib.sha256(sidecar.read_bytes()).hexdigest()
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        reference_uncertainty_sidecar_path=sidecar,
+        reference_uncertainty_sidecar_sha256=sidecar_sha,
+    )
+
+    assert report["reference_uncertainty_summary"] == {
+        "status": "not_evaluable",
+        "reason": "mixed_uncertainty_scopes",
+    }

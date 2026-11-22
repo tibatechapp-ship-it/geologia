@@ -163,6 +163,86 @@ def _load_reference_uncertainty_sidecar(
             ) from exc
     return digest, parsed
 
+
+
+def _reference_uncertainty_summary(
+    records: dict[str, ElevationUncertainty] | None,
+) -> dict:
+    """Summarize only comparable typed magnitudes; never combine uncertainty."""
+    if records is None:
+        return {
+            "status": "not_evaluable",
+            "reason": "legacy_uncertainty_semantics_unknown",
+        }
+    values = list(records.values())
+    if not values or any(item.kind.value == "unknown" for item in values):
+        return {
+            "status": "not_evaluable",
+            "reason": "unknown_uncertainty_semantics_present",
+        }
+    kinds = {item.kind.value for item in values}
+    units = {item.unit for item in values}
+    if len(kinds) != 1:
+        return {
+            "status": "not_evaluable",
+            "reason": "mixed_uncertainty_kinds",
+        }
+    if len(units) != 1:
+        return {
+            "status": "not_evaluable",
+            "reason": "mixed_uncertainty_units",
+        }
+    scopes = {item.scope.value for item in values}
+    if len(scopes) != 1:
+        return {
+            "status": "not_evaluable",
+            "reason": "mixed_uncertainty_scopes",
+        }
+    kind = next(iter(kinds))
+    if kind == "expanded_uncertainty":
+        coverage = {
+            (item.coverage_factor, item.coverage_convention) for item in values
+        }
+        if len(coverage) != 1:
+            return {
+                "status": "not_evaluable",
+                "reason": "mixed_expanded_uncertainty_coverage",
+            }
+    if kind == "confidence_interval_half_width":
+        intervals = {
+            (item.confidence_level, item.interval_convention) for item in values
+        }
+        if len(intervals) != 1:
+            return {
+                "status": "not_evaluable",
+                "reason": "mixed_confidence_interval_conventions",
+            }
+    magnitudes = [item.value for item in values]
+    # The model guarantees known records have finite numeric values.
+    numeric = [float(value) for value in magnitudes if value is not None]
+    scope_counts = {}
+    dependence_counts = {}
+    for item in values:
+        scope_counts[item.scope.value] = scope_counts.get(item.scope.value, 0) + 1
+        dependence_counts[item.dependence.value] = (
+            dependence_counts.get(item.dependence.value, 0) + 1
+        )
+    return {
+        "status": "descriptive_metadata_only",
+        "kind": next(iter(kinds)),
+        "unit": next(iter(units)),
+        "count": len(numeric),
+        "minimum": min(numeric),
+        "median": statistics.median(numeric),
+        "maximum": max(numeric),
+        "scope_counts": dict(sorted(scope_counts.items())),
+        "dependence_counts": dict(sorted(dependence_counts.items())),
+        "note": (
+            "Descriptive distribution of declared metadata only; not propagated "
+            "or interpreted as DEM accuracy."
+        ),
+    }
+
 def _canonical_json_sha256(payload: object) -> str:
     """Hash deterministic UTF-8 JSON for the exact structured input payload."""
     import json
@@ -252,6 +332,10 @@ def _not_evaluable_report(
         "coverage_footprint_reference": coverage_footprint_reference,
         "independence_status": metadata.independence_status,
         "metrics": None,
+        "reference_uncertainty_summary": {
+            "status": "not_evaluable",
+            "reason": "assessment_gate_prevented_summary",
+        },
         "readiness_disposition": "not_assessed",
         "scientific_interpretation": False,
     }
@@ -495,6 +579,7 @@ def compute_dem_reference_residuals(
             "reference uncertainty sidecar path and SHA-256 must be supplied together"
         )
     uncertainty_sidecar_sha = None
+    typed_uncertainties = None
     if reference_uncertainty_sidecar_path is not None:
         if len(reference_uncertainty_sidecar_sha256) != 64 or any(
             char not in "0123456789abcdefABCDEF"
@@ -794,6 +879,9 @@ def compute_dem_reference_residuals(
             }
         ),
         "reference_uncertainty_sidecar_sha256": uncertainty_sidecar_sha,
+        "reference_uncertainty_summary": _reference_uncertainty_summary(
+            typed_uncertainties
+        ),
         "reference_dataset_sha256": reference_sha,
         "reference_file_size_bytes": reference_size,
         "reference_metadata_reference": metadata.reference_metadata_reference,

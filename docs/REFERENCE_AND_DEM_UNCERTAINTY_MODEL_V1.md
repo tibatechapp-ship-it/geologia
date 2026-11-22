@@ -143,3 +143,10 @@ The optional `reference_uncertainty_sidecar_path` must be supplied together with
 ```
 
 Each record is validated by the `ElevationUncertainty` contract. Expanded uncertainty requires coverage factor and convention; confidence interval half-width requires confidence level and interval convention; unknown records require a reason and cannot carry a typed numeric value. Correlation declarations require evidence. The sidecar hash and typed records are included in the report. Values are preserved as metadata only: this feature does not convert uncertainty, aggregate mixed semantics, propagate uncertainty, or modify residual metrics. The legacy CSV `uncertainty_m` remains required for compatibility and remains explicitly untyped when no sidecar is supplied.
+
+
+## Descriptive summary gate
+
+The report emits `reference_uncertainty_summary` separately from observed residual metrics. Without a sidecar, it returns `not_evaluable` because the legacy CSV uncertainty semantics are unknown. With a sidecar, a descriptive minimum/median/maximum is emitted only when every record is known and all records share one uncertainty kind, unit, and scope. Expanded uncertainty additionally requires identical coverage factor/convention; confidence-interval half-widths require identical confidence level/interval convention. The summary also reports counts by dependence status.
+
+Mixed kinds, mixed units or scopes, incompatible coverage/confidence conventions, or any unknown record return `not_evaluable` with a reason code. The descriptive summary is a distribution of declared metadata values—not a combined uncertainty, confidence interval, uncertainty propagation, or DEM accuracy estimate. It does not change the residual metrics or readiness disposition.
