@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "purpose": "Source-grounded geoid model registry and acceptance gates. This metadata is not a grid, a height-transformation implementation, or scientific validation.",
+  "primary_authority": "NGA Office of Geomatics",
+  "models": [
+    {
+      "id": "EGM96",
+      "status": "legacy",
+      "grid_spacing": "15 arc-minutes",
+      "vertical_crs": "EPSG:5773",
+      "datum": "EPSG:5171",
+      "official_grid_source": "https://earth-info.nga.mil/index.php?action=wgs84&dir=wgs84",
+      "crs_source": "https://epsg.io/5773",
+      "notes": "Do not infer the tide system, realization, or suitability of a dataset from the model name alone."
+    },
+    {
+      "id": "EGM2008",
+      "status": "NGA latest published model at review date; NGA page indicates a possible new model in 2028",
+      "grid_spacing": "2.5 arc-minutes",
+      "vertical_crs": "EPSG:3855",
+      "official_grid_source": "https://earth-info.nga.mil/?action=wgs84&dir=wgs84",
+      "crs_source": "https://epsg.io/3855",
+      "notes": "Never silently substitute EGM2008 for a dataset explicitly declared as EGM96."
+    }
+  ],
+  "reference_dataset": {
+    "id": "geographiclib-geoid-heights-500k",
+    "title": "GeoidHeights.dat.gz",
+    "publisher": "GeographicLib project",
+    "download_url": "https://sourceforge.net/projects/geographiclib/files/testdata/GeoidHeights.dat.gz/download",
+    "documentation_url": "https://geographiclib.sourceforge.io/C++/doc/geoid.html#testgeoid",
+    "published_sha256": "e0b9804694b3eac78ffd0b3df9cffd30a134d72007276e732ff72f9651bc9995",
+    "point_count": 500000,
+    "columns": ["latitude_degrees", "longitude_degrees", "EGM84_geoid_height_m", "EGM96_geoid_height_m", "EGM2008_geoid_height_m"],
+    "oracle_description": "GeographicLib documentation attributes the values to NGA harmonic-synthesis programs.",
+    "limitations": [
+      "Not field-survey truth and not independent of NGA model coefficients or conventions.",
+      "Not by itself a validation of grid interpolation or vertical coordinate-operation direction.",
+      "Artifact has not been downloaded, locally hash-verified, sampled, or run in GEOLOGIA CI."
+    ]
+  },
+  "required_grid_manifest_fields": [
+    "model_name_and_version",
+    "original_source_url",
+    "retrieval_date",
+    "original_filename",
+    "original_sha256",
+    "grid_format_dimensions_spacing_and_extent",
+    "longitude_wrap_and_row_order",
+    "nodata_and_units",
+    "tide_system_and_model_conventions",
+    "license_evidence",
+    "interpolation_method",
+    "source_and_target_crs",
+    "coordinate_operation_identifier",
+    "operation_area_of_use",
+    "published_accuracy_or_uncertainty"
+  ],
+  "acceptance_gates": [
+    "Pin a traceable grid artifact and verify its exact SHA-256 before parsing.",
+    "Use documented reference values and state whether the oracle is independent software, an authoritative model, or field survey.",
+    "Test grid nodes and interior interpolation separately, including axis order, longitude wrap, boundaries, outside coverage, nodata, and missing grid.",
+    "Validate the selected operation's sign convention and CRS metadata; do not generalize h = H + N to unrelated vertical datums without checking their operation definition.",
+    "Reject unavailable or out-of-area operations; never silently fall back to another geoid model.",
+    "Report operation, grid, uncertainty, and provenance alongside any future transformed heights."
+  ],
+  "status": {
+    "grid_bundled": false,
+    "numerical_known_answer_points_bundled": false,
+    "vertical_transformation_implemented": false,
+    "scientific_validation": false,
+    "reference_dataset_identified": true,
+    "reference_dataset_download_verified": false
+  }
+}
