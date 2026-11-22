@@ -1,7 +1,6 @@
 """Deterministic readiness decision rules; no scientific result is inferred."""
 
 from .models import (
-    Availability,
     ReadinessAssessment,
     ReadinessDisposition,
     ReadinessInput,
@@ -46,8 +45,6 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
             "mandatory context prevents a defensible readiness decision."
         )
         blocking = unexcepted
-        if data.unresolved_items:
-            codes = tuple(dict.fromkeys((*codes,)))
     elif data.context.validation_status.value == "not_assessed":
         codes = tuple(dict.fromkeys((*codes, ReasonCode.NOT_ASSESSED)))
         disposition = ReadinessDisposition.NOT_ASSESSED
