@@ -84,7 +84,7 @@ def test_exploratory_coverage_passes_all_frozen_gates():
 
 
 def test_confirmatory_coverage_passes_at_frozen_boundaries():
-    result = evaluate_coverage_sufficiency(
+    result = assess_coverage(
         actual_coverage=verified_coverage(),
         coverage_status=CoverageStatus.VERIFIED,
         metrics=confirmatory_metrics(),
@@ -96,7 +96,7 @@ def test_confirmatory_coverage_passes_at_frozen_boundaries():
 
 def test_low_density_is_insufficient_reference_coverage_not_dem_failure():
     metrics = exploratory_metrics().model_copy(update={"polygon_area_km2": 6.0})
-    result = evaluate_coverage_sufficiency(
+    result = assess_coverage(
         actual_coverage=verified_coverage(),
         coverage_status=CoverageStatus.VERIFIED,
         metrics=metrics,
@@ -108,7 +108,7 @@ def test_low_density_is_insufficient_reference_coverage_not_dem_failure():
 
 
 def test_unverified_actual_coverage_cannot_be_replaced_by_analogue_geography():
-    result = evaluate_coverage_sufficiency(
+    result = assess_coverage(
         actual_coverage=EvidenceValue(
             availability=Availability.NOT_AVAILABLE,
             reason="No exact product footprint has been obtained.",
@@ -125,7 +125,7 @@ def test_unverified_actual_coverage_cannot_be_replaced_by_analogue_geography():
 
 def test_missing_confirmatory_temporal_metric_prevents_sufficiency_pass():
     metrics = confirmatory_metrics().model_copy(update={"temporal_match_fraction": None})
-    result = evaluate_coverage_sufficiency(
+    result = assess_coverage(
         actual_coverage=verified_coverage(),
         coverage_status=CoverageStatus.VERIFIED,
         metrics=metrics,
@@ -139,7 +139,7 @@ def test_block_concentration_failure_is_spatially_clustered():
     metrics = exploratory_metrics().model_copy(
         update={"max_block_observation_fraction": 0.60}
     )
-    result = evaluate_coverage_sufficiency(
+    result = assess_coverage(
         actual_coverage=verified_coverage(),
         coverage_status=CoverageStatus.VERIFIED,
         metrics=metrics,
@@ -155,7 +155,7 @@ def test_occupied_blocks_cannot_exceed_eligible_blocks():
 
 
 def test_not_assessed_coverage_status_does_not_run_sufficiency_gates():
-    result = evaluate_coverage_sufficiency(
+    result = assess_coverage(
         actual_coverage=verified_coverage(),
         coverage_status=CoverageStatus.NOT_ASSESSED,
         metrics=confirmatory_metrics(),
