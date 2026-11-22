@@ -67,7 +67,7 @@ def test_confirmatory_coverage_passes_at_frozen_boundaries():
 
 
 def test_low_density_is_insufficient_reference_coverage_not_dem_failure():
-    metrics = exploratory_metrics().model_copy(update={"valid_independent_locations": 30})
+    metrics = exploratory_metrics().model_copy(update={"polygon_area_km2": 6.0})
     result = evaluate_coverage_sufficiency(
         actual_coverage=verified_coverage(),
         coverage_status=CoverageStatus.VERIFIED,
@@ -124,3 +124,14 @@ def test_block_concentration_failure_is_spatially_clustered():
 def test_occupied_blocks_cannot_exceed_eligible_blocks():
     with pytest.raises(ValidationError):
         CoverageMetrics(occupied_5km_blocks=10, eligible_5km_blocks=5)
+
+
+def test_not_assessed_coverage_status_does_not_run_sufficiency_gates():
+    result = evaluate_coverage_sufficiency(
+        actual_coverage=verified_coverage(),
+        coverage_status=CoverageStatus.NOT_ASSESSED,
+        metrics=confirmatory_metrics(),
+        phase=CoveragePhase.CONFIRMATORY,
+    )
+    assert result.status is CoverageDecisionStatus.NOT_ASSESSED
+    assert result.gates == ()
