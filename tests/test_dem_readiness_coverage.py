@@ -5,12 +5,35 @@ from pydantic import ValidationError
 
 from geologia.dem_readiness.coverage import (
     CoverageDecisionStatus,
+    CoverageAssessmentRequest,
     CoverageMetrics,
     CoveragePhase,
+    CoverageUnitContext,
     CoverageStatus,
     evaluate_coverage_sufficiency,
 )
 from geologia.dem_readiness.models import Availability, EvidenceValue, ReasonCode
+
+
+def unit_context():
+    return CoverageUnitContext(
+        product_version_id="copernicus-glo30-release-x",
+        pilot_area_id="yemen-pilot-west-01",
+        reference_source_id="icesat2-atl08-release-x",
+        primary_stratum_id="steep-bare",
+        task_profile_id="regional-reconnaissance-v1",
+    )
+
+
+def assess_coverage(*, actual_coverage, coverage_status, metrics, phase):
+    request = CoverageAssessmentRequest(
+        context=unit_context(),
+        actual_coverage=actual_coverage,
+        coverage_status=coverage_status,
+        metrics=metrics,
+        phase=phase,
+    )
+    return evaluate_coverage_sufficiency(request)
 
 
 def verified_coverage():
@@ -48,7 +71,7 @@ def confirmatory_metrics():
 
 
 def test_exploratory_coverage_passes_all_frozen_gates():
-    result = evaluate_coverage_sufficiency(
+    result = assess_coverage(
         actual_coverage=verified_coverage(),
         coverage_status=CoverageStatus.VERIFIED,
         metrics=exploratory_metrics(),
