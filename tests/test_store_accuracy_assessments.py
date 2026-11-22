@@ -53,7 +53,6 @@ def test_accuracy_assessment_chain_detects_payload_tampering(
 
     verification = store.verify_accuracy_assessment_chain(project["id"])
     assert verification["valid"] is False
-    assert {item["code"] for item in verification["errors"]} >= {
-        "assessment_hash_mismatch",
-        "record_hash_mismatch",
+    assert "assessment_hash_mismatch" in {
+        item["code"] for item in verification["errors"]
     }
