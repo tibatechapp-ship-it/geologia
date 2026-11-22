@@ -85,6 +85,59 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
             "bound to this exact product, area and task is supplied."
         )
         blocking = ("independent_review",)
+    elif (
+        data.context.validation_status.value == "independently_reviewed"
+        and data.independent_review is not None
+        and data.accuracy_assessment is None
+    ):
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.NOT_ASSESSED)))
+        disposition = ReadinessDisposition.NOT_EVALUABLE
+        explanation = (
+            "Independent review is recorded, but no persisted, exact-scope accuracy "
+            "assessment is supplied; readiness cannot be established."
+        )
+        blocking = ("accuracy_assessment",)
+    elif (
+        data.accuracy_assessment is not None
+        and data.accuracy_assessment.accuracy_disposition
+        == "accuracy_requirement_not_met"
+    ):
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.ACCURACY_REQUIREMENT_NOT_MET)))
+        disposition = ReadinessDisposition.NOT_READY
+        explanation = (
+            "The declared task's frozen accuracy requirement was not met by the "
+            "bound primary assessment."
+        )
+        blocking = ("accuracy_assessment",)
+    elif (
+        data.accuracy_assessment is not None
+        and data.accuracy_assessment.accuracy_disposition == "not_evaluable"
+    ):
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.UNRESOLVED)))
+        disposition = ReadinessDisposition.NOT_EVALUABLE
+        explanation = (
+            "The bound accuracy assessment is not evaluable for the declared use."
+        )
+        blocking = ("accuracy_assessment",)
+    elif (
+        data.accuracy_assessment is not None
+        and data.accuracy_assessment.accuracy_disposition == "not_assessed"
+    ):
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.NOT_ASSESSED)))
+        disposition = ReadinessDisposition.NOT_ASSESSED
+        explanation = "The bound accuracy assessment has not been completed."
+        blocking = ("accuracy_assessment",)
+    elif (
+        data.accuracy_assessment is not None
+        and data.accuracy_assessment.accuracy_disposition == "conditional_limited_use"
+    ):
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.SOURCE_DEPENDENCE_CONFLICT)))
+        disposition = ReadinessDisposition.CONDITIONAL
+        explanation = (
+            "Accuracy evidence is conditional and cannot support unrestricted "
+            "readiness for the declared use."
+        )
+        blocking = ()
     elif data.accepted_restrictions or excepted:
         disposition = ReadinessDisposition.CONDITIONAL
         explanation = (
