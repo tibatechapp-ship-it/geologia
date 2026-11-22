@@ -1231,6 +1231,7 @@ def project_dem_tile_collection_coverage_inspect(
         "product_dataset_sha256s": [item["sha256"] for item in products],
         "aoi_dataset_id": aoi["id"],
         "aoi_dataset_sha256": aoi["sha256"],
+        "aoi_crs": body.aoi_crs,
         "inspected_at_utc": store.utc_now(),
         "geologia_version": __version__,
     })
