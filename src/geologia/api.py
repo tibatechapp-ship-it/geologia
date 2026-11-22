@@ -616,7 +616,114 @@ def project_dem_readiness_assessment_list(
 def project_dem_readiness_assessment_chain(project_id: str) -> dict:
     if store.get_project(project_id) is None:
         raise HTTPException(status_code=404, detail="project not found")
-    return store.verify_readiness_assessment_chain(project_id)
+    result = store.verify_readiness_assessment_chain(project_id)
+    record_chain_valid = result["valid"]
+    dependency_errors: list[dict[str, str]] = []
+    accuracy_chain_checked = False
+    accuracy_chain_valid = True
+    offset = 0
+    page_size = 200
+    while True:
+        page = store.list_readiness_assessments(
+            project_id, limit=page_size, offset=offset
+        )
+        records = page["assessments"]
+        for record in records:
+            request = record["request"]
+            assessment = record["assessment"]
+            manifest_id = assessment.get("product_manifest_dataset_id")
+            manifest_sha256 = assessment.get(
+                "product_manifest_dataset_sha256"
+            )
+            manifest_valid = (
+                request.get("product_manifest_dataset_id") == manifest_id
+                and _dataset_dependency_matches(
+                    project_id,
+                    manifest_id,
+                    manifest_sha256,
+                    roles=("dem_tile_manifest",),
+                    formats=("json",),
+                )
+            )
+            if manifest_valid:
+                manifest_path = store.get_dataset_content_path(manifest_id)
+                try:
+                    manifest = DEMTileManifest.model_validate(
+                        _read_json(Path(manifest_path))
+                    )
+                    declared_use = request.get("declared_use", {})
+                    manifest_valid = (
+                        manifest.product_version_id
+                        == declared_use.get("product_version_id")
+                    )
+                except (UnicodeDecodeError, ValueError, ValidationError, TypeError):
+                    manifest_valid = False
+            if not manifest_valid:
+                dependency_errors.append(
+                    {
+                        "record_id": record["id"],
+                        "code": "product_manifest_dependency_integrity_mismatch",
+                    }
+                )
+
+            accuracy_id = assessment.get("accuracy_assessment_id")
+            if accuracy_id is None:
+                if request.get("accuracy_assessment_id") is not None:
+                    dependency_errors.append(
+                        {
+                            "record_id": record["id"],
+                            "code": "accuracy_assessment_link_mismatch",
+                        }
+                    )
+                continue
+            accuracy_chain_checked = True
+            accuracy_record = store.get_accuracy_assessment(accuracy_id)
+            accuracy_valid = (
+                request.get("accuracy_assessment_id") == accuracy_id
+                and accuracy_record is not None
+                and accuracy_record["project_id"] == project_id
+                and accuracy_record["record_hash"]
+                == assessment.get("accuracy_assessment_record_hash")
+                and accuracy_record["assessment_sha256"]
+                == assessment.get("accuracy_assessment_payload_sha256")
+            )
+            if accuracy_valid:
+                accuracy_report = accuracy_record["assessment"]
+                accuracy_valid = (
+                    accuracy_report.get("product_manifest_dataset_id")
+                    == manifest_id
+                    and accuracy_report.get("product_manifest_dataset_sha256")
+                    == manifest_sha256
+                )
+            if not accuracy_valid:
+                dependency_errors.append(
+                    {
+                        "record_id": record["id"],
+                        "code": "accuracy_assessment_dependency_integrity_mismatch",
+                    }
+                )
+        offset += len(records)
+        if not records or offset >= page["count"]:
+            break
+    if accuracy_chain_checked:
+        accuracy_chain = project_dem_accuracy_assessment_chain(project_id)
+        accuracy_chain_valid = accuracy_chain["valid"]
+        if not accuracy_chain_valid:
+            dependency_errors.append(
+                {
+                    "record_id": "project",
+                    "code": "linked_accuracy_assessment_chain_invalid",
+                }
+            )
+    result["record_chain_valid"] = record_chain_valid
+    result["dependency_integrity_valid"] = not dependency_errors
+    result["dependency_errors"] = dependency_errors
+    result["accuracy_chain_checked"] = accuracy_chain_checked
+    result["accuracy_chain_valid"] = accuracy_chain_valid
+    result["valid"] = (
+        record_chain_valid and not dependency_errors and accuracy_chain_valid
+    )
+    return result
 
 
 @app.get("/api/v1/projects/{project_id}/dem/readiness-assessments/{assessment_id}")
