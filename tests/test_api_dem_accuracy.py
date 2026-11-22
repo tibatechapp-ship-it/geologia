@@ -214,3 +214,52 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     )
     assert retrieved.status_code == 200
     assert retrieved.json()["record_hash"] == record["record_hash"]
+
+    def available(value):
+        return {"availability": "available", "value": value}
+
+    readiness_context = {
+        "product_version": available("dem-release-2026-01"),
+        "spec_source": available("source product metadata"),
+        "spec_date": available("2026-11-22"),
+        "metric_type": available("vertical elevation"),
+        "vertical_datum": available("NAVD88"),
+        "surface_type": available("DTM"),
+        "actual_coverage": available(coverage_reference),
+        "coverage_status": available("verified"),
+        "spatial_resolution_x": available("30 m"),
+        "spatial_resolution_y": available("30 m"),
+        "validation_status": available("independently_reviewed"),
+    }
+    readiness_request = {
+        "product_manifest_dataset_id": manifest.json()["id"],
+        "declared_use": request["declared_use"],
+        "context": readiness_context,
+        "accuracy_assessment_id": record["id"],
+        "independent_review": request["independent_review"],
+        "created_by": "readiness-reviewer",
+    }
+    readiness = client.post(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
+        json=readiness_request,
+    )
+    assert readiness.status_code == 201, readiness.text
+    readiness_record = readiness.json()
+    assert readiness_record["assessment"]["disposition"] == "ready_for_declared_use"
+    assert readiness_record["assessment"]["accuracy_assessment_id"] == record["id"]
+
+    without_accuracy = dict(readiness_request)
+    without_accuracy.pop("accuracy_assessment_id")
+    not_evaluable = client.post(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
+        json=without_accuracy,
+    )
+    assert not_evaluable.status_code == 201, not_evaluable.text
+    assert not_evaluable.json()["assessment"]["disposition"] == "not_evaluable"
+
+    readiness_chain = client.get(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments/chain"
+    )
+    assert readiness_chain.status_code == 200
+    assert readiness_chain.json()["valid"] is True
+    assert readiness_chain.json()["record_count"] == 2
