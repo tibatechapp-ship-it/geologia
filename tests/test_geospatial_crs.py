@@ -1,9 +1,12 @@
 """CRS metadata and explicit horizontal-only reprojection boundaries."""
 import pytest
 
-pytest.importorskip("pyproj")
-
 from geologia.geospatial import inspect_crs, reproject_geojson
+
+
+@pytest.fixture(autouse=True)
+def _requires_pyproj():
+    pytest.importorskip("pyproj")
 
 
 @pytest.mark.parametrize(
