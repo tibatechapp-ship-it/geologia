@@ -28,7 +28,10 @@ def coverage_record(**overrides):
         "occupied_independent_blocks": metric(30),
         "eligible_blocks_occupancy_fraction": metric(0.75),
         "maximum_observation_fraction_in_one_block": metric(0.50),
-        "temporal_match_fraction_within_5_years": metric(0.70),
+        "observations_0_3_years": metric(40),
+        "observations_3_5_years": metric(30),
+        "observations_5_10_years": metric(20),
+        "observations_over_10_years": metric(10),
         "precision_status": PrecisionStatus.PASSED,
         "precision_evidence_reference": "evidence://precision/1",
         "precision_reviewer": "reviewer-1",
@@ -42,6 +45,15 @@ def coverage_record(**overrides):
         primary_stratum_id="steep-highlands",
         product_epoch="2024",
         equal_area_crs="EPSG:6933",
+        reference_coverage_geometry_reference="evidence://coverage/geometry/1",
+        coverage_map_reference="evidence://coverage/map/1",
+        coverage_verification_method="Quality-filtered independent footprint intersection",
+        coverage_verified_at=NOW,
+        source_independence_status="independent",
+        source_independence_rationale="Lineage review found no shared source observations or derivative relationship.",
+        source_independence_evidence_reference="evidence://independence/1",
+        source_independence_reviewer="reviewer-1",
+        source_independence_recorded_at=NOW,
         evidence=CoverageEvidence(**values),
     )
 
@@ -59,7 +71,10 @@ def test_exploratory_can_pass_when_confirmatory_fails():
             valid_independent_locations_per_km2=metric(25),
             occupied_independent_blocks=metric(22),
             eligible_blocks_occupancy_fraction=metric(0.65),
-            temporal_match_fraction_within_5_years=metric(0.40),
+            observations_0_3_years=metric(20),
+            observations_3_5_years=metric(20),
+            observations_5_10_years=metric(30),
+            observations_over_10_years=metric(30),
         )
     )
     assert result.exploratory.outcome is CoverageOutcome.PASS
@@ -78,7 +93,10 @@ def test_known_failure_is_not_hidden_by_missing_metric():
     result = evaluate_coverage(
         coverage_record(
             valid_independent_locations_per_km2=metric(5),
-            temporal_match_fraction_within_5_years=missing,
+            observations_0_3_years=metric(10),
+            observations_3_5_years=metric(10),
+            observations_5_10_years=missing,
+            observations_over_10_years=metric(5),
         )
     )
     assert result.confirmatory.outcome is CoverageOutcome.FAIL
