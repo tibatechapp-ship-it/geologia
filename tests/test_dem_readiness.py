@@ -101,7 +101,10 @@ def test_scope_exception_allows_only_conditional_limited_use():
     )
     exception = ScopeException(
         field_name="vertical_datum",
-        rationale="This declared task uses only relative terrain visualization and does not compare absolute elevations.",
+        rationale=(
+            "This declared task uses only relative terrain visualization and does not "
+            "compare absolute elevations."
+        ),
         evidence_reference="evidence://task-profile/relative-only",
         reviewer="reviewer-1",
         recorded_at=NOW,
