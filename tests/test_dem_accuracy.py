@@ -554,3 +554,54 @@ def test_mixed_typed_uncertainty_kinds_block_descriptive_summary(tmp_path):
         "reason": "mixed_uncertainty_kinds",
     }
     assert report["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
+
+
+def test_expanded_uncertainty_summary_requires_matching_coverage_convention(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    sidecar, _ = _write_uncertainty_sidecar(tmp_path, reference_sha)
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    for record in payload["records"].values():
+        record["kind"] = "expanded_uncertainty"
+        record["coverage_factor"] = 2.0
+        record["coverage_convention"] = "documented k=2 coverage convention"
+    payload["records"]["p2"]["coverage_factor"] = 1.96
+    sidecar.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    sidecar_sha = hashlib.sha256(sidecar.read_bytes()).hexdigest()
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        reference_uncertainty_sidecar_path=sidecar,
+        reference_uncertainty_sidecar_sha256=sidecar_sha,
+    )
+
+    assert report["reference_uncertainty_summary"] == {
+        "status": "not_evaluable",
+        "reason": "mixed_expanded_uncertainty_coverage",
+    }
+
+
+def test_summary_does_not_mix_point_specific_and_shared_scope(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    sidecar, _ = _write_uncertainty_sidecar(tmp_path, reference_sha)
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    payload["records"]["p2"]["scope"] = "shared_systematic"
+    payload["records"]["p2"]["dependence"] = "unknown"
+    sidecar.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    sidecar_sha = hashlib.sha256(sidecar.read_bytes()).hexdigest()
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        reference_uncertainty_sidecar_path=sidecar,
+        reference_uncertainty_sidecar_sha256=sidecar_sha,
+    )
+
+    assert report["reference_uncertainty_summary"] == {
+        "status": "not_evaluable",
+        "reason": "mixed_uncertainty_scopes",
+    }
