@@ -32,7 +32,7 @@ def unit_context():
 
 def evidence_attestation():
     return CoverageEvidenceAttestation(
-        coverage_footprint_reference="evidence://coverage-footprint/1",
+        coverage_footprint_reference="coverage://product-release/pilot-polygon-v1",
         coverage_verification_method="Raster footprint intersected with registered AOI.",
         coverage_reviewer="reviewer-1",
         coverage_verified_at=datetime(2026, 11, 22, tzinfo=UTC),
