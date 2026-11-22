@@ -239,3 +239,77 @@ It may not claim:
 - that DSM performance establishes bare-earth DTM accuracy, or vice versa.
 
 The pre-registered scope and any amendments must be visible alongside every GEOLOGIA accuracy statement.
+
+## 17. Frozen coverage sufficiency gates (before any coverage map)
+
+The following **operational screening thresholds are fixed for protocol version 1**. They are not universal geodetic standards and do not, by themselves, establish statistical power. Record them in the dated registration before producing coverage maps; changing any threshold requires a timestamped amendment made before viewing DEM residuals.
+
+- Spatial density is computed on a pre-defined equal-area 1 km × 1 km grid, with valid independent reference locations—not raw lidar returns or repeated samples counted as independent. Report both total density and occupied-cell fraction. The screening floor is **20 valid locations/km² for exploratory coverage** and **40 valid locations/km² for confirmatory coverage**, but these floors cannot override the independent-block and per-stratum requirements below.
+- To prevent a single dense cluster from representing a whole stratum, no single pre-defined spatial block may contain more than **50% of its valid observations**. If it does, mark the stratum as spatially_clustered unless a registered sampling design justifies a different block scheme before residuals are inspected.
+- At least **70% of eligible reference observations** must fall within **5 years** of the DEM acquisition epoch for confirmatory temporal matching. The remainder must be reported and analyzed only under the registered temporal-mismatch rule. If the DEM acquisition epoch is unknown, the temporal gate is not met for confirmatory absolute validation.
+- Each primary stratum must meet the applicable independent sample floor in Section 13 and the registered precision/power target. Meeting a raw density threshold is not a substitute for sample size, spatial distribution, reference quality, or precision.
+- Coverage gates are evaluated per registered polygon, source, product epoch and primary stratum. A failed gate yields the relevant non-evaluable reason; thresholds must not be relaxed after viewing coverage or residual maps to obtain a pass.
+
+## 18. Frozen geodetic reference and transformation manifest
+
+Before the coverage report, freeze a transformation manifest for each DEM/reference pairing. It must identify:
+
+- Horizontal reference frame and realization (for example, the exact WGS 84 realization or named ITRF realization), coordinate epoch, and any plate-motion/epoch transformation. A generic label such as “WGS84” without realization/epoch metadata is recorded as incomplete where that distinction materially affects the required accuracy.
+- Native vertical datum/reference for the DEM and every reference source; target vertical datum; height type (ellipsoidal or orthometric); geoid/quasigeoid model name, release, grid resolution, checksum and interpolation method when used.
+- Transformation operation/pipeline, direction, parameters and grid dependencies; PROJ or GeographicLib version and relevant database/grid package versions; full software environment lock or reproducible version record.
+- Horizontal and vertical uncertainty before and after transformation, including uncertainty introduced by datum conversion and epoch propagation.
+
+Do not choose EGM2008, EGM2020, a grid resolution, or a software operation after seeing DEM residuals. Select the exact model and operation based on the product's documented native reference and the reference data's documented frame, then freeze them before coverage maps. If no defensible common datum transformation exists, absolute validation is datum_undocumented or datum_limited; do not substitute a convenient global model silently.
+
+## 19. Mixed vertical-reference policy
+
+All eligible observations must be transformed to one registered target vertical reference using a documented, reproducible operation:
+
+- Orthometric heights and ellipsoidal heights must not be mixed directly. Where the required geoid is known and supported, use the registered height relation (commonly orthometric height H = ellipsoidal height h − geoid undulation N, subject to the exact datum convention) and record sign convention and operation.
+- EGM96 and EGM2008 observations may be harmonized only with an identified, versioned conversion/difference grid or authoritative transformation and a defensible uncertainty estimate. Add conversion uncertainty to the budget; do not assume the difference is zero or remove it by subtracting variances without valid independence assumptions.
+- Local/legacy vertical datums may be included only if their realization and transformation to the target are documented and independently defensible. Otherwise they are excluded from absolute validation under the pre-registered rule and counted as datum_undocumented.
+- Unknown ellipsoidal-height realization/epoch, undocumented local datum, missing geoid model, or incompatible vertical units makes a point ineligible for absolute validation. Preserve it only for clearly labeled exploratory/relative work if scientifically appropriate.
+- Never silently mix EGM96, EGM2008, EGM2020, ellipsoidal heights or local datums in one absolute metric. Publish the per-source eligibility and exclusion counts.
+
+## 20. Spatial dependence and uncertainty method (locked before residuals)
+
+For protocol v1, the primary interval method is a **spatial block bootstrap**, not an unspecified “spatially aware CI”:
+
+- Primary resampling unit: the registered spatial block, not individual points or lidar shots.
+- Default block width: **5 km** in the registered equal-area projected CRS. Before residual analysis, inspect the sampling geometry and spatial dependence of the reference/sampling design (not DEM residuals) and record whether this block is defensible.
+- Pre-registered sensitivity widths: **2.5 km and 10 km**. Report the sensitivity results alongside the 5 km primary result. If dependence clearly extends beyond 10 km or the design makes these widths inappropriate, pause and issue a dated protocol amendment before inspecting DEM residuals; do not select a block size based on the most favorable accuracy result.
+- Bootstrap replicates: **2,000**, with a fixed recorded random seed. Resample spatial blocks within the registered primary stratum and preserve paired product/reference observations when comparing products.
+- If there are too few independent blocks for a stable bootstrap, report precision_inadequate / spatial_support_insufficient; do not substitute point-wise bootstrap intervals. Any alternative interval method must be specified in a dated amendment before residual inspection.
+
+Spatial cross-validation is not the default for a descriptive DEM validation. If GEOLOGIA later fits a predictive correction or model, it must use a separately registered spatial validation design (for example, buffered spatial blocks) and must not reuse calibration observations as held-out validation.
+
+## 21. Wadi inclusion/omission decision log
+
+The wadi environment is part of the intended four-environment design. Any decision to omit or replace it must be made **before residual inspection** and recorded with:
+
+- decision date/time and responsible reviewer;
+- named catchment/polygon considered;
+- reason category: safety/security, access/permissions, logistics/equipment, or absence/inadequacy of reference data;
+- supporting evidence and whether the decision changes the registered scope;
+- amendment identifier and explicit statement that wadi conditions remain untested.
+
+A practical constraint may justify omission, but it must not be concealed or presented as a scientific finding. No post-residual omission, replacement or reclassification is permitted to improve the result.
+
+## 22. Disaggregated non-evaluable status codes
+
+“Not evaluable” is an umbrella conclusion, not a diagnosis. GEOLOGIA must emit one or more reason codes, with counts and affected polygon/stratum/source:
+
+- no_reference_data: no eligible reference observations found;
+- insufficient_sample: fewer than the registered independent sample floor;
+- spatially_clustered: spatial coverage or block-distribution gate failed;
+- temporal_mismatch: reference dates fail the registered epoch window;
+- datum_undocumented: vertical datum/frame/epoch or transformation is unknown or incompatible;
+- reference_conflict: independent eligible references disagree beyond the pre-registered compatibility tolerance, or conflict cannot be resolved with available uncertainty metadata;
+- precision_inadequate: sample exists but confidence interval/power/precision target is not met;
+- source_quality_failed: source-specific quality flags or uncertainty exceed the registered eligibility limit;
+- environment_omitted: the registered environment (including wadi) was not sampled.
+
+For reference_conflict, define the comparison pair, independence assumption and tolerance before examining DEM residuals. If uncertainties are compatible and independent, a standardized difference such as the absolute difference divided by the combined standard uncertainty may be used with a pre-registered cutoff; otherwise report the conflict without forcing a pooled reference. Do not label any of these statuses as evidence that the DEM itself is inaccurate.
+
+A stratum is evaluable only when all applicable coverage, temporal, datum, source-quality, spatial-support and precision gates pass. Record the exact failed gates and do not collapse them into one opaque status.
+
