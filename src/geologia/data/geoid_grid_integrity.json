@@ -1,0 +1,36 @@
+{
+  "schema": "geologia-geoid-grid-integrity/1",
+  "purpose": "Pinned byte-integrity references only; not a geoid license approval, CRS verification, parser validation, independent cross-check, or authorization for vertical transformation.",
+  "source_repository": "tibatechapp-ship-it/Ali-Algomori",
+  "source_commit": "ca72da2599f6664fe8548047eeec593aab955682",
+  "source_file": "src/geologia/data/reference/geoid_grid_registry.json",
+  "source_file_sha256": "51d7c96b76f93055f98516299b1d497885fb2341",
+  "grids": [
+    {
+      "model_id": "EGM96",
+      "file_name": "us_nga_egm96_15.tif",
+      "source_url": "https://cdn.proj.org/us_nga_egm96_15.tif",
+      "expected_size_bytes": 2710815,
+      "sha256": "db493027562c9b004d7220fa881f5603adada4e1c5029b933fa7de4547b0e78d",
+      "width": 1440,
+      "height": 721,
+      "horizontal_crs": "EPSG:4326",
+      "vertical_crs": "EPSG:5773",
+      "license_claim_from_source_registry": "public_domain; source metadata needs independent review before use",
+      "tide_system_claim_from_source_registry": "tide_free; declared source metadata, not embedded TIFF evidence"
+    },
+    {
+      "model_id": "EGM2008",
+      "file_name": "us_nga_egm08_25.tif",
+      "source_url": "https://cdn.proj.org/us_nga_egm08_25.tif",
+      "expected_size_bytes": 80585622,
+      "sha256": "4191d471eefebf24091b56dbc604353cb3b8cf8cc70e448bb9ae56a272bef17a",
+      "width": 8640,
+      "height": 4321,
+      "horizontal_crs": "EPSG:4326",
+      "vertical_crs": "EPSG:3855",
+      "license_claim_from_source_registry": "public_domain; source metadata needs independent review before use",
+      "tide_system_claim_from_source_registry": "tide_free; declared source metadata, not embedded TIFF evidence"
+    }
+  ]
+}
