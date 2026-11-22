@@ -201,6 +201,8 @@ def compute_dem_reference_residuals(
         raise FormatValidationError(
             f"accuracy assessment requires 1 to {MAX_DEM_ACCURACY_TILES} DEM tiles"
         )
+    if len({Path(path).resolve() for path in dem_paths}) != len(dem_paths):
+        raise FormatValidationError("accuracy assessment contains duplicate DEM paths")
     for value in (
         product_manifest_sha256,
         reference_dataset_sha256,
@@ -263,8 +265,12 @@ def compute_dem_reference_residuals(
             "reference CSV SHA-256 does not match its dataset record"
         )
     tile_records = []
+    total_dem_bytes = 0
     for path in dem_paths:
         size_bytes, digest = _sha256_file(Path(path), MAX_DEM_ACCURACY_TILE_BYTES)
+        total_dem_bytes += size_bytes
+        if total_dem_bytes > 50 * 1024 * 1024 * 1024:
+            raise FormatValidationError("DEM tile collection exceeds the 50 GiB limit")
         tile_records.append({
             "filename": Path(path).name,
             "size_bytes": size_bytes,
@@ -365,8 +371,14 @@ def compute_dem_reference_residuals(
                 dataset = stack.enter_context(rasterio.open(Path(path), "r"))
             except Exception as exc:
                 raise FormatValidationError("DEM tile cannot be opened") from exc
-            if dataset.count < 1 or dataset.crs is None:
-                raise FormatValidationError("DEM tile must have a band and horizontal CRS")
+            if (
+                dataset.count < 1
+                or dataset.crs is None
+                or dataset.width * dataset.height > 100_000_000
+            ):
+                raise FormatValidationError(
+                    "DEM tile must have a band, horizontal CRS and at most 100 million pixels"
+                )
             tile_crs = pyproj.CRS.from_user_input(dataset.crs)
             if dem_crs is None:
                 dem_crs = tile_crs
@@ -391,6 +403,16 @@ def compute_dem_reference_residuals(
                 raise FormatValidationError(
                     "DEM accuracy tiles must share grid orientation and resolution"
                 )
+            offset_col, offset_row = (~reference_grid) * (
+                dataset.transform.c, dataset.transform.f
+            )
+            if (
+                not math.isclose(offset_col, round(offset_col), abs_tol=1e-6)
+                or not math.isclose(offset_row, round(offset_row), abs_tol=1e-6)
+            ):
+                raise FormatValidationError(
+                    "DEM accuracy tile origins must align to the common grid"
+                )
             datasets.append(dataset)
 
         aoi_to_dem = pyproj.Transformer.from_crs(
@@ -400,6 +422,8 @@ def compute_dem_reference_residuals(
             aoi_to_dem.transform,
             _densify_geometry_for_crs(aoi, aoi_source_crs),
         )
+        if aoi_in_dem.is_empty or not aoi_in_dem.is_valid:
+            raise FormatValidationError("AOI cannot be transformed to DEM CRS")
         reference_to_dem = pyproj.Transformer.from_crs(
             reference_crs, dem_crs, always_xy=True
         )
@@ -482,16 +506,37 @@ def compute_dem_reference_residuals(
     accuracy_disposition = "not_assessed"
     metric_value = None
 
+    conditional_requirement_comparison = None
     if metadata.independence_status in {"unresolved", "dependent"}:
         reason_codes.append("source_dependence_conflict")
+        accuracy_disposition = "not_evaluable"
+    elif not all_residuals:
+        reason_codes.append("insufficient_sample")
         accuracy_disposition = "not_evaluable"
     elif metadata.independence_status == "conditional_limited_use":
         reason_codes.append("source_dependence_conflict")
         accuracy_disposition = "conditional_limited_use"
         metrics_scope = "conditional_limited_use"
-    elif not all_residuals:
-        reason_codes.append("insufficient_sample")
-        accuracy_disposition = "not_evaluable"
+        if requirement is not None:
+            metric_value = {
+                "rmse_m": metrics["rmse_m"],
+                "mae_m": metrics["mae_m"],
+                "abs_bias_m": abs(metrics["bias_m"]) if metrics["bias_m"] is not None else None,
+                "empirical_le90_m": metrics["empirical_le90_m"],
+            }[requirement.metric]
+            if len(all_residuals) >= requirement.minimum_valid_observations:
+                conditional_requirement_comparison = {
+                    "metric": requirement.metric,
+                    "value_m": metric_value,
+                    "maximum_value_m": requirement.maximum_value_m,
+                    "within_limit": (
+                        metric_value is not None
+                        and metric_value <= requirement.maximum_value_m
+                    ),
+                    "not_confirmatory": True,
+                }
+            else:
+                reason_codes.append("insufficient_sample")
     elif requirement is None:
         reason_codes.append("not_assessed")
     elif len(all_residuals) < requirement.minimum_valid_observations:
@@ -547,6 +592,7 @@ def compute_dem_reference_residuals(
             requirement.model_dump(mode="json") if requirement is not None else None
         ),
         "evaluated_metric_value_m": metric_value,
+        "conditional_requirement_comparison": conditional_requirement_comparison,
         "residuals": residual_records,
         "readiness_disposition": "not_assessed",
         "vertical_transformation_applied": False,
