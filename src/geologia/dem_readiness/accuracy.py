@@ -124,36 +124,36 @@ def _load_reference_uncertainty_sidecar(
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise FormatValidationError(
+        raise ValueError(
             "reference uncertainty sidecar is not valid UTF-8 JSON"
         ) from exc
     if not isinstance(payload, dict) or payload.get("schema") != "geologia.reference-uncertainty.v1":
-        raise FormatValidationError(
+        raise ValueError(
             "reference uncertainty sidecar schema is unsupported"
         )
     if payload.get("reference_dataset_sha256", "").lower() != reference_sha256.lower():
-        raise FormatValidationError(
+        raise ValueError(
             "reference uncertainty sidecar is not bound to this reference CSV"
         )
     records = payload.get("records")
     if not isinstance(records, dict):
-        raise FormatValidationError(
+        raise ValueError(
             "reference uncertainty sidecar records must be an object keyed by point_id"
         )
     if set(records) != point_ids:
-        raise FormatValidationError(
+        raise ValueError(
             "reference uncertainty sidecar point IDs must exactly match the reference CSV"
         )
     parsed = {}
     for point_id, record in records.items():
         if not isinstance(record, dict):
-            raise FormatValidationError(
+            raise ValueError(
                 f"reference uncertainty record {point_id!r} must be an object"
             )
         try:
             parsed[point_id] = ElevationUncertainty.model_validate(record)
         except ValidationError as exc:
-            raise FormatValidationError(
+            raise ValueError(
                 f"reference uncertainty record {point_id!r} is invalid"
             ) from exc
     return digest, parsed
