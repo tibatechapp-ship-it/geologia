@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import tempfile
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -16,6 +17,12 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from geologia.dem_readiness.accuracy import (
+    AccuracyRequirement,
+    DEMAccuracyMetadata,
+    compute_dem_reference_residuals,
+)
+from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
 from geologia.dem_readiness.coverage import (
     CoverageAssessmentRequest,
     CoverageAssessmentSubmission,
@@ -127,6 +134,18 @@ class DEMTileCollectionCoverageInput(BaseModel):
         return normalized
 
 
+class DEMAccuracyAssessmentInput(BaseModel):
+    product_manifest_dataset_id: str = Field(..., min_length=1, max_length=64)
+    reference_dataset_id: str = Field(..., min_length=1, max_length=64)
+    aoi_dataset_id: str = Field(..., min_length=1, max_length=64)
+    metadata: DEMAccuracyMetadata
+    declared_use: DeclaredUseContext
+    independent_review: IndependentReviewEvidence
+    coverage_footprint_reference: str = Field(..., min_length=1, max_length=1024)
+    requirement: AccuracyRequirement | None = None
+    created_by: str = Field(..., min_length=1, max_length=128)
+
+
 class ClaimInput(BaseModel):
     statement: str = Field(..., min_length=8, max_length=2000)
     created_by: str = Field(..., min_length=1, max_length=200)
@@ -232,6 +251,193 @@ def dem_coverage_thresholds() -> dict:
 def dem_coverage_assessment(body: CoverageAssessmentRequest) -> dict:
     """Preview caller-supplied reference coverage metrics; no files are inspected or stored."""
     return evaluate_coverage_sufficiency(body).model_dump(mode="json")
+
+
+@app.post(
+    "/api/v1/projects/{project_id}/dem/accuracy-assessments",
+    status_code=201,
+)
+def project_dem_accuracy_assessment_save(
+    project_id: str,
+    body: DEMAccuracyAssessmentInput,
+) -> dict:
+    """Compute and persist DEM/reference residuals bound to a product manifest and review."""
+    from geologia.formats import FormatDependencyError, FormatValidationError
+
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    manifest_dataset = store.get_dataset(body.product_manifest_dataset_id)
+    reference = store.get_dataset(body.reference_dataset_id)
+    aoi = store.get_dataset(body.aoi_dataset_id)
+    if (
+        manifest_dataset is None
+        or manifest_dataset["project_id"] != project_id
+        or manifest_dataset["data_role"] != "dem_tile_manifest"
+        or manifest_dataset["format"] != "json"
+    ):
+        raise HTTPException(status_code=404, detail="DEM product manifest not found")
+    if (
+        reference is None
+        or reference["project_id"] != project_id
+        or reference["data_role"] != "reference_elevation_observations"
+        or reference["format"] != "csv"
+    ):
+        raise HTTPException(status_code=404, detail="reference observation dataset not found")
+    if (
+        aoi is None
+        or aoi["project_id"] != project_id
+        or aoi["data_role"] != "aoi_boundary"
+        or aoi["format"] not in {"geojson", "json"}
+    ):
+        raise HTTPException(status_code=404, detail="AOI dataset not found")
+
+    for item in (manifest_dataset, reference, aoi):
+        content_path = store.get_dataset_content_path(item["id"])
+        if content_path is None or not _dataset_content_matches(item, Path(content_path)):
+            raise HTTPException(
+                status_code=409, detail="accuracy input dataset failed integrity verification"
+            )
+
+    try:
+        manifest = DEMTileManifest.model_validate(
+            _read_json(Path(store.get_dataset_content_path(manifest_dataset["id"])))
+        )
+    except (UnicodeDecodeError, ValueError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail="DEM tile manifest is invalid") from exc
+
+    metadata = body.metadata
+    declared_use = body.declared_use
+    review = body.independent_review
+    if (
+        manifest.product_version_id != metadata.product_version_id
+        or manifest.product_version_id != declared_use.product_version_id
+        or metadata.product_version_id != review.product_version_id
+        or declared_use.pilot_area_id != review.pilot_area_id
+        or declared_use.task_profile_id != review.task_profile_id
+        or review.reviewer != metadata.independence_reviewer
+        or review.evidence_reference != metadata.independence_evidence_reference
+        or review.reviewed_at != metadata.independence_reviewed_at
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="manifest, metadata, declared use and independent review must match exactly",
+        )
+    if body.requirement is not None:
+        now = datetime.now(timezone.utc)
+        if body.requirement.frozen_at.astimezone(timezone.utc) > now:
+            raise HTTPException(
+                status_code=409, detail="accuracy requirement freeze timestamp is in the future"
+            )
+
+    dem_paths = []
+    for tile_id, tile_sha256 in zip(
+        manifest.tile_dataset_ids, manifest.tile_dataset_sha256s, strict=True
+    ):
+        tile = store.get_dataset(tile_id)
+        if (
+            tile is None
+            or tile["project_id"] != project_id
+            or tile["data_role"] != "dem"
+            or tile["format"] not in {"tif", "tiff", "hgt"}
+            or tile["sha256"] != tile_sha256
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="manifest tile membership or checksum does not match project datasets",
+            )
+        tile_path = store.get_dataset_content_path(tile_id)
+        if tile_path is None or not _dataset_content_matches(tile, Path(tile_path)):
+            raise HTTPException(
+                status_code=409, detail="DEM tile failed integrity verification"
+            )
+        dem_paths.append(Path(tile_path))
+
+    coverage = store.get_dataset_coverage_inspection(aoi["id"])
+    if (
+        coverage is None
+        or coverage.get("format") != "dem_tile_collection_coverage_inspection"
+        or coverage.get("inspection_status") != "measured"
+        or coverage.get("project_id") != project_id
+        or coverage.get("product_dataset_ids") != list(manifest.tile_dataset_ids)
+        or coverage.get("product_dataset_sha256s") != list(manifest.tile_dataset_sha256s)
+        or coverage.get("aoi_dataset_id") != aoi["id"]
+        or coverage.get("aoi_dataset_sha256") != aoi["sha256"]
+        or coverage.get("coverage_footprint_reference")
+        != body.coverage_footprint_reference
+        or coverage.get("aoi_fully_within_raster_extent") is not True
+        or coverage.get("all_aoi_pixel_centres_valid") is not True
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="accuracy assessment requires full persisted coverage for the exact manifest and AOI",
+        )
+
+    reference_path = store.get_dataset_content_path(reference["id"])
+    aoi_path = store.get_dataset_content_path(aoi["id"])
+    try:
+        report = compute_dem_reference_residuals(
+            dem_paths,
+            Path(reference_path),
+            _read_json(Path(aoi_path)),
+            metadata=metadata,
+            product_manifest_sha256=manifest_dataset["sha256"],
+            reference_dataset_sha256=reference["sha256"],
+            aoi_dataset_sha256=aoi["sha256"],
+            coverage_footprint_reference=body.coverage_footprint_reference,
+            requirement=body.requirement,
+        )
+    except FormatDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except FormatValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    report.update({
+        "project_id": project_id,
+        "product_manifest_dataset_id": manifest_dataset["id"],
+        "reference_dataset_id": reference["id"],
+        "aoi_dataset_id": aoi["id"],
+        "declared_use": declared_use.model_dump(mode="json"),
+        "independent_review": review.model_dump(mode="json"),
+        "created_by": body.created_by.strip(),
+    })
+    record = store.save_accuracy_assessment(
+        project_id,
+        body.model_dump(mode="json"),
+        report,
+        body.created_by,
+    )
+    return record
+
+
+@app.get("/api/v1/projects/{project_id}/dem/accuracy-assessments")
+def project_dem_accuracy_assessment_list(
+    project_id: str,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return store.list_accuracy_assessments(project_id, limit=limit, offset=offset)
+
+
+@app.get("/api/v1/projects/{project_id}/dem/accuracy-assessments/chain")
+def project_dem_accuracy_assessment_chain(project_id: str) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return store.verify_accuracy_assessment_chain(project_id)
+
+
+@app.get("/api/v1/projects/{project_id}/dem/accuracy-assessments/{assessment_id}")
+def project_dem_accuracy_assessment_get(
+    project_id: str,
+    assessment_id: str,
+) -> dict:
+    if store.get_project(project_id) is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    record = store.get_accuracy_assessment(assessment_id)
+    if record is None or record["project_id"] != project_id:
+        raise HTTPException(status_code=404, detail="accuracy assessment not found")
+    return record
 
 
 @app.post("/api/v1/projects/{project_id}/dem/coverage-assessments", status_code=201)
