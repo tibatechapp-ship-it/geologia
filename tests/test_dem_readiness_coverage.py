@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -25,6 +25,7 @@ def unit_context():
         aoi_dataset_id="dataset-aoi-1",
         aoi_dataset_sha256="c" * 64,
         product_version_id="copernicus-glo30-release-x",
+        dem_epoch=date(2025, 1, 1),
         pilot_area_id="yemen-pilot-west-01",
         reference_source_id="icesat2-atl08-release-x",
         primary_stratum_id="steep-bare",
