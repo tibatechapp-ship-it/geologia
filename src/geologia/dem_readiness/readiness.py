@@ -53,7 +53,10 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
     elif any(item.code is ReasonCode.NOT_ASSESSED for item in data.unresolved_items):
         codes = tuple(dict.fromkeys((*codes, ReasonCode.NOT_ASSESSED)))
         disposition = ReadinessDisposition.NOT_ASSESSED
-        explanation = "The relevant validation work has not been performed; no readiness claim is made."
+        explanation = (
+            "The relevant validation work has not been performed; "
+            "no readiness claim is made."
+        )
         blocking = ()
     elif data.context.validation_status.value in {
         "planned", "coverage_checked", "reference_ready", "not_assessed"
