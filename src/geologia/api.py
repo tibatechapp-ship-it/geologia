@@ -228,6 +228,14 @@ def dem_coverage_assessment_save(
         raise HTTPException(status_code=404, detail="product or reference dataset not found")
     if product["project_id"] != project_id or reference["project_id"] != project_id:
         raise HTTPException(status_code=404, detail="product or reference dataset not found")
+    if (
+        product["sha256"] != context.product_dataset_sha256
+        or reference["sha256"] != context.reference_dataset_sha256
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="request dataset checksums do not match the stored upload records",
+        )
     if product["data_role"] != "dem":
         raise HTTPException(status_code=422, detail="product dataset must have data_role=dem")
     if reference["data_role"] not in {
