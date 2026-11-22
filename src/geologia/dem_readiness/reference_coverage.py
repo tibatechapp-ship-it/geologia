@@ -191,29 +191,24 @@ def _metadata_completeness(records: list[dict[str, Any]]) -> dict[str, Any]:
         "coordinate_epoch",
         "geoid_model",
     )
-    numeric_fields = {
-        "horizontal_uncertainty_m",
-        "vertical_uncertainty_m",
-        "uncertainty_confidence_level",
+    string_fields = {
+        "vertical_datum",
+        "height_type",
+        "reference_method",
+        "horizontal_reference_frame",
+        "geoid_model",
     }
+
+    def is_missing(record: dict[str, Any], field: str) -> bool:
+        value = record.get(field)
+        if field in string_fields:
+            return not isinstance(value, str) or not value.strip()
+        if field == "coordinate_epoch":
+            return value is None or (isinstance(value, str) and not value.strip())
+        return value is None
+
     missing = {
-        field: sum(
-            1
-            for record in records
-            if (
-                record.get(field) is None
-                or (
-                    field not in numeric_fields
-                    and (
-                        not isinstance(record.get(field), (str, int, float))
-                        or (
-                            isinstance(record.get(field), str)
-                            and not record[field].strip()
-                        )
-                    )
-                )
-            )
-        )
+        field: sum(1 for record in records if is_missing(record, field))
         for field in fields
     }
     return {
