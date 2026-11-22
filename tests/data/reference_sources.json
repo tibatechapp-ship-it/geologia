@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "references": [
+    {
+      "id": "nga-egm-portal",
+      "title": "NGA Earth Gravitational Model portal",
+      "publisher": "National Geospatial-Intelligence Agency, Office of Geomatics",
+      "url": "https://earth-info.nga.mil/geograv",
+      "role": "Primary authority for EGM model data, grids, coefficients, and interpolation resources"
+    },
+    {
+      "id": "nga-wgs84-egm-downloads",
+      "title": "NGA WGS 84 EGM data and applications",
+      "publisher": "NGA Office of Geomatics",
+      "url": "https://earth-info.nga.mil/?action=wgs84&dir=wgs84",
+      "role": "Published EGM2008 2.5-minute and EGM96 15-minute interpolation grid listings"
+    },
+    {
+      "id": "epsg-5773",
+      "title": "EGM96 height",
+      "authority": "EPSG",
+      "code": 5773,
+      "url": "https://epsg.io/5773",
+      "role": "Vertical CRS metadata, not proof of dataset height correctness"
+    },
+    {
+      "id": "epsg-5171",
+      "title": "EGM96 geoid datum",
+      "authority": "EPSG",
+      "code": 5171,
+      "url": "https://epsg.io/5171-datum",
+      "role": "Datum identifier; distinct from vertical CRS EPSG:5773"
+    },
+    {
+      "id": "epsg-3855",
+      "title": "EGM2008 height",
+      "authority": "EPSG",
+      "code": 3855,
+      "url": "https://epsg.io/3855",
+      "role": "Vertical CRS identifier for EGM2008 height"
+    },
+    {
+      "id": "noaa-egm96-conventions",
+      "title": "There is no such thing as the EGM96 geoid",
+      "publisher": "NOAA National Geodetic Survey",
+      "url": "https://www.ngs.noaa.gov/PUBS_LIB/EGM96_GEOID_PAPER/egm96_geoid_paper.html",
+      "role": "Scientific caution about model realization and conventions"
+    },
+    {
+      "id": "geographiclib-geoid-500k",
+      "title": "GeoidHeights.dat.gz — 500,000 geoid-height reference points",
+      "publisher": "GeographicLib project",
+      "url": "https://sourceforge.net/projects/geographiclib/files/testdata/GeoidHeights.dat.gz/download",
+      "documentation_url": "https://geographiclib.sourceforge.io/C++/doc/geoid.html#testgeoid",
+      "sha256_published": "e0b9804694b3eac78ffd0b3df9cffd30a134d72007276e732ff72f9651bc9995",
+      "role": "Cross-implementation numerical regression reference after artifact verification; not field-survey truth"
+    }
+  ],
+  "notes": [
+    "NGA is the primary model authority; other registries and packages are secondary metadata sources.",
+    "EGM96 is legacy. NGA currently publishes EGM2008 and lists a 2.5-minute worldwide grid; NGA's WGS84 page tentatively anticipates a new EGM in 2028.",
+    "The GeographicLib published digest is recorded but has not been verified against a locally downloaded artifact."
+  ]
+}
