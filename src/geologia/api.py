@@ -37,7 +37,7 @@ from geologia.dem_readiness.coverage import (
     CoverageAssessmentSubmission,
     evaluate_coverage_sufficiency,
 )
-from geologia.dem_readiness.manifest import DEMTileManifest
+from geologia.dem_readiness.manifest import DEMTileManifest\nfrom geologia.dem_readiness.product_metadata import DEMProductMetadata
 from geologia.dem_readiness.thresholds import FROZEN_V1_THRESHOLDS
 from geologia import __version__
 from geologia import knowledge, store
@@ -82,7 +82,7 @@ ALLOWED_DATA_ROLES = {
     "structural_orientations", "contacts", "waveforms_or_catalog", "station_metadata",
     "geochemistry_samples", "geophysics_surveys", "aoi_boundary", "data_layers",
     "crs_definition", "imagery", "ground_control_points",
-    "reference_elevation_observations", "dem_tile_manifest",
+    "reference_elevation_observations", "dem_tile_manifest", "dem_product_metadata",
 }
 
 
@@ -165,8 +165,9 @@ class DEMAccuracyAssessmentInput(BaseModel):
 
 class DEMReadinessAssessmentInput(BaseModel):
     product_manifest_dataset_id: str = Field(..., min_length=1, max_length=64)
+    product_metadata_dataset_id: str = Field(..., min_length=1, max_length=64)
+    aoi_dataset_id: str = Field(..., min_length=1, max_length=64)
     declared_use: DeclaredUseContext
-    context: MandatoryProductContext
     accuracy_assessment_id: str | None = Field(default=None, max_length=64)
     independent_review: IndependentReviewEvidence | None = None
     mandatory_failures: tuple[ReasonRecord, ...] = ()
