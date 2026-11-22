@@ -371,7 +371,7 @@ def test_manifest_tile_hash_membership_must_match_dem_bytes(tmp_path):
         schema="geologia.dem-tile-manifest.v1",
         product_version_id="dem-release-2026-01",
         tile_dataset_ids=(dem.name,),
-        tile_dataset_sha256=("0" * 64,),
+        tile_dataset_sha256s=("0" * 64,),
     )
 
     with pytest.raises(FormatValidationError, match="tile SHA-256 membership"):
