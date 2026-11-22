@@ -345,6 +345,13 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
             item["code"] for item in response.json()["dependency_errors"]
         }
 
+    persisted_coverage = store.get_dataset_coverage_inspection(aoi.json()["id"])
+    assert persisted_coverage is not None
+    corrupted_coverage = json.loads(json.dumps(persisted_coverage))
+    corrupted_coverage["aoi_crs"] = "tampered-crs"
+    store.save_dataset_coverage_inspection(aoi.json()["id"], corrupted_coverage)
+    assert "coverage_inspection_integrity_mismatch" in dependency_error_codes()
+
     reference_path = Path(store.get_dataset_content_path(reference.json()["id"]))
     reference_path.write_bytes(b"tampered reference bytes")
     assert "reference_dataset_integrity_mismatch" in dependency_error_codes()
