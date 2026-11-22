@@ -6,7 +6,7 @@ import json
 import os
 import tempfile
 from datetime import datetime, timezone
-from contextlib import asynccontextmanager
+from contextlib import ExitStack, asynccontextmanager
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
