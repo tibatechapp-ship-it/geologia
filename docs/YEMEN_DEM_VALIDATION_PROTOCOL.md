@@ -736,3 +736,26 @@ The current scientific decision is therefore:
 - Do not issue a DEM product ranking until the previously defined product-file, regional-coverage and independent-reference gates pass for the relevant region and terrain class.
 
 The USGS regional synthesis supports the broad physiographic continuity of the western highlands and Great Escarpment into Yemen. It does not establish quantitative terrain equivalence or DEM accuracy transfer. Published work on the southern Arabian Shield also notes that detailed terrane correlation near the Saudi–Yemen border remains uncertain where critical field and geochronological data are sparse.
+
+### 42.6 Separate actual product coverage from proposed analogue geography
+
+Every Saudi comparison record must distinguish two non-interchangeable geographic concepts:
+
+- `actual_coverage`: the geographic footprint demonstrably covered by the exact product file/release being assessed. Record the coverage polygon or authoritative footprint identifier, source of the footprint, spatial resolution, tile identifiers, coverage-verification method, verification date and evidence reference. A study-area boundary or a regional name is not proof that a product file covers that area.
+- `analogue_region`: a proposed geographic area selected for geomorphological comparison (for example, Asir western highlands, Sarawat escarpment, Najran western mountains, Najran basin/Wadi Najran/eastern plains, or the Makkah metropolitan study area). Record the rationale and the paired Yemen target stratum separately. This field expresses a comparison hypothesis, not product coverage.
+
+For the currently cited Makkah study, the documented study footprint remains the Makkah metropolitan area described in Section 42.1. It must not be expanded to Asir or Najran without an exact product release and authoritative coverage evidence. If the product footprint is not independently available, set `actual_coverage_status = unverified`; do not infer coverage from the product's “national” label or from the study's regional context.
+
+### 42.7 Measurable test of each Saudi–Yemen analogue pair
+
+Treat each proposed Saudi–Yemen pair as a testable geomorphological hypothesis. Before interpreting a pair as representative, freeze the data sources, dates, spatial support, class definitions and comparison statistics for both sides. At minimum, evaluate:
+
+- Elevation distribution: declared range, quantiles and elevation-class proportions.
+- Slope distribution: slope algorithm, input surface/resolution, neighborhood/support, class proportions and distributional differences.
+- Drainage dissection: drainage-density definition and units, flow-accumulation threshold, channel/extraction method, contributing-area basis and uncertainty. Do not compare drainage-density values generated with materially different extraction settings as if equivalent.
+- Land cover: class scheme, observation date, spatial resolution and class proportions, with unknown/mixed classes retained.
+- Where the task requires it, add local relief, aspect, lithology/geomorphic setting, basin position, aridity or other justified covariates; declare these before analysis rather than selecting them after seeing a favorable match.
+
+Keep the following strata separate in the analysis: Asir western highlands; Asir escarpment and foothills; Najran western mountainous belt; Najran basin/Wadi Najran/eastern plains; and the Makkah metropolitan study. Pair each only with a named Yemen target stratum supported by geographic and geomorphic rationale. In particular, Najran basin and eastern plains are a separate basin/wadi/plain comparison and must not stand in for the western mountain belt.
+
+Report the paired distributions, sample sizes, missingness, spatial support, dates and uncertainty. Use named distributional comparison statistics and any task-specific equivalence margins fixed before examining DEM residuals. Visual similarity, geographic proximity or continuity of a mountain chain may justify testing a pair, but cannot by themselves establish quantitative representativeness. If the required matched data are unavailable, retain `representativeness_status = unquantified`; this is absence of evidence, not evidence of unsuitability.
