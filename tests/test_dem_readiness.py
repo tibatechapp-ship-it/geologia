@@ -4,6 +4,7 @@ from geologia.dem_readiness.models import (
     Availability,
     DeclaredUseContext,
     EvidenceValue,
+    IndependentReviewEvidence,
     MandatoryProductContext,
     ReadinessDisposition,
     ReadinessInput,
@@ -43,6 +44,14 @@ def use():
     )
 
 
+def review():
+    return IndependentReviewEvidence(
+        product_version_id="release-1", pilot_area_id="pilot-north",
+        task_profile_id="regional-reconnaissance-v1", reviewer="independent-reviewer-2",
+        evidence_reference="evidence://independent-review/1", reviewed_at=NOW,
+    )
+
+
 def reason(code, stage="coverage"):
     return ReasonRecord(
         code=code,
@@ -55,7 +64,7 @@ def reason(code, stage="coverage"):
 
 
 def test_complete_context_can_be_ready():
-    result = assess_readiness(ReadinessInput(context=context(), declared_use=use()))
+    result = assess_readiness(ReadinessInput(context=context(), declared_use=use(), independent_review=review()))
     assert result.disposition is ReadinessDisposition.READY
 
 
@@ -114,7 +123,7 @@ def test_scope_exception_allows_only_conditional_limited_use():
         ReadinessInput(
             context=context(vertical_datum=missing),
             declared_use=use(),
-            scope_exceptions=(exception,),
+            scope_exceptions=(exception,), independent_review=review(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
@@ -127,6 +136,7 @@ def test_restriction_is_conditional_not_ready():
             context=context(),
             declared_use=use(),
             accepted_restrictions=(reason(ReasonCode.TEMPORAL_MISMATCH),),
+            independent_review=review(),
         )
     )
     assert result.disposition is ReadinessDisposition.CONDITIONAL
@@ -256,3 +266,29 @@ def test_duplicate_scope_exceptions_for_same_field_are_rejected():
             declared_use=use(),
             scope_exceptions=(exception, exception),
         )
+
+
+def test_independent_review_status_without_review_record_is_not_evaluable():
+    result = assess_readiness(ReadinessInput(context=context(), declared_use=use()))
+    assert result.disposition is ReadinessDisposition.NOT_EVALUABLE
+    assert result.blocking_fields == ("independent_review",)
+
+
+def test_independent_review_must_match_exact_declared_use():
+    import pytest
+    from pydantic import ValidationError
+    invalid = IndependentReviewEvidence(
+        product_version_id="different-release", pilot_area_id="pilot-north",
+        task_profile_id="regional-reconnaissance-v1", reviewer="independent-reviewer-2",
+        evidence_reference="evidence://independent-review/other-release", reviewed_at=NOW,
+    )
+    with pytest.raises(ValidationError):
+        ReadinessInput(context=context(), declared_use=use(), independent_review=invalid)
+
+
+def test_reason_record_requires_evidence_reference():
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        ReasonRecord(code=ReasonCode.LICENSE_INCOMPATIBLE, stage="license",
+            detail="License terms prohibit the declared use.", reviewer="reviewer-1", recorded_at=NOW)
