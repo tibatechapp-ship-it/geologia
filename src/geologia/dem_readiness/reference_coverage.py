@@ -66,7 +66,9 @@ def _geojson_features(payload: dict[str, Any]) -> list[dict[str, Any]]:
         return [item for item in features if isinstance(item, dict)]
     if kind == "Feature":
         return [payload]
-    raise FormatValidationError("reference observations must be a GeoJSON Feature or FeatureCollection")
+    raise FormatValidationError(
+        "reference observations must be a GeoJSON Feature or FeatureCollection"
+    )
 
 
 def _polygonal_aoi(payload: dict[str, Any]):
@@ -288,9 +290,12 @@ def compute_reference_coverage_metrics(
             excluded[f"independence_status_{independence_status}"] += 1
             continue
         if not review_complete:
-            excluded[
-                "source_dependence_conflict" if review_conflict else "independence_review_incomplete"
-            ] += 1
+            exclusion_reason = (
+                "source_dependence_conflict"
+                if review_conflict
+                else "independence_review_incomplete"
+            )
+            excluded[exclusion_reason] += 1
             continue
 
         observed_at = _parse_timestamp(properties.get("observed_at"))
@@ -453,7 +458,9 @@ def compute_reference_coverage_metrics(
         "independence_review": independence_review.model_dump(mode="json"),
         "independence_review_status": review_status,
         "independence_review_reference": independence_review.reference,
-        "spatial_site_rule": "One spatial count per unique site_id; repeated observations remain temporal records.",
+        "spatial_site_rule": (
+            "One spatial count per unique site_id; repeated observations remain temporal records."
+        ),
         "point_inclusion_rule": "AOI covers point in EPSG:6933; boundary included.",
         "metrics": metrics.model_dump(mode="json"),
         "reason_codes": reason_codes,
