@@ -257,12 +257,27 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     )
     assert chain.status_code == 200
     assert chain.json()["valid"] is True
-    assert chain.json()["record_count"] == 1
+    assert chain.json()["record_count"] == 2
     retrieved = client.get(
         f"/api/v1/projects/{project['id']}/dem/accuracy-assessments/{record['id']}"
     )
     assert retrieved.status_code == 200
     assert retrieved.json()["record_hash"] == record["record_hash"]
+    legacy_request = json.loads(json.dumps(request))
+    legacy_request.pop("reference_uncertainty_sidecar_dataset_id")
+    legacy_request["created_by"] = "legacy-client"
+    legacy_saved = client.post(
+        f"/api/v1/projects/{project['id']}/dem/accuracy-assessments",
+        json=legacy_request,
+    )
+    assert legacy_saved.status_code == 201, legacy_saved.text
+    legacy_assessment = legacy_saved.json()["assessment"]
+    assert legacy_assessment["reference_uncertainty_sidecar_dataset_id"] is None
+    assert legacy_assessment["reference_uncertainty_summary"] == {
+        "status": "not_evaluable",
+        "reason": "legacy_uncertainty_semantics_unknown",
+    }
+    assert legacy_assessment["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
 
     def available(value):
         return {"availability": "available", "value": value}
