@@ -1,0 +1,57 @@
+{
+  "schema_version": 2,
+  "purpose": "Synthetic known-answer controls. Expected EPSG:3857 values are calculated from the published EPSG/IOGP spherical pseudo-Mercator equations independently of pyproj.",
+  "source_crs": "EPSG:4326",
+  "target_crs": "EPSG:3857",
+  "axis_order": "x,y",
+  "sphere_radius_m": 6378137,
+  "formula_easting": "x = a * longitude_radians",
+  "formula_northing": "y = a * ln(tan(pi/4 + latitude_radians/2))",
+  "absolute_tolerance_m": 0.00002,
+  "points": [
+    {
+      "reference_id": "unit-degree",
+      "input_xy": [
+        1,
+        1
+      ],
+      "expected_xy": [
+        111319.49079327357,
+        111325.14286638486
+      ]
+    },
+    {
+      "reference_id": "yemen-control",
+      "input_xy": [
+        44.2,
+        15.3
+      ],
+      "expected_xy": [
+        4920321.493062693,
+        1723798.498982409
+      ]
+    },
+    {
+      "reference_id": "origin",
+      "input_xy": [
+        0,
+        0
+      ],
+      "expected_xy": [
+        0,
+        -7.081154551613622e-10
+      ]
+    },
+    {
+      "reference_id": "webmercator-square-tile-edge",
+      "input_xy": [
+        180,
+        85.0511287798066
+      ],
+      "expected_xy": [
+        20037508.342789244,
+        20037508.342789244
+      ]
+    }
+  ]
+}
