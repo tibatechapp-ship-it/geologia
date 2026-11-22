@@ -52,6 +52,8 @@ class ReferenceCoverageMetricsRequest(BaseModel):
     aoi_crs: NonEmpty
     reference_crs: NonEmpty
     dem_epoch: date
+    computed_by: NonEmpty
+    analysis_code_commit: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{7,40}$")]
     independence_review: IndependenceReviewAttestation
 
 
