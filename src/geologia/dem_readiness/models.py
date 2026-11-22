@@ -203,7 +203,7 @@ class ReasonRecord(BaseModel):
 
     @model_validator(mode="after")
     def require_timezone(self) -> "ReasonRecord":
-        if self.recorded_at.tzinfo is None:
+        if not _is_timezone_aware(self.recorded_at):
             raise ValueError("recorded_at must be timezone-aware")
         return self
 
@@ -222,7 +222,7 @@ class ScopeException(BaseModel):
 
     @model_validator(mode="after")
     def validate_exception(self) -> "ScopeException":
-        if self.recorded_at.tzinfo is None:
+        if not _is_timezone_aware(self.recorded_at):
             raise ValueError("recorded_at must be timezone-aware")
         if not self.compensating_controls and len(self.rationale.strip()) < 20:
             raise ValueError(
