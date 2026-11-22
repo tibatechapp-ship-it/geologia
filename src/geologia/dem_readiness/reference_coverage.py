@@ -182,19 +182,37 @@ def _finite_nonnegative(value: Any) -> float | None:
 def _metadata_completeness(records: list[dict[str, Any]]) -> dict[str, Any]:
     fields = (
         "vertical_datum",
+        "height_type",
         "reference_method",
         "horizontal_uncertainty_m",
         "vertical_uncertainty_m",
+        "uncertainty_confidence_level",
         "horizontal_reference_frame",
         "coordinate_epoch",
         "geoid_model",
     )
+    numeric_fields = {
+        "horizontal_uncertainty_m",
+        "vertical_uncertainty_m",
+        "uncertainty_confidence_level",
+    }
     missing = {
         field: sum(
             1
             for record in records
-            if record.get(field) is None
-            or (isinstance(record.get(field), str) and not record[field].strip())
+            if (
+                record.get(field) is None
+                or (
+                    field not in numeric_fields
+                    and (
+                        not isinstance(record.get(field), (str, int, float))
+                        or (
+                            isinstance(record.get(field), str)
+                            and not record[field].strip()
+                        )
+                    )
+                )
+            )
         )
         for field in fields
     }
@@ -257,6 +275,8 @@ def compute_reference_coverage_metrics(
     accepted_records: list[dict[str, Any]] = []
     site_records: dict[str, dict[str, Any]] = {}
     source_counts: Counter[str] = Counter()
+    method_counts: Counter[str] = Counter()
+    datum_counts: Counter[str] = Counter()
     temporal_bins: Counter[str] = Counter()
     within_five_years = 0
     uncertainty_horizontal: list[float] = []
@@ -341,7 +361,11 @@ def compute_reference_coverage_metrics(
             "independence_group_id": properties["independence_group_id"].strip(),
             "observed_at": observed_at,
             "vertical_datum": properties.get("vertical_datum"),
+            "height_type": properties.get("height_type"),
             "reference_method": properties.get("reference_method"),
+            "uncertainty_confidence_level": _finite_nonnegative(
+                properties.get("uncertainty_confidence_level")
+            ),
             "horizontal_uncertainty_m": _finite_nonnegative(
                 properties.get("horizontal_uncertainty_m")
             ),
@@ -355,6 +379,10 @@ def compute_reference_coverage_metrics(
         }
         accepted_records.append(record)
         source_counts[record["source_id"]] += 1
+        if isinstance(record["reference_method"], str) and record["reference_method"].strip():
+            method_counts[record["reference_method"].strip()] += 1
+        if isinstance(record["vertical_datum"], str) and record["vertical_datum"].strip():
+            datum_counts[record["vertical_datum"].strip()] += 1
 
         years_from_epoch = abs((observed_at.date() - dem_epoch).days) / 365.2425
         if years_from_epoch <= 3:
@@ -406,6 +434,8 @@ def compute_reference_coverage_metrics(
     )
     stratum_counts = Counter({stratum: 0 for stratum in primary_stratum_ids})
     stratum_counts.update(record["primary_stratum_id"] for record in site_list)
+    group_counts = Counter(record["independence_group_id"] for record in site_list)
+    source_site_counts = Counter(record["source_id"] for record in site_list)
     observation_count = len(accepted_records)
     temporal_fraction = (
         within_five_years / observation_count if observation_count else None
@@ -458,6 +488,13 @@ def compute_reference_coverage_metrics(
         "unique_independent_site_count": len(site_list),
         "excluded_by_reason": dict(excluded),
         "source_observation_counts": dict(source_counts),
+        "source_independent_site_counts": dict(source_site_counts),
+        "reference_method_observation_counts": dict(method_counts),
+        "vertical_datum_observation_counts": dict(datum_counts),
+        "independence_group_site_counts": dict(group_counts),
+        "maximum_independence_group_site_fraction": (
+            max(group_counts.values()) / len(site_list) if site_list else None
+        ),
         "temporal_observation_bins": {
             key: temporal_bins.get(key, 0)
             for key in ("0_3_years", "3_5_years", "5_10_years", "over_10_years")
