@@ -175,6 +175,7 @@
       "language": "zh",
       "request": "矿物勘查与地球化学",
       "expected_domains": [
+        "geochemistry",
         "exploration"
       ]
     },

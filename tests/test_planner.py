@@ -1,6 +1,12 @@
 import pytest
 
-from geologia.planner import agent_status, build_plan, classify_request
+from geologia.planner import (
+    PREPARED_INTENTS,
+    _prepare_intents,
+    agent_status,
+    build_plan,
+    classify_request,
+)
 
 
 def test_arabic_groundwater_request_routes_with_explicit_evidence():
@@ -107,3 +113,69 @@ def test_arabic_routing_ignores_diacritics_and_tatweel():
 def test_arabic_routing_matches_hamza_and_alef_variants():
     result = classify_request("إِرْتِفَاع منسوب المياه")
     assert "hydrology" in result["matched_domains"]
+
+
+def test_geochemistry_routes_to_its_registered_specialists():
+    result = classify_request("Geochemistry sample analysis")
+    assert result["matched_domains"] == ["geochemistry"]
+    plan = build_plan("Geochemistry sample analysis", language="en")
+    step = plan["steps"][0]
+    assert step["domain"] == "geochemistry"
+    assert set(step["candidate_engines"]) == {"geochemistry-pi", "geopytool"}
+    assert set(step["preferred_engines"]) <= set(step["candidate_engines"])
+    assert step["candidate_engine_status"] == "registry_only_not_installed_or_certified"
+
+
+@pytest.mark.parametrize(
+    ("query_text", "expected"),
+    [
+        ("Analyze geophysical resistivity inversion", "geophysics"),
+        ("LAS well log porosity", "well_logs"),
+        ("地球物理与电法", "geophysics"),
+        ("地球化学与元素分析", "geochemistry"),
+        ("Геофизика и магнитная разведка", "geophysics"),
+        ("Геохимический анализ", "geochemistry"),
+    ],
+)
+def test_added_ali_domains_route_multilingually(query_text, expected):
+    result = classify_request(query_text)
+    assert expected in result["matched_domains"]
+    assert result["needs_clarification"] is False
+
+
+def test_las_well_log_precedence_suppresses_generic_hydrology_match():
+    result = classify_request("LAS well log porosity")
+    assert result["matched_domains"] == ["well_logs"]
+
+
+def test_geophysics_precedence_suppresses_generic_seismic_collision():
+    result = classify_request("seismic reflection inversion")
+    assert result["matched_domains"] == ["geophysics"]
+
+
+def test_planner_candidates_are_derived_from_registry_domains():
+    from geologia.registry import ENGINES
+
+    registry_by_domain = {}
+    for card in ENGINES:
+        registry_by_domain.setdefault(card["domain"], set()).add(card["engine_id"])
+    for intent in PREPARED_INTENTS:
+        assert set(intent["candidate_engines"]) == registry_by_domain[intent["domain"]]
+        assert set(intent["preferred_engines"]) <= registry_by_domain[intent["domain"]]
+
+
+def test_preferred_engine_with_wrong_registry_domain_fails_closed():
+    from geologia.registry import ENGINES
+
+    with pytest.raises(RuntimeError, match="belongs to"):
+        _prepare_intents(
+            [{"domain": "exploration", "preferred_engines": ["geopytool"]}],
+            registry=ENGINES,
+        )
+
+
+def test_planner_status_exposes_supported_registry_bound_domains():
+    status = agent_status()
+    assert {"well_logs", "geophysics", "geochemistry"} <= set(status["supported_domains"])
+    result = classify_request("Groundwater")
+    assert all("matched_keywords_norm" not in item for item in result["routing_evidence"])
