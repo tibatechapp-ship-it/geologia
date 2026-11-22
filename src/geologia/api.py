@@ -812,12 +812,12 @@ def dataset_coverage_inspect(
         payload = _read_json(Path(aoi_path))
         inspect_geojson(payload)
         report = inspect_dem_aoi_coverage(Path(dem_path), payload, body.aoi_crs)
-    except (UnicodeDecodeError, ValueError) as exc:
-        raise HTTPException(status_code=422, detail=f"invalid AOI GeoJSON: {exc}") from exc
     except FormatDependencyError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except FormatValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"invalid AOI GeoJSON: {exc}") from exc
 
     report.update({
         "product_dataset_id": product["id"],
