@@ -149,10 +149,15 @@ def _compute(dem, reference, reference_sha, **kwargs):
             tile_dataset_sha256s=(hashlib.sha256(dem.read_bytes()).hexdigest(),),
         ),
     )
-    canonical_hash = lambda payload: hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-        .encode("utf-8")
-    ).hexdigest()
+    def canonical_hash(payload):
+        encoded = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
     aoi = _aoi()
     manifest_sha = kwargs.pop(
         "product_manifest_sha256",
