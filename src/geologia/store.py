@@ -832,3 +832,37 @@ def get_dataset_coverage_inspection(dataset_id: str) -> dict[str, Any] | None:
     if item is None:
         return None
     return item["summary"].get("coverage_inspection")
+
+
+def save_reference_coverage_metrics(dataset_id: str, report: dict[str, Any]) -> None:
+    """Persist computed reference coverage metrics and append their provenance event."""
+    initialize()
+    with connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            "SELECT project_id, summary_json FROM datasets WHERE id=?", (dataset_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError("dataset not found")
+        summary = json.loads(row["summary_json"])
+        summary["reference_coverage_metrics"] = report
+        conn.execute(
+            "UPDATE datasets SET summary_json=? WHERE id=?",
+            (json.dumps(summary, ensure_ascii=False, allow_nan=False), dataset_id),
+        )
+        _append_provenance_event(
+            conn,
+            row["project_id"],
+            dataset_id,
+            "reference_coverage_metrics_computed",
+            report,
+            utc_now(),
+        )
+
+
+def get_reference_coverage_metrics(dataset_id: str) -> dict[str, Any] | None:
+    """Return the latest persisted reference coverage metrics, if present."""
+    item = get_dataset(dataset_id)
+    if item is None:
+        return None
+    return item["summary"].get("reference_coverage_metrics")
