@@ -819,7 +819,8 @@ def inspect_dem_tile_collection_coverage(
                         )
                     ):
                         raise FormatValidationError(
-                            "DEM tiles must share an identical pixel-grid orientation and resolution"
+                            "DEM tiles must share identical pixel-grid orientation "
+                            "and resolution"
                         )
                 offset_col, offset_row = (~reference_transform) * (
                     transform.c, transform.f
@@ -1053,5 +1054,6 @@ def inspect_dem_tile_collection_coverage(
         raise
     except Exception as exc:
         raise FormatValidationError(
-            "DEM tile collection coverage inspection failed because an input is invalid or unsupported"
+            "DEM tile collection coverage inspection failed because an input "
+            "is invalid or unsupported"
         ) from exc
