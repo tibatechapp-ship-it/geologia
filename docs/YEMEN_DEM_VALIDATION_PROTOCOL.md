@@ -495,3 +495,55 @@ If matched ICESat-2 and GEDI observations disagree beyond the pre-registered com
 - Retain and report the disagreement, both source estimates, their uncertainty metadata, matching geometry and reason for unresolved status in the readiness/quality report.
 - Do not choose whichever lidar agrees with the DEM, average the two sources automatically, or count agreement elsewhere as a reason to dismiss a local conflict.
 - If no defensible resolution is possible, keep the location non-evaluable for confirmatory validation; a separately labeled sensitivity/consistency analysis may show each source independently but must not be presented as a resolved reference.
+
+
+## 39. Regional and non-global DEM candidate screening (Yemen v1)
+
+This section is a **candidate-screening register**, not a ranking of Yemen accuracy. A product's country of origin, nominal grid spacing, or accuracy reported in another country does not establish its accuracy in Yemen.
+
+### 39.1 Yemen-coverage candidates
+
+The primary open comparison remains the exact, obtainable versions of Copernicus GLO-30, ALOS AW3D30 and FABDEM, subject to licensing and product-semantic checks. Record tile/version, native grid, surface type, datum, source lineage and license before analysis. FABDEM is derived from Copernicus GLO-30 and is therefore a useful alternative terrain representation, but **not an independent reference** against Copernicus; shared source errors and correction effects must be disclosed. Published comparative studies show that relative performance varies by land cover and slope, and FABDEM may be less favorable than GLO-30 in steep terrain. Do not import a study's ranking as a Yemen result.
+
+### 39.2 Chinese Arabian Peninsula 30 m DEM (NCD)
+
+The National Cryosphere Desert Data Center lists a 30 m Arabian Peninsula DEM dataset, with access conditions and source lineage to be checked at acquisition. It may be catalogued as a **regional supplementary elevation layer** after obtaining its actual metadata and file. The reported vertical accuracy of approximately 20 m has not yet been independently confirmed from an authoritative product specification and local validation record in this protocol. Therefore:
+
+- Do not accept it as a primary vertical reference or claim it is more accurate than GLO-30/AW3D30.
+- Do not permanently exclude it solely on an unverified quoted accuracy figure. If the authoritative specification confirms an error level unsuitable for the target use, classify it as non-competitive for that use, while retaining it for visualization or contextual comparison if appropriate.
+- Record access restrictions, complete data lineage, version, vertical datum, reported accuracy metric/confidence level, test geography and independent control source.
+
+Catalog record: https://www.ncdc.ac.cn/portal/metadata?af=SRTM30&current_page=1&org=Platform+service+center
+
+### 39.3 Chinese sensors/products without a public Yemen-ready product
+
+Gaofen-7 and LuTan-1 may be discussed in the literature/technology review, but do not enter the Yemen candidate comparison unless an actual product covering the pre-registered pilot area is obtainable with documented license, metadata, processing lineage and reference validation. A sensor's local test accuracy or a China-only product does not establish a public, globally available Yemen DEM.
+
+### 39.4 Saudi national 5 m DEM — regional case study only
+
+A published Makkah study evaluated a 5 m national DEM against 200 first-order GPS control points and reported mean height difference 0.01 m and standard deviation 2.95 m. This is evidence for that product and study area, not Yemen. The value 2.95 m is not a universal accuracy ceiling, transferable performance estimate, or acceptance threshold for Yemen. If the dataset and permission become available, document its actual footprint and use only for a separate cross-boundary/neighboring-region case study; do not include it as Yemen coverage unless it physically covers the pre-registered Yemen sites.
+
+Reference: https://indianjournals.com/article/ijggs-1-4-010
+
+### 39.5 WorldDEM Neo — commercial candidate, not v1 open baseline
+
+WorldDEM Neo is a commercial Airbus elevation product with approximately 5 m grid spacing and global/off-the-shelf coverage subject to restrictions and ordering. Product documentation describes DSM/DTM offerings; the exact ordered product, surface semantics, area restrictions and license must be confirmed. Published specification sources do not present a single fully consistent vertical-accuracy figure: one distribution specification reports 1.4 m LE90, while NASA's CSDA vendor summary reports <2.5 m absolute vertical LE90. Record the exact official technical product description and quote its metric/version before using any number. These figures are not RMSE and must not be compared directly with RMSE values.
+
+WorldDEM Neo may be listed in a **commercial procurement/benchmarking** section, but it is excluded from the open/free v1 baseline unless an appropriate license is obtained. If acquired, test it against independent Yemen reference data; do not assume superiority from nominal resolution or vendor specification alone.
+
+References:
+- https://api.oneatlas.airbus.com/guides/worlddem/g-wd-about/
+- https://science.nasa.gov/earth-science/csda/vendor-airbus/
+- https://docs.up42.com/data/worlddem-neo
+
+### 39.6 Decision rule
+
+Candidate status is assigned per product and purpose:
+
+- **Primary open comparison:** obtainable products with Yemen coverage and documented version/semantics (currently GLO-30, AW3D30 and FABDEM, subject to license and data-readiness checks).
+- **Supplementary regional layer:** product covers Yemen but metadata, lineage, access or local accuracy evidence is insufficient for primary ranking (e.g., NCD Arabian Peninsula DEM until verified).
+- **Regional case study:** product has a documented validation in a neighboring/similar region but no Yemen coverage (e.g., Saudi national 5 m DEM).
+- **Literature-only technology:** sensor or national product without an obtainable Yemen-ready dataset (e.g., GF-7/LuTan-1 claims absent a matching deliverable).
+- **Commercial benchmark:** obtainable only under paid/restricted terms (e.g., WorldDEM Neo).
+
+No candidate may be promoted to primary independent reference solely because it has finer pixels, a better quoted accuracy in another geography, or a different national origin. The primary validation reference remains independently sourced and assessed under Sections 4 and 30–38.
