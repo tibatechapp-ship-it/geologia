@@ -429,3 +429,88 @@ def test_legacy_reference_uncertainty_is_explicitly_unknown_and_not_propagated(t
         == "legacy_untyped_not_propagated"
         for record in report["residuals"]
     )
+
+
+def _write_uncertainty_sidecar(tmp_path, reference_sha, point_ids=("p1", "p2", "p3", "p4")):
+    records = {
+        point_id: {
+            "kind": "standard_uncertainty",
+            "value": 0.15,
+            "unit": "m",
+            "source_reference": "survey-method://gnss-uncertainty-v2",
+            "method": "documented-survey-uncertainty",
+            "scope": "point_specific",
+            "dependence": "independence_assumed",
+            "reviewer": "reviewer-1",
+            "recorded_at": NOW.isoformat(),
+        }
+        for point_id in point_ids
+    }
+    payload = {
+        "schema": "geologia.reference-uncertainty.v1",
+        "reference_dataset_sha256": reference_sha,
+        "records": records,
+    }
+    path = tmp_path / "reference-uncertainty.json"
+    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    return path, hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_hash_bound_typed_reference_uncertainty_is_recorded_not_propagated(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    sidecar, sidecar_sha = _write_uncertainty_sidecar(tmp_path, reference_sha)
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        reference_uncertainty_sidecar_path=sidecar,
+        reference_uncertainty_sidecar_sha256=sidecar_sha,
+    )
+
+    assert report["reference_uncertainty_sidecar_sha256"] == sidecar_sha
+    assert report["reference_uncertainty_model"]["schema"] == "geologia.reference-uncertainty.v1"
+    assert (
+        report["reference_uncertainty_model"]["interpretation"]
+        == "typed_metadata_not_propagated"
+    )
+    assert report["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
+    assert all(
+        item["reference_uncertainty"]["kind"] == "standard_uncertainty"
+        and item["reference_uncertainty"]["value"] == 0.15
+        and item["reference_uncertainty_semantics"] == "typed_metadata_not_propagated"
+        for item in report["residuals"]
+    )
+
+
+def test_reference_uncertainty_sidecar_must_match_csv_point_ids(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    sidecar, sidecar_sha = _write_uncertainty_sidecar(
+        tmp_path, reference_sha, point_ids=("p1", "p2", "p3")
+    )
+
+    with pytest.raises(FormatValidationError, match="point IDs must exactly match"):
+        _compute(
+            dem,
+            reference,
+            reference_sha,
+            reference_uncertainty_sidecar_path=sidecar,
+            reference_uncertainty_sidecar_sha256=sidecar_sha,
+        )
+
+
+def test_reference_uncertainty_sidecar_hash_is_verified(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    sidecar, _ = _write_uncertainty_sidecar(tmp_path, reference_sha)
+
+    with pytest.raises(FormatValidationError, match="sidecar SHA-256"):
+        _compute(
+            dem,
+            reference,
+            reference_sha,
+            reference_uncertainty_sidecar_path=sidecar,
+            reference_uncertainty_sidecar_sha256="0" * 64,
+        )

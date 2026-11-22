@@ -2,16 +2,21 @@
 
 import csv
 import hashlib
+import json
 import math
 import statistics
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from geologia.dem_readiness.manifest import DEMTileManifest
-from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
+from geologia.dem_readiness.models import (
+    DeclaredUseContext,
+    ElevationUncertainty,
+    IndependentReviewEvidence,
+)
 
 NonEmpty = Annotated[str, Field(min_length=1)]
 SHA256 = Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
@@ -101,6 +106,62 @@ MAX_DEM_ACCURACY_TILE_BYTES = 2 * 1024 * 1024 * 1024
 MAX_DEM_ACCURACY_TILES = 256
 OVERLAP_EQUALITY_TOLERANCE_M = 1e-6
 
+MAX_REFERENCE_UNCERTAINTY_SIDECAR_BYTES = 10 * 1024 * 1024
+
+
+def _load_reference_uncertainty_sidecar(
+    path: Path,
+    expected_sha256: str,
+    reference_sha256: str,
+    point_ids: set[str],
+) -> tuple[str, dict[str, ElevationUncertainty]]:
+    """Load hash-bound typed uncertainty records without propagating them."""
+    _, digest = _sha256_file(path, MAX_REFERENCE_UNCERTAINTY_SIDECAR_BYTES)
+    if digest.lower() != expected_sha256.lower():
+        raise ValueError(
+            "reference uncertainty sidecar SHA-256 does not match its record"
+        )
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            "reference uncertainty sidecar is not valid UTF-8 JSON"
+        ) from exc
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema") != "geologia.reference-uncertainty.v1"
+    ):
+        raise ValueError("reference uncertainty sidecar schema is unsupported")
+    sidecar_reference_sha = payload.get("reference_dataset_sha256")
+    if (
+        not isinstance(sidecar_reference_sha, str)
+        or sidecar_reference_sha.lower() != reference_sha256.lower()
+    ):
+        raise ValueError(
+            "reference uncertainty sidecar is not bound to this reference CSV"
+        )
+    records = payload.get("records")
+    if not isinstance(records, dict):
+        raise ValueError(
+            "reference uncertainty sidecar records must be an object keyed by point_id"
+        )
+    if set(records) != point_ids:
+        raise ValueError(
+            "reference uncertainty sidecar point IDs must exactly match the reference CSV"
+        )
+    parsed = {}
+    for point_id, record in records.items():
+        if not isinstance(record, dict):
+            raise ValueError(
+                f"reference uncertainty record {point_id!r} must be an object"
+            )
+        try:
+            parsed[point_id] = ElevationUncertainty.model_validate(record)
+        except ValidationError as exc:
+            raise ValueError(
+                f"reference uncertainty record {point_id!r} is invalid"
+            ) from exc
+    return digest, parsed
 
 def _canonical_json_sha256(payload: object) -> str:
     """Hash deterministic UTF-8 JSON for the exact structured input payload."""
@@ -210,10 +271,13 @@ def compute_dem_reference_residuals(
     requirement: AccuracyRequirement | None = None,
     declared_use: DeclaredUseContext | None = None,
     independent_review: IndependentReviewEvidence | None = None,
+    reference_uncertainty_sidecar_path: Path | None = None,
+    reference_uncertainty_sidecar_sha256: str | None = None,
 ) -> dict:
     """Sample aligned DEM tiles at reference points and calculate direct residual metrics.
 
     CSV columns: point_id,x,y,elevation_m,terrain_stratum,uncertainty_m.
+    Optional typed uncertainty metadata is supplied in a separately hashed JSON sidecar.
     Residual convention: DEM elevation minus reference elevation.
     """
     from contextlib import ExitStack
@@ -424,6 +488,44 @@ def compute_dem_reference_residuals(
     if not observations:
         raise FormatValidationError("reference CSV contains no observations")
 
+    if (reference_uncertainty_sidecar_path is None) != (
+        reference_uncertainty_sidecar_sha256 is None
+    ):
+        raise FormatValidationError(
+            "reference uncertainty sidecar path and SHA-256 must be supplied together"
+        )
+    uncertainty_sidecar_sha = None
+    if reference_uncertainty_sidecar_path is not None:
+        if len(reference_uncertainty_sidecar_sha256) != 64 or any(
+            char not in "0123456789abcdefABCDEF"
+            for char in reference_uncertainty_sidecar_sha256
+        ):
+            raise FormatValidationError(
+                "reference uncertainty sidecar SHA-256 must be a SHA-256 value"
+            )
+        try:
+            uncertainty_sidecar_sha, typed_uncertainties = (
+                _load_reference_uncertainty_sidecar(
+                    Path(reference_uncertainty_sidecar_path),
+                    reference_uncertainty_sidecar_sha256,
+                    reference_sha,
+                    seen_ids,
+                )
+            )
+        except ValueError as exc:
+            raise FormatValidationError(str(exc)) from exc
+        for observation in observations:
+            uncertainty = typed_uncertainties[observation["point_id"]]
+            observation["typed_reference_uncertainty"] = uncertainty.model_dump(
+                mode="json"
+            )
+            observation["reference_uncertainty_kind"] = uncertainty.kind.value
+            observation["reference_uncertainty_semantics"] = (
+                "typed_metadata_not_propagated"
+                if uncertainty.kind.value != "unknown"
+                else "declared_unknown_not_propagated"
+            )
+
     excluded: dict[str, int] = {}
     residual_records = []
     all_residuals = []
@@ -553,6 +655,7 @@ def compute_dem_reference_residuals(
                 "reference_uncertainty_m": observation["reference_uncertainty_m"],
                 "reference_uncertainty_kind": observation["reference_uncertainty_kind"],
                 "reference_uncertainty_semantics": observation["reference_uncertainty_semantics"],
+                "reference_uncertainty": observation.get("typed_reference_uncertainty"),
                 "overlapping_valid_tiles": len(candidates),
             }
             residual_records.append(record)
@@ -665,17 +768,32 @@ def compute_dem_reference_residuals(
         "dem_tiles": tile_records,
         "reference_source_id": metadata.reference_source_id,
         "reference_release": metadata.reference_release,
-        "reference_uncertainty_model": {
-            "schema": "legacy-reference-uncertainty-v1",
-            "source_field": "uncertainty_m",
-            "kind": "unknown",
-            "unit": "m",
-            "interpretation": "legacy_untyped_not_propagated",
-            "note": (
-                "Numeric values are preserved for traceability only; they are not "
-                "converted, combined, or used to adjust residual metrics."
-            ),
-        },
+        "reference_uncertainty_model": (
+            {
+                "schema": "geologia.reference-uncertainty.v1",
+                "source": "hash_bound_sidecar",
+                "sidecar_sha256": uncertainty_sidecar_sha,
+                "record_count": len(observations),
+                "interpretation": "typed_metadata_not_propagated",
+                "note": (
+                    "Typed records are provenance metadata only; no conversion, "
+                    "combination, or metric adjustment is performed."
+                ),
+            }
+            if uncertainty_sidecar_sha is not None
+            else {
+                "schema": "legacy-reference-uncertainty-v1",
+                "source_field": "uncertainty_m",
+                "kind": "unknown",
+                "unit": "m",
+                "interpretation": "legacy_untyped_not_propagated",
+                "note": (
+                    "Numeric values are preserved for traceability only; they are not "
+                    "converted, combined, or used to adjust residual metrics."
+                ),
+            }
+        ),
+        "reference_uncertainty_sidecar_sha256": uncertainty_sidecar_sha,
         "reference_dataset_sha256": reference_sha,
         "reference_file_size_bytes": reference_size,
         "reference_metadata_reference": metadata.reference_metadata_reference,

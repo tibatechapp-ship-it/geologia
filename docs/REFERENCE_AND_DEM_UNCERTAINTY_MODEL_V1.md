@@ -116,3 +116,30 @@ Implementation must include tests for:
 ## Scientific boundary
 
 This model does not create a universal DEM accuracy threshold, validate any Yemen DEM, establish independence of a reference source, or change GEOLOGIA's readiness disposition. All results remain scoped to the exact product version × pilot area × task profile × data and reference conditions.
+
+
+## Implemented typed sidecar contract
+
+The optional `reference_uncertainty_sidecar_path` must be supplied together with `reference_uncertainty_sidecar_sha256`. The sidecar is limited to 10 MiB, its exact bytes are SHA-256 checked, and its `reference_dataset_sha256` must match the reference CSV. The `records` object must contain exactly the CSV point IDs—no missing or extra points.
+
+```json
+{
+  "schema": "geologia.reference-uncertainty.v1",
+  "reference_dataset_sha256": "<SHA-256 of reference CSV>",
+  "records": {
+    "point-001": {
+      "kind": "standard_uncertainty",
+      "value": 0.15,
+      "unit": "m",
+      "source_reference": "survey-method://source",
+      "method": "documented-method",
+      "scope": "point_specific",
+      "dependence": "unknown",
+      "reviewer": "reviewer-id",
+      "recorded_at": "2026-11-22T00:00:00+00:00"
+    }
+  }
+}
+```
+
+Each record is validated by the `ElevationUncertainty` contract. Expanded uncertainty requires coverage factor and convention; confidence interval half-width requires confidence level and interval convention; unknown records require a reason and cannot carry a typed numeric value. Correlation declarations require evidence. The sidecar hash and typed records are included in the report. Values are preserved as metadata only: this feature does not convert uncertainty, aggregate mixed semantics, propagate uncertainty, or modify residual metrics. The legacy CSV `uncertainty_m` remains required for compatibility and remains explicitly untyped when no sidecar is supplied.
