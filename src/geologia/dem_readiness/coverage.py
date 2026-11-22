@@ -15,6 +15,13 @@ from .thresholds import FROZEN_V1_THRESHOLDS
 
 
 NonEmpty = Annotated[str, Field(min_length=1)]
+
+
+def _is_timezone_aware(value: datetime) -> bool:
+    """Require a timezone object with a usable UTC offset."""
+    return value.tzinfo is not None and value.utcoffset() is not None
+
+
 CellCounts = dict[NonEmpty, Annotated[int, Field(ge=0)]]
 
 
@@ -143,9 +150,9 @@ class CoverageEvidenceAttestation(BaseModel):
 
     @model_validator(mode="after")
     def validate_timestamps(self) -> "CoverageEvidenceAttestation":
-        if self.coverage_verified_at.tzinfo is None:
+        if not _is_timezone_aware(self.coverage_verified_at):
             raise ValueError("coverage_verified_at must be timezone-aware")
-        if self.metrics_computed_at.tzinfo is None:
+        if not _is_timezone_aware(self.metrics_computed_at):
             raise ValueError("metrics_computed_at must be timezone-aware")
         return self
 
