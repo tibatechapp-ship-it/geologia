@@ -213,7 +213,7 @@ def dem_coverage_thresholds() -> dict:
 
 @app.post("/api/v1/dem/coverage-assessments")
 def dem_coverage_assessment(body: CoverageAssessmentRequest) -> dict:
-    """Assess reference coverage only for one exact product/area/source/stratum/task unit."""
+    """Preview caller-supplied reference coverage metrics; no files are inspected or stored."""
     return evaluate_coverage_sufficiency(body).model_dump(mode="json")
 
 
