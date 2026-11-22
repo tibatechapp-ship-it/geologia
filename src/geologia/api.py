@@ -48,6 +48,36 @@ app = FastAPI(
 )
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 ALLOWED_FORMATS = {".geojson", ".json", ".gpkg", ".tif", ".tiff", ".csv", ".las"}
+def _verify_derived_report(
+    report: dict,
+    *,
+    digest_field: str,
+    reference_field: str,
+    reference_prefix: str,
+    dataset_id: str,
+) -> bool:
+    if not isinstance(report, dict):
+        return False
+    payload = {
+        key: value
+        for key, value in report.items()
+        if key not in {digest_field, reference_field}
+    }
+    canonical = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    expected_reference = f"{reference_prefix}:{dataset_id}:{digest}"
+    return (
+        report.get(digest_field) == digest
+        and report.get(reference_field) == expected_reference
+    )
+
+
 def _dataset_content_matches(item: dict, path: Path) -> bool:
     """Verify stored bytes against the upload-time size and SHA-256 before reading them."""
     digest = hashlib.sha256()
@@ -284,6 +314,13 @@ def dem_coverage_assessment_save(
         or reference_metrics is None
         or evidence is None
         or inspection.get("inspection_status") != "measured"
+        or not _verify_derived_report(
+            inspection,
+            digest_field="inspection_sha256",
+            reference_field="coverage_footprint_reference",
+            reference_prefix="coverage-inspection",
+            dataset_id=product["id"],
+        )
         or (
             body.request.coverage_status.value == "verified"
             and not (
@@ -297,6 +334,13 @@ def dem_coverage_assessment_save(
         or inspection.get("aoi_dataset_id") != aoi["id"]
         or inspection.get("aoi_dataset_sha256") != aoi["sha256"]
         or evidence.coverage_verified_at.isoformat() != inspection.get("inspected_at_utc")
+        or not _verify_derived_report(
+            reference_metrics,
+            digest_field="metrics_sha256",
+            reference_field="metrics_reference",
+            reference_prefix="reference-coverage-metrics",
+            dataset_id=reference["id"],
+        )
         or reference_metrics.get("status") != "measured"
         or reference_metrics.get("independence_review_status") != "attested_complete"
         or reference_metrics.get("reference_dataset_sha256") != reference["sha256"]
@@ -313,7 +357,10 @@ def dem_coverage_assessment_save(
     ):
         raise HTTPException(
             status_code=409,
-            detail="verified coverage must cite the latest persisted DEM/AOI coverage inspection",
+            detail=(
+                "assessment must cite intact persisted DEM/AOI inspection and "
+                "reference-coverage metrics for the exact dataset versions"
+            ),
         )
 
     assessment = evaluate_coverage_sufficiency(body.request)
