@@ -320,6 +320,22 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
         }
     ]
 
+    without_accuracy = dict(readiness_request)
+    without_accuracy.pop("accuracy_assessment_id")
+    not_evaluable = client.post(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
+        json=without_accuracy,
+    )
+    assert not_evaluable.status_code == 201, not_evaluable.text
+    assert not_evaluable.json()["assessment"]["disposition"] == "not_evaluable"
+
+    readiness_chain = client.get(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments/chain"
+    )
+    assert readiness_chain.status_code == 200
+    assert readiness_chain.json()["valid"] is True
+    assert readiness_chain.json()["record_count"] == 2
+
     def dependency_error_codes():
         response = client.get(
             f"/api/v1/projects/{project['id']}/dem/accuracy-assessments/chain"
@@ -345,18 +361,3 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     manifest_path.write_bytes(b"tampered manifest bytes")
     assert "product_manifest_dataset_integrity_mismatch" in dependency_error_codes()
 
-    without_accuracy = dict(readiness_request)
-    without_accuracy.pop("accuracy_assessment_id")
-    not_evaluable = client.post(
-        f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
-        json=without_accuracy,
-    )
-    assert not_evaluable.status_code == 201, not_evaluable.text
-    assert not_evaluable.json()["assessment"]["disposition"] == "not_evaluable"
-
-    readiness_chain = client.get(
-        f"/api/v1/projects/{project['id']}/dem/readiness-assessments/chain"
-    )
-    assert readiness_chain.status_code == 200
-    assert readiness_chain.json()["valid"] is True
-    assert readiness_chain.json()["record_count"] == 2
