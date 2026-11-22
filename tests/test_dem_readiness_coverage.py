@@ -186,3 +186,28 @@ def test_not_assessed_coverage_status_does_not_run_sufficiency_gates():
     )
     assert result.status is CoverageDecisionStatus.NOT_ASSESSED
     assert result.gates == ()
+
+
+def test_verified_coverage_requires_explicit_evidence_attestation():
+    with pytest.raises(ValidationError):
+        CoverageAssessmentRequest(
+            context=unit_context(),
+            phase=CoveragePhase.EXPLORATORY,
+            actual_coverage=verified_coverage(),
+            coverage_status=CoverageStatus.VERIFIED,
+            metrics=exploratory_metrics(),
+        )
+
+
+def test_metrics_attestation_checksum_must_match_reference_dataset():
+    with pytest.raises(ValidationError):
+        CoverageAssessmentRequest(
+            context=unit_context(),
+            phase=CoveragePhase.EXPLORATORY,
+            actual_coverage=verified_coverage(),
+            coverage_status=CoverageStatus.VERIFIED,
+            metrics=exploratory_metrics(),
+            evidence=evidence_attestation().model_copy(
+                update={"source_sha256": "c" * 64}
+            ),
+        )
