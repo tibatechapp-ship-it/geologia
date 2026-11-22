@@ -66,7 +66,7 @@ ALLOWED_DATA_ROLES = {
     "structural_orientations", "contacts", "waveforms_or_catalog", "station_metadata",
     "geochemistry_samples", "geophysics_surveys", "aoi_boundary", "data_layers",
     "crs_definition", "imagery", "ground_control_points",
-    "reference_elevation_observations",
+    "reference_elevation_observations", "dem_tile_manifest",
 }
 
 
