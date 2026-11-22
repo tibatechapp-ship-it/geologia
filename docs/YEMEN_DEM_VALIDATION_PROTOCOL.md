@@ -604,3 +604,41 @@ The readiness report must store status separately from a structured reason code;
 - unresolved — evidence is conflicting or insufficient for a defensible decision.
 
 A product may carry multiple reason codes. Preserve source evidence, reviewer, timestamp and disposition for each. unresolved or metadata_insufficient is not a claim that the product is inaccurate; it means GEOLOGIA cannot currently establish eligibility. Any accuracy threshold must be set before examining local residuals and must be tied to a declared use case.
+
+
+## 41. Declared v1 use scope and fitness-for-purpose
+
+### 41.1 Primary declared use
+
+For v1, GEOLOGIA evaluates DEM products as **regional reconnaissance-scale elevation inputs for geological and geomorphological interpretation** in explicitly named Yemen pilot areas. The validation objective is to characterize vertical agreement, bias, terrain-shape behavior, surface semantics and spatial/temporal limitations against eligible independent references. The result is a product-and-area-specific evidence statement to help users decide whether a DEM is suitable for this declared reconnaissance purpose; it is not a universal product ranking.
+
+The primary v1 assessment is not a certification for every downstream operation. A product's readiness is evaluated for the tuple **(exact product/version, pilot area, declared task profile, reference/data conditions)**. Readiness for one tuple must not be transferred to another product version, area, terrain stratum or task profile without evidence.
+
+### 41.2 Explicitly out-of-scope uses
+
+Unless a separate task-specific protocol and validation dataset are approved, v1 readiness does **not** establish suitability for:
+
+- production of precise topographic contour maps at a specified cartographic scale;
+- cadastral, surveying, construction, engineering design or other safety-critical elevation decisions;
+- detailed catchment, channel, flood-routing, hydraulic or drainage-network modelling where channel geometry and hydrological conditioning are decisive;
+- detection or quantification of elevation change, landslide movement, erosion, subsidence or other time-dependent processes;
+- claims of horizontal positional accuracy, which remains outside the v1 validation estimand;
+- any country-wide accuracy or fitness claim beyond the actually evaluated pilot polygons and strata.
+
+These uses may be supported by future, separately registered validation profiles. They must not inherit a v1 pass label.
+
+### 41.3 Task-specific interpretation within v1
+
+Geological/geomorphological reconnaissance may include terrain visualization, broad landform interpretation and preliminary regional slope/relief screening, subject to the reported resolution, surface type, slope strata, reference quality and uncertainty. A DEM that performs acceptably in broad regional relief may still be unsuitable for local scarps, narrow channels, small landslide features or other sub-pixel phenomena. Such limitations must be stated at the relevant scale.
+
+Hydrological and channel-related observations in v1 are descriptive/exploratory only. A general vertical-accuracy result does not demonstrate channel elevation fidelity, flow connectivity, culvert/bridge handling, sink treatment or flood-model suitability. A future hydrology profile must define channel-specific reference coverage, conditioning procedures, spatial support and task-relevant outcomes before any readiness decision.
+
+Temporal change detection requires at least two appropriately dated and co-registered elevation surfaces plus a change-detection uncertainty model and independent temporal evidence. A single-epoch DEM accuracy assessment cannot establish change-detection readiness.
+
+### 41.4 Fitness-for-purpose decision rule
+
+“Ready” means **the exact product/version meets the pre-declared requirements of the named task profile for the evaluated area and strata, with adequate reference quality, coverage, uncertainty and license/technical eligibility**. It does not mean “best DEM”, “accurate everywhere”, or “ready for all GEOLOGIA tools”.
+
+Before residual inspection, each task profile must declare its operational scale, required spatial support, relevant terrain/land-cover strata, vertical and (if applicable) horizontal tolerances, temporal window, surface semantics (DSM/DTM), required confidence/precision, and the evidence needed to assess each requirement. Numeric tolerances are set from the task's scientific or operational needs and documented source requirements; this protocol imposes no universal metre threshold. If a defensible requirement or compatible evidence is unavailable, report the relevant dimension as **not assessed** or **not evaluable**, not pass/fail.
+
+The readiness report must therefore show a separate disposition for each product × pilot area × task profile, using at least: ready_for_declared_use, conditional_limited_use, not_ready_for_declared_use, not_evaluable, or not_assessed. Each disposition must cite the requirement, evidence, limitations, reason codes, reviewer and timestamp. A product may be ready for regional reconnaissance while remaining not assessed or not ready for detailed hydrology, contouring or change detection.
