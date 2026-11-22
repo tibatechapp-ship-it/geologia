@@ -547,7 +547,7 @@ def inspect_dem_aoi_coverage(
                 representative_point = raster_footprint.representative_point()
             else:
                 intersection_for_area = _densify_geometry_for_crs(
-                    intersection, raster_crs, pyproj
+                    intersection, raster_crs
                 )
                 intersection_area_m2 = float(
                     transform_geometry(
