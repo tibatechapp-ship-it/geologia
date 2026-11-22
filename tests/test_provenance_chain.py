@@ -1,5 +1,7 @@
 """Provenance event-chain integrity regression tests."""
 
+import hashlib
+
 from geologia import store
 
 
@@ -62,7 +64,8 @@ def test_provenance_api_returns_verified_event_chain(tmp_path, monkeypatch):
     dataset = store.create_dataset(
         project["id"], name="API sample", file_format="csv",
         original_filename="api.csv", content_path=str(path),
-        sha256="c" * 64, size_bytes=4, crs=None, data_role=None, summary={},
+        sha256=hashlib.sha256(content).hexdigest(), size_bytes=len(content),
+        crs=None, data_role=None, summary={},
     )
     response = TestClient(app).get(
         f"/api/v1/datasets/{dataset['id']}/provenance"
@@ -70,4 +73,19 @@ def test_provenance_api_returns_verified_event_chain(tmp_path, monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["chain_integrity"] == "verified"
+    assert payload["content_integrity"] == "verified"
     assert payload["events"][0]["event_type"] == "dataset_ingested"
+
+    dataset_id = dataset["id"]
+    path.write_bytes(b"changed\\n")
+    changed = TestClient(app).get(
+        f"/api/v1/datasets/{dataset_id}/provenance"
+    ).json()
+    assert changed["chain_integrity"] == "verified"
+    assert changed["content_integrity"] == "failed"
+
+    path.unlink()
+    missing = TestClient(app).get(
+        f"/api/v1/datasets/{dataset_id}/provenance"
+    ).json()
+    assert missing["content_integrity"] == "missing"
