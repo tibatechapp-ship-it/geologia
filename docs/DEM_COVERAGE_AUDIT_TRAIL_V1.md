@@ -8,7 +8,9 @@ Persist the exact request and result for each coverage sufficiency assessment, b
 
 Upload the exact DEM as `data_role=dem` and the registered AOI polygon as `data_role=aoi_boundary`. Then call `POST /api/v1/datasets/{dem_dataset_id}/coverage-inspection` with the AOI dataset ID and its explicitly declared CRS.
 
-The inspection:
+The reference coverage metric workflow is exposed at `POST /api/v1/datasets/{reference_dataset_id}/reference-coverage-metrics`. It reads a GeoJSON point collection, a declared reference CRS, the exact AOI, DEM epoch, pre-registered primary strata, and a reviewer attestation for source-lineage/spatial-independence review. It computes unique-site density, 1 km occupied-cell fraction, 5 km block occupancy/concentration, per-stratum counts and temporal bins. It persists the report with the reference dataset provenance chain. The metric report must be cited by any persisted assessment, and its metrics are compared exactly with the assessment request.
+
+The DEM/AOI inspection:
 - verifies both uploaded file hashes before reading;
 - requires a projected DEM CRS with linear units;
 - intersects the raster's affine footprint with the AOI polygon;
