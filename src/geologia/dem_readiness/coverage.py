@@ -161,10 +161,7 @@ def evaluate_coverage_sufficiency(
     and measurements computed inside the registered polygon. Analogue-region
     labels and Saudi–Yemen representativeness records are deliberately absent.
     """
-    if (
-        coverage_status is CoverageStatus.NOT_ASSESSED
-        and actual_coverage.availability is Availability.NOT_AVAILABLE
-    ):
+    if coverage_status is CoverageStatus.NOT_ASSESSED:
         return CoverageAssessment(
             phase=phase,
             status=CoverageDecisionStatus.NOT_ASSESSED,
