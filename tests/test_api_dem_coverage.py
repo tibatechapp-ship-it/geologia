@@ -459,3 +459,113 @@ def test_project_tile_collection_coverage_rejects_duplicate_dataset_ids(
         },
     )
     assert response.status_code == 422
+
+
+
+def test_manifest_bound_coverage_assessment_uses_exact_tile_collection(tmp_path, monkeypatch):
+    import pytest
+
+    rasterio = pytest.importorskip("rasterio")
+    numpy = pytest.importorskip("numpy")
+    from rasterio.transform import from_origin
+
+    project = _create_project(tmp_path, monkeypatch)
+    tile_ids = []
+    tile_hashes = []
+    for filename, left in (("tile-a.tif", 500000), ("tile-b.tif", 500300)):
+        raster_path = tmp_path / filename
+        with rasterio.open(
+            raster_path,
+            "w",
+            driver="GTiff",
+            width=10,
+            height=10,
+            count=1,
+            dtype="uint8",
+            crs="EPSG:32638",
+            transform=from_origin(left, 1700000, 30, 30),
+            nodata=0,
+        ) as dataset:
+            dataset.write(numpy.ones((10, 10), dtype=numpy.uint8), 1)
+        uploaded = _upload_coverage_dataset(
+            project["id"], filename, raster_path.read_bytes(), "dem"
+        )
+        assert uploaded.status_code == 201
+        tile_ids.append(uploaded.json()["id"])
+        tile_hashes.append(uploaded.json()["sha256"])
+
+    aoi_payload = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [500000, 1699700],
+                [500600, 1699700],
+                [500600, 1700000],
+                [500000, 1700000],
+                [500000, 1699700],
+            ]],
+        },
+    }
+    aoi = _upload_coverage_dataset(
+        project["id"],
+        "collection-aoi.geojson",
+        json.dumps(aoi_payload).encode("utf-8"),
+        "aoi_boundary",
+    )
+    reference = _upload_coverage_dataset(
+        project["id"],
+        "reference.geojson",
+        b'{"type":"FeatureCollection","features":[]}',
+        "reference_elevation_observations",
+    )
+    assert aoi.status_code == 201
+    assert reference.status_code == 201
+
+    manifest_payload = {
+        "schema": "geologia.dem-tile-manifest.v1",
+        "product_version_id": "copernicus-glo30-release-x",
+        "tile_dataset_ids": tile_ids,
+        "tile_dataset_sha256s": tile_hashes,
+    }
+    manifest = _upload_coverage_dataset(
+        project["id"],
+        "dem-tile-manifest.json",
+        json.dumps(manifest_payload).encode("utf-8"),
+        "dem_tile_manifest",
+    )
+    assert manifest.status_code == 201
+
+    inspected = client.post(
+        f"/api/v1/projects/{project['id']}/dem/tile-collection-coverage-inspection",
+        json={
+            "dem_dataset_ids": tile_ids,
+            "aoi_dataset_id": aoi.json()["id"],
+            "aoi_crs": "EPSG:32638",
+        },
+    )
+    assert inspected.status_code == 200, inspected.text
+    report = inspected.json()
+
+    payload = _coverage_payload()
+    payload["context"]["product_dataset_id"] = manifest.json()["id"]
+    payload["context"]["product_dataset_sha256"] = manifest.json()["sha256"]
+    payload["context"]["reference_dataset_id"] = reference.json()["id"]
+    payload["context"]["reference_dataset_sha256"] = reference.json()["sha256"]
+    payload["context"]["aoi_dataset_id"] = aoi.json()["id"]
+    payload["context"]["aoi_dataset_sha256"] = aoi.json()["sha256"]
+    payload["evidence"]["source_sha256"] = reference.json()["sha256"]
+    payload["actual_coverage"]["value"] = report["coverage_footprint_reference"]
+    payload["evidence"]["coverage_footprint_reference"] = (
+        report["coverage_footprint_reference"]
+    )
+
+    saved = client.post(
+        f"/api/v1/projects/{project['id']}/dem/coverage-assessments",
+        json={"created_by": "operator-1", "request": payload},
+    )
+    assert saved.status_code == 201, saved.text
+    record = saved.json()
+    assert record["assessment"]["status"] == "sufficient"
+    assert record["request"]["context"]["product_dataset_id"] == manifest.json()["id"]
