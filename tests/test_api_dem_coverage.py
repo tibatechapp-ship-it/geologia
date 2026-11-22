@@ -355,3 +355,107 @@ def test_verified_assessment_rejects_partial_dem_footprint(tmp_path, monkeypatch
         json={"created_by": "operator-1", "request": payload},
     )
     assert response.status_code == 409
+
+
+
+def test_project_tile_collection_coverage_inspection_is_persisted(tmp_path, monkeypatch):
+    import pytest
+
+    rasterio = pytest.importorskip("rasterio")
+    numpy = pytest.importorskip("numpy")
+    from rasterio.transform import from_origin
+
+    from geologia import store
+
+    project = _create_project(tmp_path, monkeypatch)
+    tile_ids = []
+    tile_hashes = []
+    for filename, left in (("tile-a.tif", 500000), ("tile-b.tif", 500300)):
+        raster_path = tmp_path / filename
+        with rasterio.open(
+            raster_path,
+            "w",
+            driver="GTiff",
+            width=10,
+            height=10,
+            count=1,
+            dtype="uint8",
+            crs="EPSG:32638",
+            transform=from_origin(left, 1700000, 30, 30),
+            nodata=0,
+        ) as dataset:
+            dataset.write(numpy.ones((10, 10), dtype=numpy.uint8), 1)
+        uploaded = _upload_coverage_dataset(
+            project["id"], filename, raster_path.read_bytes(), "dem"
+        )
+        assert uploaded.status_code == 201
+        tile_ids.append(uploaded.json()["id"])
+        tile_hashes.append(uploaded.json()["sha256"])
+
+    aoi_payload = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [500000, 1699700],
+                [500600, 1699700],
+                [500600, 1700000],
+                [500000, 1700000],
+                [500000, 1699700],
+            ]],
+        },
+    }
+    aoi = _upload_coverage_dataset(
+        project["id"],
+        "tile-collection-aoi.geojson",
+        json.dumps(aoi_payload).encode("utf-8"),
+        "aoi_boundary",
+    )
+    assert aoi.status_code == 201
+
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/dem/tile-collection-coverage-inspection",
+        json={
+            "dem_dataset_ids": tile_ids,
+            "aoi_dataset_id": aoi.json()["id"],
+            "aoi_crs": "EPSG:32638",
+        },
+    )
+    assert response.status_code == 200
+    report = response.json()
+    assert report["coverage_status"] == "full_aoi_extent_and_valid_pixels"
+    assert report["tile_count"] == 2
+    assert report["valid_aoi_pixel_centres"] == 200
+    assert report["product_dataset_ids"] == tile_ids
+    assert report["product_dataset_sha256s"] == tile_hashes
+    assert report["coverage_footprint_reference"].startswith(
+        "coverage-inspection-mosaic:"
+    )
+
+    retrieved = client.get(
+        f"/api/v1/projects/{project['id']}/dem/tile-collection-coverage-inspection/"
+        f"{aoi.json()['id']}"
+    )
+    assert retrieved.status_code == 200
+    assert retrieved.json()["inspection_sha256"] == report["inspection_sha256"]
+    provenance = store.get_dataset_provenance(aoi.json()["id"])
+    assert any(
+        event["event_type"] == "dataset_coverage_inspected"
+        for event in provenance["events"]
+    )
+
+
+def test_project_tile_collection_coverage_rejects_duplicate_dataset_ids(
+    tmp_path, monkeypatch
+):
+    project = _create_project(tmp_path, monkeypatch)
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/dem/tile-collection-coverage-inspection",
+        json={
+            "dem_dataset_ids": ["same-dataset", "same-dataset"],
+            "aoi_dataset_id": "aoi-dataset",
+            "aoi_crs": "EPSG:32638",
+        },
+    )
+    assert response.status_code == 422
