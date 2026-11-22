@@ -4,7 +4,7 @@
 > **This repository has been merged.** As of GEOLOGIA v0.10.0 (2026-11-22), this
 > project lives on as the **`workspace/` layer of the unified monorepo
 > [tibatechapp-ship-it/Ali-Algomori](https://github.com/tibatechapp-ship-it/Ali-Algomori)** —
-> synced through commit #102 (monorepo v0.12.0). Development, issues, and pull
+> synced through 62a0019 (monorepo v0.13.1); periodic delta folds continue. Development, issues, and pull
 > requests continue there. This repository is preserved as an archive of the
 > standalone history (AGPLv3 era, through #102); the workspace layer is now
 > distributed under the GEOLOGIA Proprietary License 1.0 — see the monorepo's
@@ -13,7 +13,7 @@
 > **تم دمج هذا المستودع.** اعتباراً من GEOLOGIA v0.10.0 (2026-11-22) يعيش هذا
 > المشروع كطبقة `workspace/` في المستودع الموحد
 > [tibatechapp-ship-it/Ali-Algomori](https://github.com/tibatechapp-ship-it/Ali-Algomori)
-> — متزامن حتى الالتزام #102 (الإصدار الموحد v0.12.0). التطوير والقضايا وطلبات
+> — متزامن حتى 62a0019 (الإصدار الموحد v0.13.1) مع مزامنات دورية تُتبع. التطوير والقضايا وطلبات
 > الدمج تُكمَل هناك. هذا المستودع محفوظ أرشيفاً للتاريخ المستقل (حقبة AGPLv3
 > حتى #102)، وطبقة مساحة العمل الآن تحت رخصة GEOLOGIA الملكية 1.0 — راجع
 > LICENSE.md وNOTICE.md في جذر المستودع الموحد.
