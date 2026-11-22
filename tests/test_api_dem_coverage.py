@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from geologia.api import app
@@ -81,6 +83,24 @@ def test_dem_coverage_threshold_endpoint_exposes_frozen_protocol():
     assert thresholds["section_20"]["bootstrap_replicates"] == 2000
 
 
+
+def _aoi_geojson_bytes():
+    return json.dumps({
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [500000, 1699700],
+                [500300, 1699700],
+                [500300, 1700000],
+                [500000, 1700000],
+                [500000, 1699700],
+            ]],
+        },
+    }).encode("utf-8")
+
+
 def _create_project(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "coverage.sqlite3"))
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
@@ -137,7 +157,7 @@ def test_project_coverage_assessment_is_persisted_and_chain_verified(tmp_path, m
     aoi = _upload_coverage_dataset(
         project["id"],
         "pilot-aoi.geojson",
-        b'{"type":"Feature","properties":{},"geometry":{"type":"Polygon","coordinates":[[[500000,1699700],[500300,1699700],[500300,1700000],[500000,1700000],[500000,1699700]]]}}',
+        _aoi_geojson_bytes(),
         "aoi_boundary",
     )
     assert reference.status_code == 201
