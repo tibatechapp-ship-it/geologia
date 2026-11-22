@@ -248,11 +248,6 @@ def dem_coverage_assessment_save(
         )
     if aoi["data_role"] != "aoi_boundary":
         raise HTTPException(status_code=422, detail="AOI dataset must have data_role=aoi_boundary")
-    if product["sha256"] != context.product_dataset_sha256:
-        raise HTTPException(
-            status_code=409,
-            detail="product dataset checksum does not match request",
-        )
     if aoi["sha256"] != context.aoi_dataset_sha256:
         raise HTTPException(status_code=409, detail="AOI dataset checksum does not match request")
     if product["data_role"] != "dem":
@@ -274,7 +269,7 @@ def dem_coverage_assessment_save(
         if stored_path is None or not _dataset_content_matches(item, Path(stored_path)):
             raise HTTPException(
                 status_code=409,
-                detail="product or reference dataset failed upload-time integrity verification",
+                detail="DEM, reference or AOI dataset failed upload-time integrity verification",
             )
 
     inspection = store.get_dataset_coverage_inspection(product["id"])
