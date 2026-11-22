@@ -296,7 +296,10 @@ def dem_coverage_assessment_save(
 
     evidence = body.request.evidence
     if evidence is None:
-        raise HTTPException(status_code=409, detail="coverage assessment requires attributable evidence")
+        raise HTTPException(
+            status_code=409,
+            detail="coverage assessment requires attributable evidence",
+        )
 
     if product["data_role"] == "dem":
         inspection = store.get_dataset_coverage_inspection(product["id"])
