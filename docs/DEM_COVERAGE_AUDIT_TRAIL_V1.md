@@ -25,11 +25,12 @@ Use `POST /api/v1/projects/{project_id}/dem/coverage-assessments` with:
 - `created_by`: caller-declared operator/reviewer identifier. The current local API does not authenticate this identity.
 - `request.context.product_dataset_id` and `product_dataset_sha256`: exact uploaded DEM dataset and its upload-time SHA-256.
 - `request.context.reference_dataset_id` and `reference_dataset_sha256`: exact uploaded reference dataset and its upload-time SHA-256.
+- `request.context.aoi_dataset_id` and `aoi_dataset_sha256`: exact uploaded AOI boundary and its upload-time SHA-256.
 - Exact product version, pilot area, reference source, primary stratum and task profile identifiers.
 - Actual coverage footprint evidence and `coverage_status`.
 - Frozen-gate metrics and, when coverage is declared verified, a complete `CoverageEvidenceAttestation`.
 
-The API checks that both datasets belong to the target project, that the product role is `dem`, that the reference role is `ground_control_points` or `reference_elevation_observations`, and that stored file bytes still match the upload-time SHA-256. The metrics attestation's source checksum must equal the exact reference dataset checksum. The attested footprint reference must match the latest persisted DEM/AOI inspection for the same product and AOI dataset IDs/checksums.
+The API checks that all three datasets belong to the target project, that the product role is `dem`, the AOI role is `aoi_boundary`, the reference role is `ground_control_points` or `reference_elevation_observations`, and that stored file bytes still match the upload-time SHA-256. The metrics attestation's source checksum must equal the exact reference dataset checksum. The attested footprint reference must match the latest persisted DEM/AOI inspection for the same product and AOI dataset IDs/checksums.
 
 ## Attestation fields
 
