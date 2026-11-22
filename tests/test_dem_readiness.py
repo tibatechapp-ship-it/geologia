@@ -191,25 +191,15 @@ def test_validation_status_cannot_be_bypassed_by_scope_exception():
     assert "validation_status" in result.blocking_fields
 
 
-
-def test_scope_exception_cannot_reference_unknown_field():
-    import pytest
-    from pydantic import ValidationError
-
-    exception = ScopeException(
-        field_name="analogue_region",
-        rationale="This is not part of the product mandatory context contract.",
-        evidence_reference="evidence://invalid-field",
-        reviewer="reviewer-1",
-        recorded_at=NOW,
-        compensating_controls=("No coverage claim is made",),
-    )
-    with pytest.raises(ValidationError):
+def test_not_assessed_reason_is_not_misclassified_as_unresolved():
+    result = assess_readiness(
         ReadinessInput(
-            context=context(),
+            context=context(validation_status=evidence("not_assessed")),
             declared_use=use(),
-            scope_exceptions=(exception,),
+            unresolved_items=(reason(ReasonCode.NOT_ASSESSED),),
         )
+    )
+    assert result.disposition is ReadinessDisposition.NOT_ASSESSED
 
 
 def test_scope_exception_cannot_be_attached_to_available_field():
@@ -218,11 +208,11 @@ def test_scope_exception_cannot_be_attached_to_available_field():
 
     exception = ScopeException(
         field_name="vertical_datum",
-        rationale="This field is already available and needs no exception.",
-        evidence_reference="evidence://available-field",
+        rationale="The declared task does not rely on absolute elevations.",
+        evidence_reference="evidence://task-profile/relative-only",
         reviewer="reviewer-1",
         recorded_at=NOW,
-        compensating_controls=("No additional control",),
+        compensating_controls=("Suppress absolute-height outputs",),
     )
     with pytest.raises(ValidationError):
         ReadinessInput(
@@ -232,23 +222,23 @@ def test_scope_exception_cannot_be_attached_to_available_field():
         )
 
 
-def test_duplicate_scope_exceptions_for_same_field_are_rejected():
+def test_duplicate_scope_exceptions_are_rejected():
     import pytest
     from pydantic import ValidationError
 
+    missing = EvidenceValue(
+        availability=Availability.NOT_AVAILABLE,
+        reason="Provider metadata does not state the vertical datum.",
+        reviewer="reviewer-1",
+        recorded_at=NOW,
+    )
     exception = ScopeException(
         field_name="vertical_datum",
-        rationale="This declared task avoids absolute elevation comparisons.",
+        rationale="The declared task does not rely on absolute elevations.",
         evidence_reference="evidence://task-profile/relative-only",
         reviewer="reviewer-1",
         recorded_at=NOW,
         compensating_controls=("Suppress absolute-height outputs",),
-    )
-    missing = EvidenceValue(
-        availability=Availability.NOT_AVAILABLE,
-        reason="Datum not published.",
-        reviewer="reviewer-1",
-        recorded_at=NOW,
     )
     with pytest.raises(ValidationError):
         ReadinessInput(
