@@ -106,6 +106,13 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     )
     assert aoi.status_code == 201
     assert reference.status_code == 201
+    invalid_sidecar = _upload(
+        project["id"],
+        "invalid-uncertainty.json",
+        b'{"schema":"wrong","records":{}}',
+        "reference_uncertainty_sidecar",
+    )
+    assert invalid_sidecar.status_code == 422
 
     sidecar_payload = {
         "schema": "geologia.reference-uncertainty.v1",
@@ -133,6 +140,8 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
         "reference_uncertainty_sidecar",
     )
     assert sidecar.status_code == 201
+    assert sidecar.json()["summary"]["validation"] == "typed_uncertainty_records_validated"
+    assert sidecar.json()["summary"]["record_count"] == len(points)
 
     manifest_payload = {
         "schema": "geologia.dem-tile-manifest.v1",
