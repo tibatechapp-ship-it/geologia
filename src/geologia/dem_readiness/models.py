@@ -387,3 +387,126 @@ class ReadinessAssessment(BaseModel):
     applied_scope_exceptions: tuple[str, ...] = ()
     decision_rule_version: NonEmpty
     explanation: NonEmpty
+
+
+class UncertaintyKind(StrEnum):
+    """Semantic interpretation of an uncertainty magnitude; not interchangeable."""
+
+    STANDARD = "standard_uncertainty"
+    EXPANDED = "expanded_uncertainty"
+    CONFIDENCE_INTERVAL_HALF_WIDTH = "confidence_interval_half_width"
+    UNKNOWN = "unknown"
+
+
+class UncertaintyScope(StrEnum):
+    POINT_SPECIFIC = "point_specific"
+    SHARED_SYSTEMATIC = "shared_systematic"
+    AREA_LEVEL = "area_level"
+
+
+class DependenceStatus(StrEnum):
+    UNKNOWN = "unknown"
+    INDEPENDENCE_ASSUMED = "independence_assumed"
+    INDEPENDENCE_SUPPORTED = "independence_supported"
+    CORRELATED = "correlated"
+
+
+class ElevationUncertainty(BaseModel):
+    """Auditable uncertainty metadata; deliberately does not propagate values.
+
+    Values remain in their declared unit and semantic kind. Conversion to
+    standard uncertainty or combination with another source requires a separate
+    explicit, documented operation with defensible distribution/dependence
+    assumptions.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: UncertaintyKind
+    value: Annotated[float, Field(ge=0)] | None = None
+    unit: Literal["m", "cm", "mm"] = "m"
+    source_reference: NonEmpty | None = None
+    method: NonEmpty | None = None
+    scope: UncertaintyScope
+    dependence: DependenceStatus = DependenceStatus.UNKNOWN
+    coverage_factor: Annotated[float, Field(gt=0)] | None = None
+    coverage_convention: NonEmpty | None = None
+    confidence_level: Annotated[float, Field(gt=0, lt=1)] | None = None
+    interval_convention: NonEmpty | None = None
+    dependence_evidence_reference: NonEmpty | None = None
+    unknown_reason: NonEmpty | None = None
+    reviewer: NonEmpty
+    recorded_at: datetime
+
+    @model_validator(mode="after")
+    def validate_uncertainty_semantics(self) -> "ElevationUncertainty":
+        if not _is_timezone_aware(self.recorded_at):
+            raise ValueError("recorded_at must be timezone-aware")
+
+        if self.kind is UncertaintyKind.UNKNOWN:
+            if self.value is not None:
+                raise ValueError("unknown uncertainty must not carry a numeric value")
+            if not self.unknown_reason:
+                raise ValueError("unknown uncertainty requires a documented reason")
+            if any(
+                item is not None
+                for item in (
+                    self.source_reference,
+                    self.method,
+                    self.coverage_factor,
+                    self.coverage_convention,
+                    self.confidence_level,
+                    self.interval_convention,
+                )
+            ):
+                raise ValueError(
+                    "unknown uncertainty cannot declare numeric interpretation metadata"
+                )
+        else:
+            if self.value is None:
+                raise ValueError("known uncertainty requires a numeric value")
+            if not math.isfinite(self.value):
+                raise ValueError("uncertainty value must be finite")
+            if not self.source_reference or not self.method:
+                raise ValueError("known uncertainty requires source_reference and method")
+            if self.unknown_reason is not None:
+                raise ValueError("known uncertainty must not carry unknown_reason")
+
+        if self.kind is UncertaintyKind.EXPANDED:
+            if self.coverage_factor is None or not self.coverage_convention:
+                raise ValueError(
+                    "expanded uncertainty requires coverage_factor and coverage_convention"
+                )
+        elif self.coverage_factor is not None or self.coverage_convention is not None:
+            raise ValueError(
+                "coverage factor/convention are only valid for expanded uncertainty"
+            )
+
+        if self.kind is UncertaintyKind.CONFIDENCE_INTERVAL_HALF_WIDTH:
+            if self.confidence_level is None or not self.interval_convention:
+                raise ValueError(
+                    "confidence interval half-width requires confidence_level "
+                    "and interval_convention"
+                )
+        elif self.confidence_level is not None or self.interval_convention is not None:
+            raise ValueError(
+                "confidence interval metadata is only valid for interval half-width"
+            )
+
+        if self.dependence is DependenceStatus.CORRELATED:
+            if not self.dependence_evidence_reference:
+                raise ValueError(
+                    "correlated uncertainty requires dependence evidence reference"
+                )
+        elif self.dependence_evidence_reference is not None:
+            raise ValueError(
+                "dependence evidence reference is only valid when correlated"
+            )
+
+        if self.scope is UncertaintyScope.SHARED_SYSTEMATIC:
+            if self.dependence is DependenceStatus.INDEPENDENCE_SUPPORTED:
+                raise ValueError(
+                    "shared systematic uncertainty cannot be marked independence_supported"
+                )
+
+        return self
