@@ -688,6 +688,7 @@ def inspect_dem_aoi_coverage(
 
 MAX_DEM_COVERAGE_TILE_BYTES = 2 * 1024 * 1024 * 1024
 MAX_DEM_COVERAGE_TILES = 256
+MAX_DEM_COVERAGE_TOTAL_BYTES = 50 * 1024 * 1024 * 1024
 MAX_DEM_MOSAIC_PIXELS = 1_000_000_000
 DEM_COVERAGE_WINDOW_SIZE = 512
 
@@ -757,10 +758,16 @@ def inspect_dem_tile_collection_coverage(
 
         with ExitStack() as stack:
             tiles: list[dict[str, Any]] = []
+            total_file_size_bytes = 0
             reference_transform = None
             reference_crs = None
             for path in paths:
                 size_bytes, digest = sha256_file(path)
+                total_file_size_bytes += size_bytes
+                if total_file_size_bytes > MAX_DEM_COVERAGE_TOTAL_BYTES:
+                    raise FormatValidationError(
+                        "DEM tile collection exceeds the 50 GiB total file-size limit"
+                    )
                 if path.suffix.lower() not in {".tif", ".tiff", ".hgt"}:
                     raise FormatValidationError(
                         "DEM tile collection supports GeoTIFF and HGT files only"
@@ -895,6 +902,10 @@ def inspect_dem_tile_collection_coverage(
                     _densify_geometry_for_crs(aoi, source_crs),
                 ).area
             )
+            if not math.isfinite(aoi_area) or aoi_area <= 0:
+                raise FormatValidationError(
+                    "AOI area cannot be measured in the equal-area CRS"
+                )
             union_area = float(
                 transform_geometry(
                     to_area.transform,
@@ -984,6 +995,8 @@ def inspect_dem_tile_collection_coverage(
             pixel_area = float(
                 transform_geometry(to_area.transform, pixel_polygon).area
             )
+            if not math.isfinite(pixel_area) or pixel_area <= 0:
+                raise FormatValidationError("mosaic pixel area must be positive and finite")
             valid_pixel_area_estimate = valid_count * pixel_area
             extent_fraction = (
                 min(1.0, max(0.0, intersection_area / aoi_area))
@@ -1012,11 +1025,21 @@ def inspect_dem_tile_collection_coverage(
                 "aoi_fully_within_raster_extent": full_extent,
                 "all_aoi_pixel_centres_valid": all_centres_valid,
                 "tile_count": len(tiles),
+                "total_file_size_bytes": total_file_size_bytes,
                 "tiles": [
                     {
                         "filename": tile["path"],
                         "file_size_bytes": tile["size_bytes"],
                         "sha256": tile["sha256"],
+                        "width": tile["width"],
+                        "height": tile["height"],
+                        "mosaic_column_offset": tile["mosaic_col"],
+                        "mosaic_row_offset": tile["mosaic_row"],
+                        "affine_transform": [
+                            float(tile["transform"].a), float(tile["transform"].b),
+                            float(tile["transform"].c), float(tile["transform"].d),
+                            float(tile["transform"].e), float(tile["transform"].f),
+                        ],
                     }
                     for tile in tiles
                 ],
