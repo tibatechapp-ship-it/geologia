@@ -1,5 +1,7 @@
 """SQLite metadata store for projects, datasets, and analysis plans."""
 import hashlib
+from contextlib import contextmanager
+from collections.abc import Iterator
 import json
 import os
 import sqlite3
@@ -25,12 +27,27 @@ def storage_path() -> Path:
     return path
 
 
-def connect() -> sqlite3.Connection:
+@contextmanager
+def connect() -> Iterator[sqlite3.Connection]:
+    """Yield one SQLite connection and always commit/rollback then close it.
+
+    The sqlite3 connection context manager commits or rolls back transactions,
+    but does not close the connection. This wrapper centralizes the lifecycle
+    for every store operation so long-running API sessions do not retain
+    completed connections.
+    """
     conn = sqlite3.connect(database_path(), timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")
-    return conn
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")
+        yield conn
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def initialize() -> None:
