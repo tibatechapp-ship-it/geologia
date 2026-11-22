@@ -29,6 +29,9 @@ def inspect_crs(value: str) -> dict[str, Any]:
         "code": authority[1] if authority else None,
         "is_geographic": bool(crs.is_geographic),
         "is_projected": bool(crs.is_projected),
+        "is_vertical": bool(crs.is_vertical),
+        "is_compound": bool(crs.is_compound),
+        "is_3d": bool(crs.is_3D),
         "axis_units": [axis.unit_name for axis in crs.axis_info],
         "axis_directions": [axis.direction for axis in crs.axis_info],
     }
@@ -41,9 +44,26 @@ def reproject_geojson(
     try:
         source_crs = CRS.from_user_input(source)
         target_crs = CRS.from_user_input(target)
-        transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
     except Exception as exc:
         raise ValueError("invalid source or target CRS") from exc
+
+    if (
+        source_crs.is_vertical
+        or target_crs.is_vertical
+        or source_crs.is_compound
+        or target_crs.is_compound
+        or source_crs.is_3D
+        or target_crs.is_3D
+    ):
+        raise ValueError(
+            "vertical or 3D CRS operations are not supported; "
+            "GEOLOGIA currently performs horizontal 2D reprojection only"
+        )
+
+    try:
+        transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    except Exception as exc:
+        raise ValueError("invalid source or target CRS operation") from exc
 
     def transform_position(position: Any) -> list[float]:
         if not isinstance(position, list) or len(position) < 2:
@@ -116,6 +136,10 @@ def reproject_geojson(
         "source_crs": source_crs.to_string(),
         "target_crs": target_crs.to_string(),
         "axis_order": "x,y (always_xy)",
+        "vertical_coordinate_policy": (
+            "third and higher GeoJSON ordinates are preserved unchanged; "
+            "no vertical datum conversion is performed"
+        ),
         "bbox_policy": "existing bbox values removed because they are not transformed",
         "stored_source_modified": False,
         "operation_description": transformer.description,
