@@ -14,6 +14,11 @@ def _pyproj():
     return CRS, Transformer, ProjError
 
 
+def _is_three_dimensional(crs: Any) -> bool:
+    """Detect 3D CRS by axis dimensionality across supported pyproj releases."""
+    return len(crs.axis_info) > 2 and not crs.is_compound
+
+
 def inspect_crs(value: str) -> dict[str, Any]:
     CRS, _, _ = _pyproj()
     try:
