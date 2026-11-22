@@ -35,6 +35,13 @@ class PrecisionStatus(StrEnum):
     NOT_ASSESSED = "not_assessed"
 
 
+class SourceIndependenceStatus(StrEnum):
+    INDEPENDENT = "independent"
+    DEPENDENT = "dependent"
+    CONDITIONAL = "conditional"
+    UNRESOLVED = "unresolved"
+
+
 class CoverageMetric(BaseModel):
     """Measured numeric value or an attributable declaration of missingness."""
 
@@ -71,7 +78,10 @@ class CoverageEvidence(BaseModel):
     occupied_independent_blocks: CoverageMetric
     eligible_blocks_occupancy_fraction: CoverageMetric
     maximum_observation_fraction_in_one_block: CoverageMetric
-    temporal_match_fraction_within_5_years: CoverageMetric
+    observations_0_3_years: CoverageMetric
+    observations_3_5_years: CoverageMetric
+    observations_5_10_years: CoverageMetric
+    observations_over_10_years: CoverageMetric
     precision_status: PrecisionStatus
     precision_evidence_reference: str | None = None
     precision_reviewer: str | None = None
@@ -82,12 +92,18 @@ class CoverageEvidence(BaseModel):
         for name in (
             "eligible_blocks_occupancy_fraction",
             "maximum_observation_fraction_in_one_block",
-            "temporal_match_fraction_within_5_years",
         ):
             metric = getattr(self, name)
             if metric.available and metric.value is not None and metric.value > 1:
                 raise ValueError(f"{name} must be between 0 and 1")
-        for name in ("observations_per_primary_cell", "occupied_independent_blocks"):
+        for name in (
+            "observations_per_primary_cell",
+            "occupied_independent_blocks",
+            "observations_0_3_years",
+            "observations_3_5_years",
+            "observations_5_10_years",
+            "observations_over_10_years",
+        ):
             metric = getattr(self, name)
             if metric.available and metric.value is not None and not metric.value.is_integer():
                 raise ValueError(f"{name} must be a whole-number count")
@@ -101,6 +117,25 @@ class CoverageEvidence(BaseModel):
                 raise ValueError("assessed precision requires timezone-aware recorded_at")
         return self
 
+    @property
+    def temporal_match_fraction_within_5_years(self) -> CoverageMetric:
+        bins = (
+            self.observations_0_3_years,
+            self.observations_3_5_years,
+            self.observations_5_10_years,
+            self.observations_over_10_years,
+        )
+        if not all(item.available and item.value is not None for item in bins):
+            return CoverageMetric(
+                available=False,
+                missing_reason="One or more registered temporal histogram bins are unavailable.",
+                reviewer="coverage-evaluator",
+                recorded_at=datetime.now().astimezone(),
+            )
+        total = sum(item.value or 0 for item in bins)
+        within_five = (bins[0].value or 0) + (bins[1].value or 0)
+        return CoverageMetric(value=(within_five / total if total else 0.0), available=True)
+
 
 class CoverageRecord(BaseModel):
     """Coverage evidence for one exact product/area/reference/stratum tuple."""
@@ -113,9 +148,35 @@ class CoverageRecord(BaseModel):
     primary_stratum_id: NonEmpty
     product_epoch: NonEmpty
     equal_area_crs: NonEmpty
+    reference_coverage_geometry_reference: NonEmpty
+    coverage_map_reference: NonEmpty
+    coverage_verification_method: NonEmpty
+    coverage_verified_at: datetime
+    source_independence_status: SourceIndependenceStatus
+    source_independence_rationale: NonEmpty
+    source_independence_evidence_reference: str | None = None
+    source_independence_reviewer: NonEmpty
+    source_independence_recorded_at: datetime
     density_grid_width_km: float = Field(default=1.0, gt=0)
     spatial_block_width_km: float = Field(default=5.0, gt=0)
     evidence: CoverageEvidence
+
+    @model_validator(mode="after")
+    def validate_coverage_record(self) -> "CoverageRecord":
+        if self.density_grid_width_km != FROZEN_V1_THRESHOLDS.section_17.density_grid_width_km:
+            raise ValueError("density grid width must match frozen protocol v1")
+        if self.spatial_block_width_km != FROZEN_V1_THRESHOLDS.section_17.spatial_block_width_km:
+            raise ValueError("spatial block width must match frozen protocol v1")
+        for field_name in ("coverage_verified_at", "source_independence_recorded_at"):
+            if getattr(self, field_name).tzinfo is None:
+                raise ValueError(f"{field_name} must be timezone-aware")
+        if (
+            self.source_independence_status
+            in {SourceIndependenceStatus.INDEPENDENT, SourceIndependenceStatus.DEPENDENT}
+            and not self.source_independence_evidence_reference
+        ):
+            raise ValueError("independence decision requires evidence_reference")
+        return self
 
 
 class GateCheck(BaseModel):
@@ -209,13 +270,36 @@ def _maximum_check(
     )
 
 
+def _independence_check(record: CoverageRecord) -> GateCheck:
+    status = record.source_independence_status
+    if status is SourceIndependenceStatus.INDEPENDENT:
+        outcome = CoverageOutcome.PASS
+        reason = None
+    elif status is SourceIndependenceStatus.DEPENDENT:
+        outcome = CoverageOutcome.FAIL
+        reason = ReasonCode.SOURCE_DEPENDENCE_CONFLICT
+    else:
+        outcome = CoverageOutcome.NOT_EVALUABLE
+        reason = ReasonCode.UNRESOLVED
+    return GateCheck(
+        metric="source_independence",
+        observed=None,
+        comparison="must_be_independent",
+        threshold=1.0,
+        outcome=outcome,
+        reason_code=reason,
+    )
+
+
 def evaluate_coverage(record: CoverageRecord) -> CoverageAssessment:
     """Evaluate exploratory and confirmatory gates against frozen protocol v1."""
     section13 = FROZEN_V1_THRESHOLDS.section_13
     section17 = FROZEN_V1_THRESHOLDS.section_17
     evidence = record.evidence
 
+    independence_check = _independence_check(record)
     exploratory_checks = [
+        independence_check,
         _minimum_check(
             "observations_per_primary_cell",
             evidence.observations_per_primary_cell,
@@ -249,6 +333,7 @@ def evaluate_coverage(record: CoverageRecord) -> CoverageAssessment:
     ]
 
     confirmatory_checks = [
+        independence_check,
         _minimum_check(
             "observations_per_primary_cell",
             evidence.observations_per_primary_cell,
