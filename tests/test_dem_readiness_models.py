@@ -7,6 +7,8 @@ from geologia.dem_readiness.models import (
     Availability,
     EvidenceValue,
     MandatoryProductContext,
+    AnalogueRepresentativenessContext,
+    RepresentativenessStatus,
 )
 
 
@@ -56,12 +58,6 @@ def test_validation_status_rejects_unknown_values():
     )
     with pytest.raises(ValidationError):
         MandatoryProductContext(**fields)
-
-
-from geologia.dem_readiness.models import (
-    AnalogueRepresentativenessContext,
-    RepresentativenessStatus,
-)
 
 
 def test_analogue_pair_is_separate_from_product_coverage():
