@@ -798,3 +798,36 @@ def verify_coverage_assessment_chain(project_id: str) -> dict[str, Any]:
         "errors": errors,
         "tamper_evident_not_tamper_proof": True,
     }
+
+
+def save_dataset_coverage_inspection(dataset_id: str, report: dict[str, Any]) -> None:
+    """Persist a DEM/AOI coverage inspection and append its dataset provenance event."""
+    initialize()
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT project_id, summary_json FROM datasets WHERE id=?", (dataset_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError("dataset not found")
+        summary = json.loads(row["summary_json"])
+        summary["coverage_inspection"] = report
+        conn.execute(
+            "UPDATE datasets SET summary_json=? WHERE id=?",
+            (json.dumps(summary, ensure_ascii=False, allow_nan=False), dataset_id),
+        )
+        _append_provenance_event(
+            conn,
+            row["project_id"],
+            dataset_id,
+            "dataset_coverage_inspected",
+            report,
+            utc_now(),
+        )
+
+
+def get_dataset_coverage_inspection(dataset_id: str) -> dict[str, Any] | None:
+    """Return the latest persisted DEM/AOI coverage inspection, if present."""
+    item = get_dataset(dataset_id)
+    if item is None:
+        return None
+    return item["summary"].get("coverage_inspection")
