@@ -116,7 +116,7 @@ def _load_reference_uncertainty_sidecar(
     point_ids: set[str],
 ) -> tuple[str, dict[str, ElevationUncertainty]]:
     """Load hash-bound typed uncertainty records without propagating them."""
-    size, digest = _sha256_file(path, MAX_REFERENCE_UNCERTAINTY_SIDECAR_BYTES)
+    _, digest = _sha256_file(path, MAX_REFERENCE_UNCERTAINTY_SIDECAR_BYTES)
     if digest.lower() != expected_sha256.lower():
         raise ValueError(
             "reference uncertainty sidecar SHA-256 does not match its record"
@@ -127,11 +127,16 @@ def _load_reference_uncertainty_sidecar(
         raise ValueError(
             "reference uncertainty sidecar is not valid UTF-8 JSON"
         ) from exc
-    if not isinstance(payload, dict) or payload.get("schema") != "geologia.reference-uncertainty.v1":
-        raise ValueError(
-            "reference uncertainty sidecar schema is unsupported"
-        )
-    if payload.get("reference_dataset_sha256", "").lower() != reference_sha256.lower():
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema") != "geologia.reference-uncertainty.v1"
+    ):
+        raise ValueError("reference uncertainty sidecar schema is unsupported")
+    sidecar_reference_sha = payload.get("reference_dataset_sha256")
+    if (
+        not isinstance(sidecar_reference_sha, str)
+        or sidecar_reference_sha.lower() != reference_sha256.lower()
+    ):
         raise ValueError(
             "reference uncertainty sidecar is not bound to this reference CSV"
         )
@@ -499,11 +504,13 @@ def compute_dem_reference_residuals(
                 "reference uncertainty sidecar SHA-256 must be a SHA-256 value"
             )
         try:
-            uncertainty_sidecar_sha, typed_uncertainties = _load_reference_uncertainty_sidecar(
-                Path(reference_uncertainty_sidecar_path),
+            uncertainty_sidecar_sha, typed_uncertainties = (
+                _load_reference_uncertainty_sidecar(
+                    Path(reference_uncertainty_sidecar_path),
                 reference_uncertainty_sidecar_sha256,
                 reference_sha,
-                seen_ids,
+                    seen_ids,
+                )
             )
         except ValueError as exc:
             raise FormatValidationError(str(exc)) from exc
@@ -768,7 +775,10 @@ def compute_dem_reference_residuals(
                 "sidecar_sha256": uncertainty_sidecar_sha,
                 "record_count": len(observations),
                 "interpretation": "typed_metadata_not_propagated",
-                "note": "Typed records are provenance metadata only; no conversion, combination, or metric adjustment is performed.",
+                "note": (
+                    "Typed records are provenance metadata only; no conversion, "
+                    "combination, or metric adjustment is performed."
+                ),
             }
             if uncertainty_sidecar_sha is not None
             else {
