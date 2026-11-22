@@ -52,9 +52,16 @@ class ReferenceCoverageMetricsRequest(BaseModel):
     aoi_crs: NonEmpty
     reference_crs: NonEmpty
     dem_epoch: date
+    primary_stratum_ids: list[NonEmpty] = Field(min_length=1, max_length=100)
     computed_by: NonEmpty
     analysis_code_commit: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{7,40}$")]
     independence_review: IndependenceReviewAttestation
+
+    @model_validator(mode="after")
+    def validate_unique_strata(self) -> "ReferenceCoverageMetricsRequest":
+        if len(set(self.primary_stratum_ids)) != len(self.primary_stratum_ids):
+            raise ValueError("primary_stratum_ids must be unique")
+        return self
 
 
 def _geojson_features(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -205,6 +212,7 @@ def compute_reference_coverage_metrics(
     reference_crs: str,
     aoi_crs: str,
     dem_epoch: date,
+    primary_stratum_ids: list[str],
     independence_review: IndependenceReviewAttestation,
 ) -> dict[str, Any]:
     """Compute frozen v1 spatial and temporal reference-coverage metrics."""
@@ -282,6 +290,9 @@ def compute_reference_coverage_metrics(
             raise FormatValidationError(f"duplicate observation_id at feature {index}")
         observation_ids.add(observation_id)
 
+        if properties["primary_stratum_id"].strip() not in primary_stratum_ids:
+            excluded["unregistered_primary_stratum"] += 1
+            continue
         if properties["quality_flag"].strip().lower() != "accepted":
             excluded["quality_flag_not_accepted"] += 1
             continue
@@ -393,7 +404,8 @@ def compute_reference_coverage_metrics(
     max_block_fraction = (
         max(block_counts.values()) / len(site_list) if site_list else None
     )
-    stratum_counts = Counter(record["primary_stratum_id"] for record in site_list)
+    stratum_counts = Counter({stratum: 0 for stratum in primary_stratum_ids})
+    stratum_counts.update(record["primary_stratum_id"] for record in site_list)
     observation_count = len(accepted_records)
     temporal_fraction = (
         within_five_years / observation_count if observation_count else None
@@ -439,6 +451,7 @@ def compute_reference_coverage_metrics(
         "grid_origin_m": [0, 0],
         "grid_cell_sizes_m": {"density_cells": 1000, "spatial_blocks": 5000},
         "dem_epoch": dem_epoch.isoformat(),
+        "primary_stratum_ids": primary_stratum_ids,
         "aoi_area_km2": aoi_area_m2 / 1_000_000,
         "reference_feature_count": len(features),
         "eligible_reference_observation_count": observation_count,
