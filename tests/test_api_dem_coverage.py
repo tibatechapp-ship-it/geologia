@@ -98,8 +98,6 @@ def _upload_coverage_dataset(project_id, filename, data, role):
 
 
 def test_project_coverage_assessment_is_persisted_and_chain_verified(tmp_path, monkeypatch):
-    from geologia import store
-
     project = _create_project(tmp_path, monkeypatch)
     product = _upload_coverage_dataset(
         project["id"], "candidate.tif", b"dem-placeholder-bytes", "dem"
