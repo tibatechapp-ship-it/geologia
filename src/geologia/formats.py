@@ -450,8 +450,8 @@ def inspect_dem_aoi_coverage(
             if not all(math.isfinite(value) for value in affine_values):
                 raise FormatValidationError("DEM affine transform must be finite")
             determinant = abs(transform.a * transform.e - transform.b * transform.d)
-            pixel_area_m2 = determinant * factor_x * factor_y
-            if not math.isfinite(pixel_area_m2) or pixel_area_m2 <= 0:
+            pixel_area_grid_m2 = determinant * factor_x * factor_y
+            if not math.isfinite(pixel_area_grid_m2) or pixel_area_grid_m2 <= 0:
                 raise FormatValidationError("DEM pixel area must be positive and finite")
 
             block_shapes = [tuple(shape) for shape in dataset.block_shapes]
@@ -479,17 +479,36 @@ def inspect_dem_aoi_coverage(
             if raster_footprint.is_empty or not raster_footprint.is_valid:
                 raise FormatValidationError("DEM affine transform does not form a valid footprint")
             intersection = aoi_in_raster.intersection(raster_footprint)
+            to_area_from_raster = pyproj.Transformer.from_crs(
+                raster_crs, area_crs, always_xy=True
+            )
             if intersection.is_empty:
                 intersection_area_m2 = 0.0
+                representative_point = raster_footprint.representative_point()
             else:
-                to_area_from_raster = pyproj.Transformer.from_crs(
-                    raster_crs, area_crs, always_xy=True
-                )
                 intersection_area_m2 = float(
                     transform_geometry(
                         to_area_from_raster.transform, intersection
                     ).area
                 )
+                representative_point = intersection.representative_point()
+
+            column, row = (~transform) * (
+                representative_point.x, representative_point.y
+            )
+            column = min(max(math.floor(column), 0), width - 1)
+            row = min(max(math.floor(row), 0), height - 1)
+            pixel_polygon = Polygon([
+                transform * (column, row),
+                transform * (column + 1, row),
+                transform * (column + 1, row + 1),
+                transform * (column, row + 1),
+            ])
+            pixel_area_m2 = float(
+                transform_geometry(to_area_from_raster.transform, pixel_polygon).area
+            )
+            if not math.isfinite(pixel_area_m2) or pixel_area_m2 <= 0:
+                raise FormatValidationError("DEM pixel area cannot be measured in the equal-area CRS")
 
             aoi_pixel_count_in_raster = 0
             valid_aoi_pixel_count = 0
@@ -560,6 +579,9 @@ def inspect_dem_aoi_coverage(
                 "valid_aoi_pixel_centres": valid_aoi_pixel_count,
                 "valid_pixel_fraction_within_raster_extent": valid_fraction_within_extent,
                 "pixel_area_m2": pixel_area_m2,
+                "pixel_area_estimation_method": (
+                    "representative pixel transformed to EPSG:6933; local estimate"
+                ),
                 "valid_pixel_area_estimate_m2": valid_pixel_area_estimate_m2,
                 "valid_pixel_coverage_fraction_estimate": valid_area_fraction,
                 "resolution_x_m": math.hypot(transform.a, transform.d) * factor_x,
