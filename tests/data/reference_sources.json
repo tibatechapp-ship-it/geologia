@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "references": [
+    {
+      "id": "epsg-3857",
+      "title": "WGS 84 / Pseudo-Mercator",
+      "authority": "EPSG",
+      "code": 3857,
+      "url": "https://epsg.io/3857",
+      "use": "CRS identifier, axes, units, area of use, and projection method EPSG:1024"
+    },
+    {
+      "id": "iogp-373-7-2",
+      "title": "Geomatics Guidance Note 7 Part 2",
+      "publisher": "IOGP",
+      "url": "https://www.iogp.org/wp-content/uploads/2019/09/373-07-02.pdf",
+      "use": "Published projection parameters, equations, and coordinate-operation guidance"
+    },
+    {
+      "id": "epsg-5773",
+      "title": "EGM96 height",
+      "authority": "EPSG",
+      "code": 5773,
+      "url": "https://epsg.io/5773",
+      "use": "Vertical CRS metadata; not evidence that dataset height values are correct"
+    },
+    {
+      "id": "ogc-18-010r11",
+      "title": "OGC CRS WKT standard",
+      "publisher": "Open Geospatial Consortium",
+      "url": "https://docs.ogc.org/is/18-010r11/18-010r11.pdf",
+      "use": "Compound CRS and horizontal/vertical component representation"
+    },
+    {
+      "id": "epsg-9707",
+      "title": "WGS 84 + EGM96 height",
+      "authority": "EPSG",
+      "code": 9707,
+      "url": "https://epsg.io/9707",
+      "use": "Compound CRS example linking EPSG:4326 with EPSG:5773"
+    },
+    {
+      "id": "iogp-373-23",
+      "title": "Web Mercator guidance note",
+      "publisher": "IOGP",
+      "url": "https://www.iogp.org/bookstore/wp-content/uploads/sites/2/woocommerce_uploads/2017/01/373-23.pdf",
+      "use": "EPSG:3857 method distinction and conventional square-tile cutoff"
+    },
+    {
+      "id": "nga-egm-downloads",
+      "title": "NGA Earth Gravitational Model data and applications",
+      "publisher": "National Geospatial-Intelligence Agency, Office of Geomatics",
+      "url": "https://earth-info.nga.mil/geograv",
+      "use": "Official source for EGM96/EGM2008 grids, coefficients, interpolation resources, and model background"
+    },
+    {
+      "id": "nga-egm96-grid",
+      "title": "EGM96 15-minute worldwide interpolation grid",
+      "publisher": "NGA",
+      "url": "https://earth-info.nga.mil/index.php?action=geoid&dir=wgs84",
+      "use": "Officially listed worldwide EGM96 grid; legacy model, 15-minute grid spacing"
+    },
+    {
+      "id": "nga-egm2008-grid",
+      "title": "EGM2008 2.5-minute worldwide interpolation grid",
+      "publisher": "NGA",
+      "url": "https://earth-info.nga.mil/?action=wgs84&dir=wgs84",
+      "use": "Officially listed worldwide EGM2008 grid; finer than EGM96 and identified by NGA as current model in its published guidance"
+    },
+    {
+      "id": "epsg-3855",
+      "title": "EGM2008 height",
+      "authority": "EPSG",
+      "code": 3855,
+      "url": "https://epsg.io/3855",
+      "use": "Vertical CRS identifier for EGM2008 height"
+    },
+    {
+      "id": "epsg-5171",
+      "title": "EGM96 geoid datum",
+      "authority": "EPSG",
+      "code": 5171,
+      "url": "https://epsg.io/5171-datum",
+      "use": "EGM96 geoid datum reference; distinguishes datum from the vertical CRS EPSG:5773"
+    },
+    {
+      "id": "proj-data-nga-grids",
+      "title": "OSGeo PROJ-data NGA grid inventory",
+      "publisher": "OSGeo",
+      "url": "https://github.com/OSGeo/PROJ-data/blob/master/us_nga/us_nga_README.txt",
+      "use": "Independent packaging metadata for converted NGA grids, format, resolution, and public-domain declaration; not the primary model authority"
+    },
+    {
+      "id": "noaa-egm96-concept",
+      "title": "There is no such thing as 'The' EGM96 geoid",
+      "publisher": "NOAA National Geodetic Survey",
+      "url": "https://www.ngs.noaa.gov/PUBS_LIB/EGM96_GEOID_PAPER/egm96_geoid_paper.html",
+      "use": "Explains that geopotential coefficients alone do not uniquely define geoid undulation; tide system and other conventions matter"
+    },
+    {
+      "id": "iogp-vertical-grid-method",
+      "title": "IOGP Guidance Note 7 Part 2, vertical transformations",
+      "publisher": "IOGP",
+      "url": "https://www.iogp.org/bookstore/wp-content/uploads/sites/2/woocommerce_uploads/2017/01/373-07-02.pdf",
+      "use": "Vertical offset by interpolation of gridded data; operation method and grid are required"
+    },
+    {
+      "id": "geographiclib-geoid-500k-testdata",
+      "title": "GeoidHeights.dat.gz — 500,000 geoid-height reference points",
+      "publisher": "GeographicLib project",
+      "url": "https://sourceforge.net/projects/geographiclib/files/testdata/GeoidHeights.dat.gz/download",
+      "disambig": "Published numerical test dataset for geoid-height calculations",
+      "use": "Cross-implementation regression oracle for EGM84/EGM96/EGM2008 after artifact SHA-256 verification; not field-survey validation",
+      "sha256": "e0b9804694b3eac78ffd0b3df9cffd30a134d72007276e732ff72f9651bc9995"
+    }
+  ],
+  "notes": [
+    "Projection control points in reference_projection.json are synthetic mathematical controls, not survey observations.",
+    "The EGM96 fixture currently checks declared CRS metadata only; no geoid grid is sampled and no vertical conversion is computed.",
+    "NGA is the primary source for EGM model definitions and published grids. OSGeo PROJ-data is a secondary distribution/format reference and is not substituted for NGA authority.",
+    "EGM96 is a legacy model. NGA identifies EGM2008 as its current published Earth Gravitational Model and provides a 2.5-minute worldwide grid; use the model appropriate to the declared target vertical CRS.",
+    "The NOAA paper warns that EGM96 geopotential coefficients by themselves do not uniquely determine geoid undulation; model conventions and realization matter.",
+    "A numerical known-answer vertical transformation is still not claimed. It requires a grid artifact with recorded version, checksum, license, interpolation rule, and independently sourced point values."
+  ]
+}
