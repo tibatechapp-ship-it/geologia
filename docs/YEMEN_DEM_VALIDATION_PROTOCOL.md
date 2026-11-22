@@ -314,3 +314,89 @@ For reference_conflict, define the comparison pair, independence assumption and 
 
 A stratum is evaluable only when all applicable coverage, temporal, datum, source-quality, spatial-support and precision gates pass. Record the exact failed gates and do not collapse them into one opaque status.
 
+## 23. Decision path when coverage gates are not achievable
+
+Failure to meet a v1 coverage gate is an expected possible outcome in Yemen, not a protocol failure and not evidence that the DEM is inaccurate. In particular, ICESat-2 ATL08 and GEDI observations follow orbital tracks and sampling footprints; they are not spatially random point samples. Repeated observations along a track, nearby footprints, and orbit-crossing concentrations must not be treated as independent areal coverage.
+
+For each registered polygon, DEM product/epoch and primary stratum:
+
+1. Evaluate all frozen gates at the same reporting unit that will receive an accuracy claim. A region-wide average cannot compensate for an under-sampled slope, land-cover, elevation or terrain stratum.
+2. If any mandatory gate fails, retain the original gate and report the applicable non-evaluable reason codes. Do not lower the threshold, redefine the polygon, merge unlike strata, or replace the area after inspecting the coverage map to obtain a pass.
+3. A separately labeled exploratory track-supported analysis may be reported only if its estimand, sampling limitations and uncertainty method were registered in advance. It must not be promoted to confirmatory areal accuracy or generalized into unobserved areas.
+4. If confirmatory coverage remains insufficient, the valid result is “not evaluable under the registered design.” GEOLOGIA may recommend a new independent campaign or a new protocol version; it must not manufacture a confirmatory result from the available tracks.
+5. Report coverage geometry explicitly: track/footprint distribution, orbit and repeat-cycle identifiers where available, crossing concentration, occupied spatial blocks, empty blocks and strata. A high point count concentrated at orbit crossings is not equivalent to representative coverage.
+
+These rules are applied per DEM and per stratum. Density thresholds are not assumed achievable from satellite-track sources across all Yemen terrain.
+
+## 24. Temporal eligibility is evaluated separately for each DEM
+
+The five-year / 70% rule applies independently to each named DEM product and acquisition epoch, each registered polygon and each primary stratum. It is not a global rule for a collection of DEMs.
+
+- Record the exact acquisition interval or epoch for each DEM, not merely its publication date.
+- If at least 70% of eligible reference observations do not fall within the registered five-year window for that DEM, assign temporal_mismatch for confirmatory validation in that reporting unit.
+- Do not relax the time window or substitute modern ICESat-2/GEDI observations to validate an older DEM such as SRTM solely to obtain an accuracy number. Such comparisons may be separately reported as temporal-change-confounded or exploratory if registered.
+- For mosaics or products with heterogeneous acquisition dates, evaluate the time gate by tile/pixel epoch where reliable metadata exist; otherwise document the unknown epoch and fail the confirmatory temporal gate.
+
+A temporally non-evaluable DEM may still be useful for historical mapping; this status does not imply poor DEM quality.
+
+## 25. Geoid selection and comparison plan
+
+Protocol v1 does not declare EGM2008 or EGM2020 universally correct for Yemen. The target vertical reference is selected from the documented native vertical reference of the DEM and the reference observations, not from which geoid produces the smallest DEM residual.
+
+Before coverage maps and before DEM residual inspection:
+
+- Freeze the candidate geoid model(s), exact release, grid resolution, checksum, interpolation method and software operation. Include EGM2008 and/or EGM2020 only where the required authoritative grids and metadata are available and compatible with the registered transformation.
+- The primary transformation must match the DEM's documented vertical reference or a documented conversion to the registered target datum. If the DEM datum is unknown, classify the absolute comparison as datum_undocumented; do not infer the datum from residuals.
+- As a readiness analysis, compare candidate geoid undulations at independently surveyed Yemen GNSS/benchmark locations with documented ellipsoidal heights, orthometric heights, frame/epoch and uncertainty. Report coverage, residual/bias and uncertainty for each model without using DEM residuals to select the model.
+- If suitable GNSS/benchmark observations are absent or their datum/epoch is unresolved, report geoid_comparison_unavailable or datum_undocumented. Do not claim that one model is more accurate in Yemen based only on model-to-model differences.
+- Geoid/model uncertainty and any transformation uncertainty must be included in the vertical uncertainty budget, with covariance treated when relevant. A model difference between two global grids is not itself an estimate of geoid error.
+
+The selected geoid and transformation are frozen in the manifest for the entire registered analysis. Any change requires a documented amendment and a new analysis version.
+
+## 26. Spatial block size: operational default and pre-residual review
+
+The 5 km primary block width is an operational v1 starting value, not a universal correlation length for DEM errors. It is retained only if a pre-residual review of the sampling geometry and available reference/design information supports its use.
+
+- Freeze the variogram/correlation diagnostic method before examining DEM residuals: estimator, distance bins, directionality, minimum pair counts and decision rule for interpreting range must be recorded.
+- Where independent reference data or a defensible prior study provides a correlation-range estimate, use it to assess whether 5 km blocks are adequate. Do not estimate a favorable block width from DEM residuals and then report it as if pre-registered.
+- If no independent estimate is available, retain 5 km as the declared operational default and report sensitivity at 2.5 and 10 km. State that the true residual correlation range is unknown; if sensitivity or block count indicates inadequate support, report spatial_support_insufficient / precision_inadequate.
+- If the pre-residual diagnostic clearly indicates dependence beyond the registered sensitivity range, pause before residual analysis and publish a dated amendment specifying a justified block design. No post hoc selection of the block size that gives the narrowest interval is allowed.
+- Different terrain/product strata may have different correlation structures. Any stratum-specific block sizes must be justified by the same pre-residual rule and frozen before its DEM residuals are inspected.
+
+## 27. Horizontal accuracy scope
+
+Protocol v1 validates vertical elevation accuracy only. Horizontal accuracy is outside the primary claim and must not be implied by vertical RMSE, slope agreement or visual alignment.
+
+- Record the horizontal reference frame, realization and coordinate epoch for every DEM and reference source.
+- Where horizontal uncertainty can materially affect vertical residuals on steep terrain, estimate or bound the induced vertical component using local slope and documented horizontal uncertainty, and include it in the uncertainty budget or flag the result as limited.
+- A future horizontal-accuracy module requires its own registered reference design, independent horizontal control, metric and acceptance criteria. Until then, GEOLOGIA must label horizontal accuracy as not_assessed.
+
+## 28. Field GNSS sampling and reference independence
+
+If a field GNSS campaign is undertaken, the primary sampling design must be registered before field collection:
+
+- Use stratified random sampling within the registered terrain/land-cover/elevation strata where feasible, with randomly generated candidate locations and documented replacement rules.
+- If safety, access or permissions require convenience points or transects, label those samples as access-constrained; document the selection mechanism, excluded areas and resulting representativeness limits. Do not describe convenience samples as random or country-representative.
+- Record instrument, antenna setup, occupation duration, processing method, correction source, solution quality, horizontal/vertical uncertainty, coordinate frame/realization, epoch, height type, geoid/datum conversion and raw/processed data checksums.
+- Do not count repeated occupations at one site as independent spatial locations. Retain them for precision assessment at the site level.
+
+A reference-independence register must identify for each DEM/reference pair: data lineage, source sensor/processing, whether the reference was used to calibrate/correct the DEM, shared control points, shared geoid or datum dependencies, and any known derivative relationship.
+
+- ICESat-2/GEDI may be considered source-distinct from a DEM only after the exact product lineage and processing dependencies are checked; source-distinct does not automatically mean statistically independent.
+- A local DEM, benchmark surface or corrected product derived from the candidate DEM or from shared control data is not an independent validation reference for that candidate.
+- GNSS heights converted with a geoid share uncertainty with that geoid model. Record this dependency and include covariance/shared uncertainty where material.
+- If independence cannot be established, label the comparison reference_dependency and restrict it to consistency/relative analysis, not independent accuracy validation.
+
+## 29. Protocol amendment governance
+
+Any change to a frozen threshold, sampling design, polygon, time window, geoid/datum operation, block size, source quality filter, exclusion rule or acceptance criterion must create a versioned amendment containing:
+
+1. rationale and supporting evidence;
+2. date/time and author/reviewer approval;
+3. exact prior and new rule;
+4. whether coverage maps, source availability, or DEM residuals had already been viewed;
+5. affected products, polygons, strata and analyses;
+6. whether results are exploratory, confirmatory, or superseded.
+
+Amendments made after viewing coverage but before residuals must be clearly marked as coverage-informed and cannot be represented as fully blind pre-registration. Amendments after residual inspection are post hoc; the original registered result remains reported, and the amended analysis is labeled exploratory or a new independent confirmation is required. Preserve all protocol versions and decision logs in the release.
+
