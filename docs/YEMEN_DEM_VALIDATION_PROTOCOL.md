@@ -400,3 +400,60 @@ Any change to a frozen threshold, sampling design, polygon, time window, geoid/d
 
 Amendments made after viewing coverage but before residuals must be clearly marked as coverage-informed and cannot be represented as fully blind pre-registration. Amendments after residual inspection are post hoc; the original registered result remains reported, and the amended analysis is labeled exploratory or a new independent confirmation is required. Preserve all protocol versions and decision logs in the release.
 
+## 30. Purpose-specific point-level independence matrix
+
+Independence is assessed for each observation/reference point (or point-level lineage group) relative to a specific validation purpose and candidate product. A source-wide label such as independent GNSS is insufficient.
+
+For every point or point group, the readiness register must identify its dependencies and assign one of these statuses for each purpose:
+
+| Purpose | Independent | Not independent | Conditional / unresolved |
+|---|---|---|---|
+| DEM vertical validation | Not used to calibrate, correct, select or tune the candidate DEM; no material shared control/derivative dependency | Used in candidate DEM calibration/correction, or derived from it/shared controls | Product lineage, correction history, or shared controls cannot be verified |
+| Geoid validation | Not used to fit, calibrate or validate the candidate geoid; height/datum evidence is independently surveyed | Used in geoid fitting/calibration or shares the same control data in a circular comparison | Geoid, datum, frame/epoch or control lineage is unclear |
+| Horizontal validation | Independent horizontal control not used to georeference/correct the candidate | Used in georeferencing/correction or shares the control points | Horizontal control lineage or coordinate realization is unresolved |
+| Temporal/change validation | Independent observation with a documented date and change history | Used to construct the temporal correction/label being evaluated | Date, epoch or intervening-change history is uncertain |
+
+This matrix is applied per candidate product and intended claim; the same point may be independent for one purpose and non-independent for another. Record point/reference ID, purpose, candidate product/version, status, rationale, evidence/lineage, reviewer and date. A conditional or unresolved status cannot support a confirmatory independent-accuracy claim until resolved. For dense sources, use a documented lineage group (such as a survey campaign, track segment or shared-control cluster) and preserve its mapping to observations. Shared geoid, sensor, processing, calibration and spatial/temporal dependencies must be carried into uncertainty/covariance or explicitly limit the claim.
+
+## 31. Cross-sensor dependence: ICESat-2 and GEDI
+
+ICESat-2 and GEDI are different missions and instruments, but their agreement is not automatically independent confirmation. Both are spaceborne lidar observations and may share relevant error mechanisms or environmental sensitivities, including slope/terrain effects, canopy/footprint effects, atmospheric corrections, geolocation and processing assumptions. Correlated errors may produce agreement while both differ from the true surface.
+
+- Report ICESat-2–GEDI agreement as cross-source consistency, not as two fully independent votes for DEM accuracy, unless the specific error dependencies have been assessed and justified.
+- In steep/high-relief terrain, do not treat their agreement alone as successful independent validation. Seek a reference from a materially different measurement approach where feasible (for example, independently surveyed GNSS/benchmarks, suitable airborne lidar, or independently processed SAR/interferometric evidence with its own limitations).
+- Document instrument/product lineage, quality filters, terrain and canopy sensitivities, geolocation/footprint uncertainty, and known shared or correlated error sources for each pairing.
+- If no technically independent reference method is available, retain the comparison as consistency evidence and label the independent-validation gate reference_dependency or not_evaluable; do not upgrade it to independent accuracy validation.
+
+## 32. Reference DEM policy and resolution/accuracy ceiling
+
+A DEM is not a primary independent reference in protocol v1. The primary reference types are point/footprint observations with documented quality and datum (such as eligible GNSS/benchmarks and qualified satellite-lidar observations), subject to the independence and coverage gates above.
+
+If a reference DEM or gridded elevation surface is proposed in a later version:
+- Treat it as a secondary comparison source unless its independent acquisition, processing lineage and validation are documented.
+- Register its exact product/version, spatial resolution, effective support/footprint, vertical accuracy and uncertainty by relevant terrain/land-cover strata, datum/frame/epoch, acquisition date, calibration/control lineage and checksum.
+- State explicitly that the reference uncertainty and spatial support limit what errors in the candidate DEM can be resolved. Nominal pixel spacing (for example, 5 m) is not equivalent to 5 m accuracy and does not establish a particular vertical-error floor.
+- Do not claim the candidate DEM is validated below the reference's defensible uncertainty/precision or infer a numerical detection threshold without a propagation/power analysis.
+- A reference DEM derived from the candidate DEM, its corrections, or shared control points is not independent for that comparison. Use it only for labeled consistency/relative analysis unless independence is established.
+
+Any reference-DEM use requires a versioned protocol amendment before residual inspection.
+
+## 33. GEDI operational and temporal availability
+
+The readiness report must verify GEDI's actual operational/data-collection status and the selected product's observation dates from authoritative mission/product metadata at the time of registration. Do not assume a mission-wide status or availability from a prior statement, and do not treat a processing/release date as the acquisition date.
+
+- Report GEDI's usable observation-date range and coverage separately for each pilot polygon, DEM epoch and stratum.
+- Apply the registered temporal eligibility rule to each DEM independently, without silently excluding GEDI or relaxing the time window solely to obtain a pass.
+- If GEDI observations do not meet the registered temporal gate for a given DEM/stratum, mark temporal_mismatch for that confirmatory pairing; retain suitable older observations only for a separately labeled temporal-consistency or exploratory analysis if registered.
+- Record the effect of mission collection gaps or operational changes on coverage and explain whether ICESat-2/GNSS or another independent method is needed to fill the reference-design gap. Do not assume another source provides equivalent spatial representativeness.
+
+## 34. Pre-registration timestamp and immutable archive
+
+After PR #57 is merged, publish the exact protocol version as a release/tag and archive that version with a persistent identifier where possible (for example, a Zenodo or OSF deposit with DOI or stable accession).
+
+The archive record must include:
+- Exact Git commit SHA, release/tag, protocol file checksum (SHA-256), and release date/time in UTC.
+- The complete protocol and associated registration metadata, not merely a mutable repository link.
+- Archive DOI/stable identifier and repository URL, with the archive's versioning and preservation terms.
+- Any later amendment as a new version linked to the original; never overwrite the original registration.
+
+A GitHub commit/tag provides a useful public timestamp and version history, but the persistent archive strengthens citability and preservation. Do not claim that the protocol was registered before data collection or residual inspection unless the timestamped record and project chronology support that statement. If coverage/source availability was already examined, label the document accurately as a protocol or pre-analysis plan informed by coverage—not as a fully blind preregistration.
