@@ -105,6 +105,33 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert aoi.status_code == 201
     assert reference.status_code == 201
 
+    sidecar_payload = {
+        "schema": "geologia.reference-uncertainty.v1",
+        "reference_dataset_sha256": reference.json()["sha256"],
+        "records": {
+            point[0]: {
+                "kind": "standard_uncertainty",
+                "value": 0.15,
+                "unit": "m",
+                "source_reference": "survey-method://gnss-uncertainty-v2",
+                "method": "documented-survey-uncertainty",
+                "scope": "point_specific",
+                "dependence": "unknown",
+                "reviewer": "reviewer-1",
+                "recorded_at": datetime.now(UTC).isoformat(),
+            }
+            for point in points
+        },
+    }
+    sidecar_bytes = json.dumps(sidecar_payload, sort_keys=True).encode("utf-8")
+    sidecar = _upload(
+        project["id"],
+        "reference-uncertainty.json",
+        sidecar_bytes,
+        "reference_uncertainty_sidecar",
+    )
+    assert sidecar.status_code == 201
+
     manifest_payload = {
         "schema": "geologia.dem-tile-manifest.v1",
         "product_version_id": "dem-release-2026-01",
@@ -134,6 +161,7 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     request = {
         "product_manifest_dataset_id": manifest.json()["id"],
         "reference_dataset_id": reference.json()["id"],
+        "reference_uncertainty_sidecar_dataset_id": sidecar.json()["id"],
         "aoi_dataset_id": aoi.json()["id"],
         "metadata": {
             "product_version_id": "dem-release-2026-01",
@@ -194,6 +222,16 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     )
     assert record["assessment"]["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
     assert record["assessment"]["readiness_disposition"] == "not_assessed"
+    assert record["assessment"]["reference_uncertainty_sidecar_dataset_id"] == sidecar.json()["id"]
+    assert (
+        record["assessment"]["reference_uncertainty_sidecar_dataset_sha256"]
+        == sidecar.json()["sha256"]
+    )
+    assert (
+        record["assessment"]["reference_uncertainty_summary"]["status"]
+        == "descriptive_metadata_only"
+    )
+    assert record["assessment"]["reference_uncertainty_summary"]["count"] == 4
 
     mismatched_request = json.loads(json.dumps(request))
     mismatched_request["independent_review"]["pilot_area_id"] = "pilot-other"
