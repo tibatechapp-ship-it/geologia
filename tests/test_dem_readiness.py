@@ -189,3 +189,14 @@ def test_validation_status_cannot_be_bypassed_by_scope_exception():
     )
     assert result.disposition is ReadinessDisposition.NOT_EVALUABLE
     assert "validation_status" in result.blocking_fields
+
+
+def test_not_assessed_reason_code_is_not_misclassified_as_unresolved():
+    result = assess_readiness(
+        ReadinessInput(
+            context=context(validation_status=evidence("not_assessed")),
+            declared_use=use(),
+            unresolved_items=(reason(ReasonCode.NOT_ASSESSED),),
+        )
+    )
+    assert result.disposition is ReadinessDisposition.NOT_ASSESSED
