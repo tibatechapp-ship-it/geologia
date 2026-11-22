@@ -1,0 +1,87 @@
+{
+  "report_version": 1,
+  "report_id": "yemen-dem-coverage-readiness-v1",
+  "assessment_date": "2026-11-22",
+  "repository_snapshot": "0d3bd12a4e92bc8f905f8257c59f2f082aef57bf",
+  "protocol": {
+    "path": "docs/YEMEN_DEM_VALIDATION_PROTOCOL.md",
+    "version": "1",
+    "threshold_sections": ["13", "17", "20"],
+    "threshold_freeze_date": "2026-11-22"
+  },
+  "overall_status": "not_assessed",
+  "accuracy_ranking": "not_generated",
+  "scientific_accuracy_claim": false,
+  "dem_raster_files_found": 0,
+  "reference_observation_files_found_outside_test_fixtures": 0,
+  "test_fixture_excluded": "tests/data/reference_points.geojson",
+  "coverage_units": [],
+  "candidate_inventory": [
+    {
+      "product": "Copernicus GLO-30",
+      "role": "primary_open_comparison_candidate",
+      "exact_product_file_present": false,
+      "yemen_footprint_verified_for_exact_release": false,
+      "disposition": "candidate_only_not_assessed",
+      "reason_codes": ["metadata_insufficient", "not_assessed"]
+    },
+    {
+      "product": "ALOS AW3D30",
+      "role": "primary_open_comparison_candidate",
+      "exact_product_file_present": false,
+      "yemen_footprint_verified_for_exact_release": false,
+      "disposition": "candidate_only_not_assessed",
+      "reason_codes": ["metadata_insufficient", "not_assessed"]
+    },
+    {
+      "product": "FABDEM",
+      "role": "terrain_adjusted_derivative_candidate",
+      "exact_product_file_present": false,
+      "yemen_footprint_verified_for_exact_release": false,
+      "independence_note": "Derived from Copernicus; not an independent reference against Copernicus.",
+      "disposition": "candidate_only_not_assessed",
+      "reason_codes": ["metadata_insufficient", "source_dependence_conflict", "not_assessed"]
+    },
+    {
+      "product": "NCD Arabian Peninsula 30 m DEM",
+      "role": "supplementary_regional_layer",
+      "exact_product_file_present": false,
+      "yemen_footprint_verified_for_exact_release": false,
+      "disposition": "metadata_access_license_and_footprint_unverified",
+      "reason_codes": ["metadata_insufficient", "not_assessed"]
+    },
+    {
+      "product": "Saudi national 5 m DEM in the Makkah study",
+      "role": "neighboring_region_case_study",
+      "exact_product_file_present": false,
+      "yemen_footprint_verified_for_exact_release": false,
+      "geographic_scope": "Makkah metropolitan study only; no transfer to Asir, Najran or Yemen",
+      "disposition": "regional_case_study_only",
+      "reason_codes": ["geographic_coverage_missing", "not_assessed"]
+    },
+    {
+      "product": "GF-7 / LuTan-1",
+      "role": "literature_only",
+      "exact_product_file_present": false,
+      "yemen_footprint_verified_for_exact_release": false,
+      "disposition": "no_yemen_ready_deliverable_established",
+      "reason_codes": ["access_unavailable", "not_assessed"]
+    },
+    {
+      "product": "WorldDEM Neo",
+      "role": "commercial_benchmark",
+      "exact_product_file_present": false,
+      "yemen_footprint_verified_for_exact_release": false,
+      "disposition": "excluded_from_open_v1_baseline_pending_exact_product_and_license",
+      "reason_codes": ["metadata_insufficient", "not_assessed"]
+    }
+  ],
+  "limitations": [
+    "No DEM accuracy metrics or residuals were computed.",
+    "No product ranking or suitability certification is issued.",
+    "The test GeoJSON is not scientific reference data.",
+    "No Yemen pilot polygon coverage or reference-source coverage was verified.",
+    "The occupied fraction of the registered 1 km grid was not available for reporting.",
+    "Saudi regional analogue geography does not establish actual Yemen product coverage or quantitative representativeness."
+  ]
+}
