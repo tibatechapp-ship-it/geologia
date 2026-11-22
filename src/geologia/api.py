@@ -1227,7 +1227,40 @@ async def dataset_upload(
         summary = {"validation": "stored_only"}
         effective_crs = crs.strip() if crs and crs.strip() else None
         if suffix in {".geojson", ".json"}:
-            if data_role == "dem_tile_manifest":
+            if data_role == "reference_uncertainty_sidecar":
+                if suffix != ".json":
+                    raise HTTPException(status_code=415, detail="uncertainty sidecar must be .json")
+                try:
+                    payload = _read_json(temporary_path)
+                except (UnicodeDecodeError, ValueError) as exc:
+                    raise HTTPException(status_code=422, detail="uncertainty sidecar JSON is invalid") from exc
+                if not isinstance(payload, dict) or payload.get("schema") != "geologia.reference-uncertainty.v1":
+                    raise HTTPException(status_code=422, detail="uncertainty sidecar schema is unsupported")
+                reference_sha = payload.get("reference_dataset_sha256")
+                records = payload.get("records")
+                if (
+                    not isinstance(reference_sha, str)
+                    or len(reference_sha) != 64
+                    or any(char not in "0123456789abcdefABCDEF" for char in reference_sha)
+                    or not isinstance(records, dict)
+                    or not records
+                ):
+                    raise HTTPException(status_code=422, detail="uncertainty sidecar header or records are invalid")
+                try:
+                    for point_id, record in records.items():
+                        if not isinstance(point_id, str) or not point_id.strip():
+                            raise ValueError("point_id must be a non-empty string")
+                        ElevationUncertainty.model_validate(record)
+                except (TypeError, ValueError, ValidationError) as exc:
+                    raise HTTPException(status_code=422, detail="uncertainty sidecar contains an invalid typed record") from exc
+                summary = {
+                    "validation": "typed_uncertainty_records_validated",
+                    "schema": payload["schema"],
+                    "reference_dataset_sha256": reference_sha.lower(),
+                    "record_count": len(records),
+                    "scientific_interpretation": False,
+                }
+            elif data_role == "dem_tile_manifest":
                 try:
                     manifest = DEMTileManifest.model_validate(
                         _read_json(temporary_path)
