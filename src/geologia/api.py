@@ -31,7 +31,8 @@ from geologia.dem_readiness.models import (
     ReasonRecord,
     ScopeException,
 )
-from geologia.dem_readiness.readiness import assess_readiness\nfrom geologia.dem_readiness.coverage import (
+from geologia.dem_readiness.readiness import assess_readiness
+from geologia.dem_readiness.coverage import (
     CoverageAssessmentRequest,
     CoverageAssessmentSubmission,
     evaluate_coverage_sufficiency,
