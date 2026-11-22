@@ -25,6 +25,7 @@ from geologia.dem_readiness.accuracy import (
 from geologia.dem_readiness.models import (
     AccuracyAssessmentEvidence,
     DeclaredUseContext,
+    ElevationUncertainty,
     IndependentReviewEvidence,
     MandatoryProductContext,
     ReadinessInput,
