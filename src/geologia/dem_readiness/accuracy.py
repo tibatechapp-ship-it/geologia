@@ -192,6 +192,31 @@ def _reference_uncertainty_summary(
             "status": "not_evaluable",
             "reason": "mixed_uncertainty_units",
         }
+    scopes = {item.scope.value for item in values}
+    if len(scopes) != 1:
+        return {
+            "status": "not_evaluable",
+            "reason": "mixed_uncertainty_scopes",
+        }
+    kind = next(iter(kinds))
+    if kind == "expanded_uncertainty":
+        coverage = {
+            (item.coverage_factor, item.coverage_convention) for item in values
+        }
+        if len(coverage) != 1:
+            return {
+                "status": "not_evaluable",
+                "reason": "mixed_expanded_uncertainty_coverage",
+            }
+    if kind == "confidence_interval_half_width":
+        intervals = {
+            (item.confidence_level, item.interval_convention) for item in values
+        }
+        if len(intervals) != 1:
+            return {
+                "status": "not_evaluable",
+                "reason": "mixed_confidence_interval_conventions",
+            }
     magnitudes = [item.value for item in values]
     # The model guarantees known records have finite numeric values.
     numeric = [float(value) for value in magnitudes if value is not None]
