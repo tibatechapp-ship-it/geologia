@@ -114,17 +114,48 @@ def _unique_json_object(pairs: list[tuple[str, object]]) -> dict:
     return result
 
 
+MAX_JSON_DEPTH = 256
+MAX_JSON_NODES = 1_000_000
+
+
+def _check_json_limits(value: object) -> None:
+    """Iteratively bound nested containers and total JSON values without recursive walking."""
+    stack = [(iter((value,)), 0)]
+    nodes = 0
+    while stack:
+        iterator, depth = stack[-1]
+        try:
+            child = next(iterator)
+        except StopIteration:
+            stack.pop()
+            continue
+        nodes += 1
+        if nodes > MAX_JSON_NODES:
+            raise ValueError("JSON item count exceeds the supported limit")
+        if isinstance(child, dict):
+            next_depth = depth + 1
+            if next_depth > MAX_JSON_DEPTH:
+                raise ValueError("JSON nesting exceeds the supported depth")
+            stack.append((iter(child.values()), next_depth))
+        elif isinstance(child, list):
+            next_depth = depth + 1
+            if next_depth > MAX_JSON_DEPTH:
+                raise ValueError("JSON nesting exceeds the supported depth")
+            stack.append((iter(child), next_depth))
+
+
 def _read_json(path: Path) -> dict:
     try:
-        return json.loads(
+        payload = json.loads(
             path.read_text(encoding="utf-8"),
             parse_constant=_reject_json_constant,
             parse_float=_finite_json_float,
             object_pairs_hook=_unique_json_object,
         )
+        _check_json_limits(payload)
+        return payload
     except RecursionError as exc:
         raise ValueError("JSON nesting exceeds the supported depth") from exc
-
 
 
 def _geojson_summary(path: Path) -> dict:
