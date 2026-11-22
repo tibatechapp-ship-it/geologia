@@ -7,6 +7,7 @@ writers and ensure the destination database is offline before replacing it.
 from __future__ import annotations
 
 import hashlib
+from contextlib import closing
 import os
 import sqlite3
 import tempfile
@@ -29,7 +30,7 @@ def _connect_readonly(path: Path) -> sqlite3.Connection:
 
 def _integrity_check(path: Path) -> None:
     try:
-        with _connect_readonly(path) as connection:
+        with closing(_connect_readonly(path)) as connection:
             result = connection.execute("PRAGMA integrity_check").fetchone()
             if result is None or result[0] != "ok":
                 raise ValueError("SQLite integrity check failed")
@@ -65,8 +66,8 @@ def _snapshot(
     os.close(fd)
     temporary = Path(temporary_name)
     try:
-        with _connect_readonly(source) as source_connection:
-            with sqlite3.connect(temporary, timeout=10) as target_connection:
+        with closing(_connect_readonly(source)) as source_connection:
+            with closing(sqlite3.connect(temporary, timeout=10)) as target_connection:
                 source_connection.backup(target_connection)
                 target_connection.commit()
                 check = target_connection.execute("PRAGMA integrity_check").fetchone()
