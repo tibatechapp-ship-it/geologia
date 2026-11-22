@@ -4,7 +4,7 @@ This module evaluates reference coverage only. It does not calculate DEM
 accuracy, validate source independence, or infer terrain representativeness.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated
 
@@ -66,6 +66,7 @@ class CoverageUnitContext(BaseModel):
     aoi_dataset_id: NonEmpty
     aoi_dataset_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
     product_version_id: NonEmpty
+    dem_epoch: date
     pilot_area_id: NonEmpty
     reference_source_id: NonEmpty
     primary_stratum_id: NonEmpty
