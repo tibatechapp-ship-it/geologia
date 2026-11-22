@@ -232,6 +232,16 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     readiness_record = readiness.json()
     assert readiness_record["assessment"]["disposition"] == "ready_for_declared_use"
     assert readiness_record["assessment"]["accuracy_assessment_id"] == record["id"]
+    assert readiness_record["assessment"]["actual_spatial_resolution_x"] == 30.0
+    assert readiness_record["assessment"]["actual_spatial_resolution_unit"] == "metre"
+
+    forged_context = dict(readiness_request)
+    forged_context["context"] = {"vertical_datum": "forged"}
+    rejected_context = client.post(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
+        json=forged_context,
+    )
+    assert rejected_context.status_code == 422
 
     without_accuracy = dict(readiness_request)
     without_accuracy.pop("accuracy_assessment_id")
