@@ -778,6 +778,16 @@ def project_dem_accuracy_assessment_save(
             requirement=body.requirement,
             declared_use=declared_use,
             independent_review=review,
+            reference_uncertainty_sidecar_path=(
+                Path(uncertainty_sidecar_path)
+                if uncertainty_sidecar_path is not None
+                else None
+            ),
+            reference_uncertainty_sidecar_sha256=(
+                uncertainty_sidecar["sha256"]
+                if uncertainty_sidecar is not None
+                else None
+            ),
         )
     except FormatDependencyError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -792,6 +802,14 @@ def project_dem_accuracy_assessment_save(
         "product_manifest_dataset_sha256": manifest_dataset["sha256"],
         "aoi_dataset_file_sha256": aoi["sha256"],
         "reference_dataset_id": reference["id"],
+        "reference_uncertainty_sidecar_dataset_id": (
+            uncertainty_sidecar["id"] if uncertainty_sidecar is not None else None
+        ),
+        "reference_uncertainty_sidecar_dataset_sha256": (
+            uncertainty_sidecar["sha256"]
+            if uncertainty_sidecar is not None
+            else None
+        ),
         "aoi_dataset_id": aoi["id"],
         "declared_use": declared_use.model_dump(mode="json"),
         "independent_review": review.model_dump(mode="json"),
