@@ -44,6 +44,7 @@ jobs:
           python -m pytest
           tests/test_formats.py
           tests/test_dem_raster_coverage_inspection.py
+          tests/test_reference_coverage_metrics.py
           tests/test_api_dem_coverage.py
           -q
 
