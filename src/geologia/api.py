@@ -579,8 +579,24 @@ async def dataset_upload(
         summary = {"validation": "stored_only"}
         effective_crs = crs.strip() if crs and crs.strip() else None
         if suffix in {".geojson", ".json"}:
-            summary = _geojson_summary(temporary_path)
-            effective_crs = effective_crs or "EPSG:4326"
+            if data_role == "dem_tile_manifest":
+                try:
+                    manifest = DEMTileManifest.model_validate(
+                        _read_json(temporary_path)
+                    )
+                except (UnicodeDecodeError, ValueError, ValidationError) as exc:
+                    raise HTTPException(
+                        status_code=422, detail="DEM tile manifest JSON is invalid"
+                    ) from exc
+                summary = {
+                    "validation": "manifest_structure_validated",
+                    "schema": manifest.schema,
+                    "product_version_id": manifest.product_version_id,
+                    "tile_count": len(manifest.tile_dataset_ids),
+                }
+            else:
+                summary = _geojson_summary(temporary_path)
+                effective_crs = effective_crs or "EPSG:4326"
         os.replace(temporary_path, final_path)
         clean_filename = safe_name.replace("\\", "/").split("/")[-1]
         try:
