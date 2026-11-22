@@ -270,7 +270,7 @@
     "repository": "tibatechapp-ship-it/Ali-Algomori",
     "commit": "ca72da2599f6664fe8548047eeec593aab955682",
     "source_path": "src/geologia/data/reference/geoid_golden_nodes.json",
-    "source_file_sha256": "405aaefe4154eaa040d31491d54efba6fbb00cc4",
+    "source_git_blob_sha": "405aaefe4154eaa040d31491d54efba6fbb00cc4",
     "interpretation": "Upstream parser's frozen sample values; provenance and exact grid hash are retained. Not independently recomputed in GEOLOGIA and not a vertical transformation authorization."
   }
 }
