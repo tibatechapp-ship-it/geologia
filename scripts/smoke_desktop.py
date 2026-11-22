@@ -65,7 +65,21 @@ def main() -> None:
                 assert knowledge_status["core_seeded_count"] == 24
                 assert knowledge_status["model_required"] is False
         finally:
-            process.terminate()
+            if os.name == "nt":
+                # The packaged Windows app can leave a worker holding SQLite
+                # handles after the parent exits; terminate the full process tree.
+                try:
+                    subprocess.run(
+                        ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                        check=False,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=15,
+                    )
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+            if process.poll() is None:
+                process.terminate()
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
