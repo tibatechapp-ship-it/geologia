@@ -2,6 +2,8 @@
 
 from .coverage import (
     CoverageAssessment,
+    CoverageAssessmentRequest,
+    CoverageUnitContext,
     CoverageDecisionStatus,
     CoverageMetrics,
     CoveragePhase,
@@ -30,6 +32,8 @@ __all__ = [
     "AnalogueRepresentativenessContext",
     "Availability",
     "CoverageAssessment",
+    "CoverageAssessmentRequest",
+    "CoverageUnitContext",
     "CoverageDecisionStatus",
     "CoverageMetrics",
     "CoveragePhase",
