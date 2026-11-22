@@ -49,3 +49,19 @@ def test_coverage_assessment_rejects_unknown_project(tmp_path, monkeypatch):
             {"status": "not_assessed"},
             "reviewer-1",
         )
+
+
+def test_coverage_audit_table_advances_sqlite_schema_version(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "schema.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
+    store.initialize()
+    with store.connect() as conn:
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        tables = {
+            row["name"]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+    assert version == 2
+    assert "coverage_assessments" in tables
