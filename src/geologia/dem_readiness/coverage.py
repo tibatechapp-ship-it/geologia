@@ -60,7 +60,9 @@ class CoverageUnitContext(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     product_dataset_id: NonEmpty
+    product_dataset_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
     reference_dataset_id: NonEmpty
+    reference_dataset_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
     product_version_id: NonEmpty
     pilot_area_id: NonEmpty
     reference_source_id: NonEmpty
@@ -135,7 +137,7 @@ class CoverageEvidenceAttestation(BaseModel):
     metrics_computed_by: NonEmpty
     metrics_computed_at: datetime
     source_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
-    analysis_code_commit: NonEmpty
+    analysis_code_commit: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{7,40}$")]
 
     @model_validator(mode="after")
     def validate_timestamps(self) -> "CoverageEvidenceAttestation":
@@ -163,6 +165,13 @@ class CoverageAssessmentRequest(BaseModel):
                 raise ValueError("verified coverage requires available actual_coverage evidence")
             if self.evidence is None:
                 raise ValueError("verified coverage requires a complete evidence attestation")
+        if (
+            self.evidence is not None
+            and self.evidence.source_sha256 != self.context.reference_dataset_sha256
+        ):
+            raise ValueError(
+                "metrics source_sha256 must match the exact reference dataset checksum"
+            )
         return self
 
 
