@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 from fastapi.testclient import TestClient
@@ -127,7 +128,6 @@ def _upload_coverage_dataset(project_id, filename, data, role):
 def _save_test_coverage_inspection(product, aoi, *, full=True):
     from geologia import store
 
-    reference = f"coverage-inspection:{product['id']}:test-record"
     report = {
         "inspection_status": "measured",
         "coverage_status": (
@@ -141,9 +141,19 @@ def _save_test_coverage_inspection(product, aoi, *, full=True):
         "product_dataset_sha256": product["sha256"],
         "aoi_dataset_id": aoi["id"],
         "aoi_dataset_sha256": aoi["sha256"],
-        "coverage_footprint_reference": reference,
         "inspected_at_utc": "2026-11-22T02:00:00+00:00",
     }
+    canonical = json.dumps(
+        report,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    reference = f"coverage-inspection:{product['id']}:{digest}"
+    report["inspection_sha256"] = digest
+    report["coverage_footprint_reference"] = reference
     store.save_dataset_coverage_inspection(product["id"], report)
     return reference
 
@@ -154,7 +164,6 @@ def _save_test_reference_metrics(reference, aoi, payload):
     from geologia import store
     from geologia.dem_readiness.coverage import CoverageMetrics
 
-    report_reference = f"reference-coverage-metrics:{reference['id']}:test-record"
     report = {
         "status": "measured",
         "independence_review_status": "attested_complete",
@@ -165,12 +174,22 @@ def _save_test_reference_metrics(reference, aoi, payload):
         "metrics": CoverageMetrics.model_validate(
             payload["metrics"]
         ).model_dump(mode="json"),
-        "metrics_reference": report_reference,
         "computation_method": "reference-coverage-v1.0",
         "computed_by": "analyst-1",
         "computed_at_utc": "2026-11-22T02:05:00+00:00",
         "analysis_code_commit": "a1b2c3d4",
     }
+    canonical = json.dumps(
+        report,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    report_reference = f"reference-coverage-metrics:{reference['id']}:{digest}"
+    report["metrics_sha256"] = digest
+    report["metrics_reference"] = report_reference
     store.save_reference_coverage_metrics(reference["id"], report)
     payload["evidence"]["metrics_source_reference"] = report_reference
     payload["evidence"]["metrics_computation_method"] = report["computation_method"]
