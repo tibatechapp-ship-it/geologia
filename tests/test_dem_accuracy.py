@@ -471,7 +471,10 @@ def test_hash_bound_typed_reference_uncertainty_is_recorded_not_propagated(tmp_p
 
     assert report["reference_uncertainty_sidecar_sha256"] == sidecar_sha
     assert report["reference_uncertainty_model"]["schema"] == "geologia.reference-uncertainty.v1"
-    assert report["reference_uncertainty_model"]["interpretation"] == "typed_metadata_not_propagated"
+    assert (
+        report["reference_uncertainty_model"]["interpretation"]
+        == "typed_metadata_not_propagated"
+    )
     assert report["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
     assert all(
         item["reference_uncertainty"]["kind"] == "standard_uncertainty"
