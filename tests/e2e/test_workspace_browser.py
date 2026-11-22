@@ -1,4 +1,6 @@
 """Browser acceptance tests for the GEOLOGIA workspace."""
+import json
+
 from playwright.sync_api import expect
 
 
@@ -99,3 +101,51 @@ def test_malformed_csv_is_rejected_during_inspection(app_url, browser_page):
     dataset.locator("button.inspect-button").first.click()
     expect(page.locator("#uploadStatus")).to_have_class("feedback error")
     expect(dataset.locator(".inspection-report")).to_have_count(0)
+
+
+
+def test_geojson_upload_and_structural_inspection_are_explicit(app_url, browser_page):
+    page = browser_page
+    page.goto(app_url, wait_until="domcontentloaded")
+    page.locator("#projectName").fill("GeoJSON structural inspection")
+    page.locator("#projectForm button[type=submit]").click()
+    expect(page.locator("#projectStatus")).to_contain_text("تم إنشاء المشروع")
+
+    payload = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {"station": "A-01", "depth_m": 12.5},
+                "geometry": {"type": "Point", "coordinates": [44.2, 15.3]},
+            },
+            {
+                "type": "Feature",
+                "properties": {"station": "A-02", "depth_m": 18.0},
+                "geometry": {"type": "Point", "coordinates": [44.5, 15.8]},
+            },
+        ],
+    }
+    page.locator("#datasetName").fill("Groundwater station points")
+    page.locator("#fileInput").set_input_files(
+        {
+            "name": "stations.geojson",
+            "mimeType": "application/geo+json",
+            "buffer": json.dumps(payload).encode("utf-8"),
+        }
+    )
+    page.locator("#datasetForm button[type=submit]").click()
+    dataset = page.locator(".dataset-item").filter(
+        has_text="Groundwater station points"
+    )
+    expect(dataset).to_be_visible()
+    expect(page.locator("#uploadStatus")).to_contain_text("تم حفظ البيانات")
+
+    dataset.locator("button.inspect-button").first.click()
+    report = dataset.locator("pre.inspection-report")
+    expect(report).to_be_visible()
+    report_data = json.loads(report.inner_text().split("\n", 1)[1])
+    assert report_data["feature_count"] == 2
+    assert report_data["coordinate_count"] == 2
+    assert report_data["bbox_xy"] == [44.2, 15.3, 44.5, 15.8]
+    assert report_data["scientific_interpretation"] is False
