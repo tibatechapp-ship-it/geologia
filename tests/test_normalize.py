@@ -33,6 +33,7 @@ def test_normalizer_rejects_non_strings(value):
         normalize_arabic(value)
 
 
+@pytest.mark.parametrize("value", [None, 3, [], {}])
 def test_text_normalizer_rejects_non_strings(value):
     with pytest.raises(TypeError, match="text must be a string"):
         normalize_text(value)
