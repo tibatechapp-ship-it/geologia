@@ -45,6 +45,7 @@ jobs:
           tests/test_formats.py
           tests/test_dem_raster_coverage_inspection.py
           tests/test_dem_tile_collection_coverage.py
+          tests/test_dem_accuracy.py
           tests/test_api_dem_coverage.py
           -q
 
