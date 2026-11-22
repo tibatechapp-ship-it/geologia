@@ -410,6 +410,32 @@ def project_dem_readiness_assessment_save(
                 status_code=409,
                 detail="AOI dataset content changed after the accuracy assessment",
             )
+        uncertainty_sidecar_id = accuracy_report.get(
+            "reference_uncertainty_sidecar_dataset_id"
+        )
+        if uncertainty_sidecar_id is not None:
+            sidecar_dataset = store.get_dataset(uncertainty_sidecar_id)
+            sidecar_path = store.get_dataset_content_path(uncertainty_sidecar_id)
+            if (
+                accuracy_request.get("reference_uncertainty_sidecar_dataset_id")
+                != uncertainty_sidecar_id
+                or sidecar_dataset is None
+                or sidecar_dataset["project_id"] != project_id
+                or sidecar_dataset["data_role"] != "reference_uncertainty_sidecar"
+                or sidecar_dataset["format"] != "json"
+                or sidecar_dataset["sha256"]
+                != accuracy_report.get("reference_uncertainty_sidecar_dataset_sha256")
+                or sidecar_dataset["sha256"]
+                != accuracy_report.get("reference_uncertainty_sidecar_sha256")
+                or sidecar_path is None
+                or not _dataset_content_matches(
+                    sidecar_dataset, Path(sidecar_path)
+                )
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="reference uncertainty sidecar changed after accuracy assessment",
+                )
         try:
             aoi_payload = _read_json(Path(aoi_path))
             canonical_manifest = json.dumps(
