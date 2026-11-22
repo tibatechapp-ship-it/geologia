@@ -183,6 +183,27 @@ class ReadinessInput(BaseModel):
     accepted_restrictions: tuple[ReasonRecord, ...] = ()
     scope_exceptions: tuple[ScopeException, ...] = ()
 
+    @model_validator(mode="after")
+    def validate_scope_exceptions(self) -> "ReadinessInput":
+        known_fields = set(self.context.model_fields)
+        exception_fields = [item.field_name for item in self.scope_exceptions]
+        if len(exception_fields) != len(set(exception_fields)):
+            raise ValueError("only one scope exception may be recorded per field")
+        unknown = sorted(set(exception_fields) - known_fields)
+        if unknown:
+            raise ValueError(f"scope exceptions reference unknown fields: {', '.join(unknown)}")
+        available = sorted(
+            name
+            for name in exception_fields
+            if getattr(self.context, name).availability is Availability.AVAILABLE
+        )
+        if available:
+            raise ValueError(
+                "scope exceptions may only apply to not_available fields: "
+                + ", ".join(available)
+            )
+        return self
+
 
 class ReadinessAssessment(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
