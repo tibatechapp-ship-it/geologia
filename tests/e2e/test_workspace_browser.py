@@ -56,7 +56,7 @@ def test_workspace_create_upload_inspect_plan_and_language(app_url, browser_page
     assert "سلامة سلسلة الأحداث: موثّق" in provenance_text
     assert "سلامة الملف الحالي: موثّق" in provenance_text
     assert "سلامة السجل لا تثبت صحة البيانات علميًا." in provenance_text
-    provenance_data = json.loads(provenance_text.split("\n", 1)[-1])
+    provenance_data = json.loads(provenance_text.split("\n\n", 1)[1])
     assert provenance_data["chain_integrity"] == "verified"
     assert provenance_data["content_integrity"] == "verified"
 
