@@ -117,6 +117,30 @@ def test_browser_claim_to_evidence_workflow(tmp_path, monkeypatch):
             page.on("pageerror", lambda error: page_errors.append(str(error)))
             page.goto(base_url, wait_until="domcontentloaded")
 
+            page.locator("#projectName").fill("Validation browser project")
+            page.locator("#projectForm button[type=submit]").click()
+            page.wait_for_function(
+                "document.querySelector('#projectSelect').value !== ''",
+                timeout=10000,
+            )
+            csv_path = tmp_path / "water-levels.csv"
+            csv_path.write_text(
+                "timestamp,water_level_m\n2026-01-01,12.4\n",
+                encoding="utf-8",
+            )
+            page.locator("#datasetName").fill("Groundwater levels")
+            page.locator("#dataRole").select_option("water_levels_timeseries")
+            page.locator("#fileInput").set_input_files(str(csv_path))
+            page.locator("#datasetForm button[type=submit]").click()
+            dataset_item = page.locator("#datasetList .dataset-item").filter(
+                has_text="Groundwater levels"
+            )
+            dataset_item.wait_for(state="visible", timeout=10000)
+            dataset_item.locator("button.validation-button").click()
+            validation_report = dataset_item.locator("pre.validation-report")
+            validation_report.wait_for(state="visible", timeout=10000)
+            assert '"validation_status": "passed"' in validation_report.inner_text()
+
             claim_statement = "Recharge increased the observed groundwater level."
             page.locator("#claimStatement").fill(claim_statement)
             page.locator("#claimRecorder").fill("browser test geologist")
