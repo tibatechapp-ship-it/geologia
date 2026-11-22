@@ -43,3 +43,16 @@ def test_mandatory_context_lists_every_unavailable_field():
     }
     context = MandatoryProductContext(**fields)
     assert set(context.unavailable_fields()) == set(MandatoryProductContext.model_fields)
+
+
+def test_validation_status_rejects_unknown_values():
+    fields = {
+        name: EvidenceValue(availability=Availability.AVAILABLE, value="verified")
+        for name in MandatoryProductContext.model_fields
+    }
+    fields["validation_status"] = EvidenceValue(
+        availability=Availability.AVAILABLE,
+        value="probably_ready",
+    )
+    with pytest.raises(ValidationError):
+        MandatoryProductContext(**fields)
