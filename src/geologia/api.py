@@ -2384,7 +2384,7 @@ def run() -> None:
     parser.add_argument(
         "--port",
         type=parse_port,
-        default=parse_port(os.environ.get("GEOLOGIA_PORT", "8000")),
+        default=os.environ.get("GEOLOGIA_PORT", "8000"),
     )
     args = parser.parse_args()
     if args.host not in {"127.0.0.1", "::1", "localhost"}:
