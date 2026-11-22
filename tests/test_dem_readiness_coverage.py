@@ -213,3 +213,30 @@ def test_metrics_attestation_checksum_must_match_reference_dataset():
                 update={"source_sha256": "c" * 64}
             ),
         )
+
+
+
+def test_coverage_attestation_rejects_timezone_without_utc_offset():
+    from datetime import tzinfo
+
+    class InvalidTimezone(tzinfo):
+        def utcoffset(self, dt):
+            return None
+
+        def dst(self, dt):
+            return None
+
+    invalid_time = datetime(2026, 11, 22, tzinfo=InvalidTimezone())
+    with pytest.raises(ValidationError):
+        CoverageEvidenceAttestation(
+            coverage_footprint_reference="coverage://product-release/pilot-polygon-v1",
+            coverage_verification_method="Raster footprint intersected with registered AOI.",
+            coverage_reviewer="reviewer-1",
+            coverage_verified_at=invalid_time,
+            metrics_source_reference="evidence://reference-observations/1",
+            metrics_computation_method="Frozen equal-area grid count script.",
+            metrics_computed_by="analyst-1",
+            metrics_computed_at=datetime(2026, 11, 22, tzinfo=UTC),
+            source_sha256="a" * 64,
+            analysis_code_commit="a1b2c3d4",
+        )
