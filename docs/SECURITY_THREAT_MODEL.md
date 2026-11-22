@@ -38,7 +38,7 @@ Status: design baseline for review. This document does not mean controls are imp
 | T-13 | Scientific results appear more certain than evidence supports | Benchmark gates, uncertainty schema, assumptions/limitations, independent domain review | Known-answer benchmark suite and scientific sign-off |
 | T-14 | Resource exhaustion through expensive models or decompression bombs | Per-job CPU/RAM/disk/PID/time/output quotas, concurrency quotas, queue backpressure | Stress tests and resource-limit kill tests |
 | T-15 | Audit trail is altered or contains secrets | Append-only event API, restricted DB roles, tamper-evident external audit export, log redaction | Permission tests, audit integrity checks, secret canary tests |
-| T-16 | Public API bypasses the development CLI loopback restriction | Authentication, authorization, TLS termination, private ingress, deployment policy; do not rely on CLI guard | Deployment configuration tests and external exposure scan |
+| T-16 | Remote access bypasses the local-only development boundary | CLI loopback check plus ASGI client-IP and Host-header guard; authentication, authorization, TLS termination, private ingress, and deployment policy remain required; reverse proxies that rewrite remote clients as loopback are unsupported | Middleware negative tests for remote IPs and nonlocal Host headers; deployment configuration tests and external exposure scan |
 
 ## Abuse cases requiring explicit negative tests
 - User changes a dataset file after validation but before queue claim.
@@ -58,9 +58,13 @@ No high-impact risk in this register is accepted by default. Any exception requi
 
 ## Current implemented controls versus gaps
 
-Implemented in the current repository: bounded upload size, generated storage names, SHA-256 at upload, re-hash before validation, strict GeoJSON JSON parsing, deterministic validation profiles, loopback restriction in the development CLI, and a durable local job state/event model.
+Implemented in the current repository: bounded upload size, generated storage names, SHA-256 at upload, re-hash before validation, strict GeoJSON JSON parsing, deterministic validation profiles, loopback restriction in the development CLI and ASGI middleware, local Host-header allowlisting, and a durable local job state/event model.
 
-Not implemented: authentication, project authorization, tenant isolation, rate limiting, malware scanning, PostgreSQL worker queue, leases, worker identity, OCI isolation, network policy, artifact publication protocol, supply-chain verification, and production audit infrastructure.
+Not implemented: authentication, project authorization, tenant isolation, rate limiting, malware scanning, PostgreSQL worker queue, leases, worker identity, OCI isolation, network policy, artifact publication protocol, supply-chain verification, and production audit infrastructure. The local-only middleware is defense-in-depth, not a substitute for those controls.
 
 ## Review gate
 Before Phase 9 worker implementation, review this threat model with a security engineer and define the deployment target. No scientific engine may be enabled until the controls in WORKER_ARCHITECTURE.md and this register have executable tests.
+
+## Local-only ASGI boundary update — 2026-11-22
+
+PR #108 added an application-level guard so direct ASGI launch no longer relies only on the development CLI's bind-address check. It rejects non-loopback client addresses and non-local Host headers. Regression tests cover IPv4/IPv6 loopback, IPv4-mapped loopback, remote clients, external Host headers, and malformed Host values. This does not support reverse proxies, public ingress, authentication, or multi-user deployment; a proxy that rewrites remote client identity and Host to local values remains outside the supported trust model.

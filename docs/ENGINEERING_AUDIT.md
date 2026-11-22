@@ -72,7 +72,7 @@ These changes do not integrate or certify a scientific engine, validate the actu
 
 ### Security and operations
 - No user authentication, authorization, tenant isolation, or project ownership model.
-- The bundled development CLI now rejects non-loopback bind addresses. Running the ASGI app through another server can bypass this guard; public deployment remains unsafe until authentication and operational controls exist.
+- The bundled development CLI rejects non-loopback bind addresses, and PR #108 adds ASGI middleware rejecting non-loopback client IPs and non-local Host headers even when launched through another ASGI server. This is defense-in-depth only; a reverse proxy that rewrites client identity and Host can bypass it and is unsupported. Public deployment remains unsafe until authentication and operational controls exist
 - No rate limiting, per-user quotas, upload concurrency limits, request timeouts, or abuse monitoring.
 - No malware scanning or sandbox for uploaded content. The current application does not execute uploaded code or scientific tools.
 - No production secret management, audit log, backup/restore procedure, retention policy, or deployment hardening.
@@ -103,7 +103,7 @@ These changes do not integrate or certify a scientific engine, validate the actu
 1. Continue exact-head CI validation for every change and fix all lint, test, packaging, or runtime failures before adding features.
 2. Expand browser-level tests to cover project creation, upload, language switching, map rendering, inspection, and reprojection.
 3. Add database migration tests, backup/restore checks, orphan-file cleanup, and concurrency tests.
-4. Harden the local API boundary and define an explicit production security architecture before any remote deployment.
+4. Define and implement authentication, project authorization, tenant isolation, and deployment controls before any remote deployment; the ASGI loopback/Host guard is only a local boundary.
 5. Build a typed data-validation layer for GeoJSON, CSV, GeoPackage, GeoTIFF, and LAS; never infer scientific validity from filenames or role tags.
 6. Introduce a durable job queue and isolated workers only after job state transitions, cancellation, retries, timeouts, resource limits, and provenance are specified and tested.
 7. Integrate scientific engines one at a time, with pinned versions, license review, published benchmark datasets, known-answer tests, uncertainty reporting, and independent scientific review.
