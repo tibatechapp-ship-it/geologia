@@ -170,7 +170,15 @@ def _save_test_reference_metrics(reference, aoi, payload):
         "reference_dataset_sha256": reference["sha256"],
         "aoi_dataset_id": aoi["id"],
         "aoi_dataset_sha256": aoi["sha256"],
+        "reference_dataset_id": reference["id"],
         "dem_epoch": payload["context"]["dem_epoch"],
+        "primary_stratum_ids": [
+            payload["context"]["primary_stratum_id"],
+            "moderate-bare",
+        ],
+        "source_observation_counts": {
+            payload["context"]["reference_source_id"]: 60,
+        },
         "metrics": CoverageMetrics.model_validate(
             payload["metrics"]
         ).model_dump(mode="json"),
@@ -486,6 +494,7 @@ def test_reference_coverage_metrics_api_computes_and_persists_counts(tmp_path, m
         "aoi_crs": "EPSG:6933",
         "reference_crs": "EPSG:6933",
         "dem_epoch": "2025-01-01",
+        "primary_stratum_ids": ["steep-bare"],
         "computed_by": "analyst-1",
         "analysis_code_commit": "a1b2c3d4",
         "independence_review": {
