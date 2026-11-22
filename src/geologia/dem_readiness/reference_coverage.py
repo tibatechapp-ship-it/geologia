@@ -8,7 +8,7 @@ accuracy; those remain separate evidence and review gates.
 from __future__ import annotations
 
 import math
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import date, datetime
 from statistics import median
 from typing import Annotated, Any
