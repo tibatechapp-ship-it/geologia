@@ -280,6 +280,13 @@ def dem_coverage_assessment_save(
         inspection is None
         or evidence is None
         or inspection.get("inspection_status") != "measured"
+        or (
+            body.request.coverage_status.value == "verified"
+            and not (
+                inspection.get("aoi_fully_within_raster_extent") is True
+                and inspection.get("all_aoi_pixel_centres_valid") is True
+            )
+        )
         or inspection.get("coverage_footprint_reference")
         != evidence.coverage_footprint_reference
         or inspection.get("product_dataset_sha256") != product["sha256"]
