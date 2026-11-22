@@ -96,7 +96,7 @@ def test_validation_detects_dataset_bytes_changed_after_upload(tmp_path, monkeyp
     uploaded = _upload(
         project["id"],
         "water-levels.csv",
-        b"timestamp,water_level_m\\n2026-01-01,125.4\\n",
+        b"timestamp,water_level_m\n2026-01-01,125.4\n",
         "water_levels_timeseries",
     )
     dataset_id = uploaded.json()["id"]
