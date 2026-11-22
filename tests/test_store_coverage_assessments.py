@@ -63,5 +63,5 @@ def test_coverage_audit_table_advances_sqlite_schema_version(tmp_path, monkeypat
                 "SELECT name FROM sqlite_master WHERE type='table'"
             )
         }
-    assert version == 3
+    assert version == 4
     assert "coverage_assessments" in tables
