@@ -103,3 +103,27 @@ def test_dem_aoi_inspection_rejects_invalid_aoi_geometry(tmp_path):
 
     with pytest.raises(FormatValidationError, match="Polygon or MultiPolygon"):
         inspect_dem_aoi_coverage(dem, invalid, "EPSG:32638")
+
+
+def test_dem_aoi_inspection_marks_full_only_when_extent_and_all_centres_are_valid(tmp_path):
+    dem = tmp_path / "full-dem.tif"
+    values = np.ones((10, 10), dtype=np.uint8)
+    with rasterio.open(
+        dem,
+        "w",
+        driver="GTiff",
+        width=10,
+        height=10,
+        count=1,
+        dtype="uint8",
+        crs="EPSG:32638",
+        transform=from_origin(500000, 1700000, 30, 30),
+        nodata=0,
+    ) as dataset:
+        dataset.write(values, 1)
+
+    report = inspect_dem_aoi_coverage(dem, _aoi(), "EPSG:32638")
+
+    assert report["coverage_status"] == "full_aoi_extent_and_valid_pixels"
+    assert report["aoi_fully_within_raster_extent"] is True
+    assert report["all_aoi_pixel_centres_valid"] is True
