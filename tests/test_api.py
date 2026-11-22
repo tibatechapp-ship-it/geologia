@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from geologia.api import app
@@ -439,3 +441,49 @@ def test_api_seeds_original_core_notes_without_external_downloads(tmp_path, monk
         item["source_id"] == "geologia-core-hydrology-en-v1"
         for item in result.json()["results"]
     )
+
+
+def test_modified_dataset_bytes_are_rejected_before_inspection_and_reads(tmp_path, monkeypatch):
+    from geologia import store
+
+    monkeypatch.setenv("GEOLOGIA_DB_PATH", str(tmp_path / "integrity.sqlite3"))
+    monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "integrity-uploads"))
+    project = client.post(
+        "/api/v1/projects", json={"name": "Integrity guard", "language": "en"}
+    ).json()
+    source = (
+        b'{"type":"FeatureCollection","features":[]}'
+    )
+    upload = client.post(
+        f"/api/v1/projects/{project['id']}/datasets",
+        content=source,
+        headers={"X-Dataset-Name": "Integrity sample", "X-Filename": "sample.geojson"},
+    )
+    assert upload.status_code == 201
+    dataset_id = upload.json()["id"]
+    stored_path = store.get_dataset_content_path(dataset_id)
+    assert stored_path is not None
+
+    tampered = source.replace(b"FeatureCollection", b"FeatureCollectioN")
+    assert len(tampered) == len(source)
+    Path(stored_path).write_bytes(tampered)
+
+    blocked = [
+        client.post(f"/api/v1/datasets/{dataset_id}/inspect"),
+        client.get(f"/api/v1/datasets/{dataset_id}/geojson"),
+        client.post(
+            f"/api/v1/datasets/{dataset_id}/reproject",
+            json={"target_crs": "EPSG:3857"},
+        ),
+    ]
+    for response in blocked:
+        assert response.status_code == 409
+        assert "integrity mismatch" in response.json()["detail"]
+
+    provenance = client.get(
+        f"/api/v1/datasets/{dataset_id}/provenance"
+    ).json()
+    assert provenance["chain_integrity"] == "verified"
+    assert [event["event_type"] for event in provenance["events"]] == [
+        "dataset_ingested"
+    ]
