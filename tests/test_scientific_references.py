@@ -59,7 +59,7 @@ def test_reference_sources_include_primary_authority_and_cross_implementation_da
     sources = json.loads((DATA / "reference_sources.json").read_text(encoding="utf-8"))
     by_id = {item["id"]: item for item in sources["references"]}
 
-    assert "NGA" in by_id["nga-egm-portal"]["publisher"]
+    assert "National Geospatial-Intelligence Agency" in by_id["nga-egm-portal"]["publisher"]
     assert by_id["epsg-5773"]["code"] == 5773
     assert by_id["epsg-3855"]["code"] == 3855
     assert "sha256_published" in by_id["geographiclib-geoid-500k"]
