@@ -127,7 +127,7 @@ def test_geochemistry_routes_to_its_registered_specialists():
 
 
 @pytest.mark.parametrize(
-    ("request", "expected"),
+    ("query_text", "expected"),
     [
         ("Analyze geophysical resistivity inversion", "geophysics"),
         ("LAS well log porosity", "well_logs"),
@@ -137,8 +137,8 @@ def test_geochemistry_routes_to_its_registered_specialists():
         ("Геохимический анализ", "geochemistry"),
     ],
 )
-def test_added_ali_domains_route_multilingually(request, expected):
-    result = classify_request(request)
+def test_added_ali_domains_route_multilingually(query_text, expected):
+    result = classify_request(query_text)
     assert expected in result["matched_domains"]
     assert result["needs_clarification"] is False
 
