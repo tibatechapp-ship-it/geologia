@@ -5,6 +5,7 @@ from .models import (
     ReadinessAssessment,
     ReadinessDisposition,
     ReadinessInput,
+    ReasonCode,
 )
 from .reason_codes import all_reason_codes
 
@@ -25,6 +26,8 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
     """
     codes = all_reason_codes(data)
     missing = tuple(data.context.unavailable_fields())
+    if missing:
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.METADATA_INSUFFICIENT)))
     exceptions = {item.field_name: item for item in data.scope_exceptions}
     excepted = tuple(name for name in missing if name in exceptions)
     unexcepted = tuple(name for name in missing if name not in exceptions)
@@ -46,6 +49,7 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
         if data.unresolved_items:
             codes = tuple(dict.fromkeys((*codes,)))
     elif data.context.validation_status.value == "not_assessed":
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.NOT_ASSESSED)))
         disposition = ReadinessDisposition.NOT_ASSESSED
         explanation = "The validation has not been performed; no readiness claim is made."
         blocking = ()
