@@ -306,7 +306,8 @@ def compute_dem_reference_residuals(
             reader = csv.DictReader(source)
             if reader.fieldnames is None or not required_columns.issubset(reader.fieldnames):
                 raise FormatValidationError(
-                    "reference CSV must contain point_id,x,y,elevation_m,terrain_stratum,uncertainty_m"
+                    "reference CSV must contain point_id,x,y,elevation_m,"
+                    "terrain_stratum,uncertainty_m"
                 )
             if len(reader.fieldnames) != len(set(reader.fieldnames)):
                 raise FormatValidationError("reference CSV contains duplicate column names")
