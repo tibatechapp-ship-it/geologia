@@ -244,7 +244,10 @@ def dem_coverage_assessment_save(
     }:
         raise HTTPException(
             status_code=422,
-            detail="reference dataset must be ground_control_points or reference_elevation_observations",
+            detail=(
+                "reference dataset must be ground_control_points or "
+                "reference_elevation_observations"
+            ),
         )
 
     for item in (product, reference):
