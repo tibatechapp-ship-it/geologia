@@ -15,10 +15,13 @@ Do not generalize a pilot result to all Yemen or to another product version with
 
 ## 2. Pilot design and pre-registration
 
-Begin with at most three pilot environments, subject to safe access and available reference data:
-- Urban/built-up pilot (candidate: Sana'a; exact footprint to be fixed before sampling).
-- Highland or wadi pilot (exact catchment and footprint to be fixed before sampling).
-- Coastal plain pilot (candidate: Tihama; exact footprint to be fixed before sampling).
+Use a pre-declared pilot design of **up to four distinct environments**, subject to safe access and reference readiness:
+- Urban/built-up (candidate: Sana'a or Taiz; exact footprint to be fixed before sampling).
+- Steep western highlands (candidate: Haraz; exact footprint to be fixed before sampling).
+- Arid coastal plain (candidate: Tihama; exact footprint to be fixed before sampling).
+- Wadi environment (a named catchment and footprint to be fixed before sampling).
+
+These are candidate environments, not a claim that suitable control data exist. The final polygons must be selected by documented terrain/use-case rationale and data-readiness criteria **before inspecting product residuals**. If resources allow only three, retain urban, steep-highland and coastal environments; document the omitted wadi as an explicit coverage limitation. Do not substitute a region after seeing favorable/unfavorable accuracy results.
 
 Before inspecting DEM residuals, publish or commit a dated protocol record containing:
 - Pilot polygon geometry and CRS.
@@ -142,3 +145,97 @@ A pilot accuracy claim may be published only after:
 7. Independent review confirms that the conclusion does not exceed the evidence.
 
 Until these gates pass, GEOLOGIA must display **“local accuracy not yet validated”** for the relevant Yemen area.
+
+
+## 12. Coverage and reference-readiness report (before accuracy analysis)
+
+Coverage is multi-dimensional, not a yes/no flag and not a raw point count. For each pre-registered pilot polygon and each candidate reference source, report:
+
+### Spatial distribution
+- Number of valid observations and density per square kilometre, with the denominator and footprint/segment definition stated.
+- Track/shot/footprint geometry, along-track clustering, gaps and distance between independent spatial blocks.
+- Coverage maps and a spatial coverage statistic (for example, percentage of pre-defined spatial blocks containing usable observations); do not let dense clusters imply uniform coverage.
+- For ICESat-2, report actual ATL08 segment/track coverage and quality-filtered counts. For GEDI, report actual usable footprints and quality-filtered counts. Do not infer local coverage from mission latitude limits alone.
+
+### Temporal distribution
+- Observation-date histogram and counts/percentages within 0–3, 3–5, 5–10 and >10 years of the selected DEM/reference epoch, or other bins fixed in the registration.
+- Earliest/latest dates, time span, and whether the source was operating/collecting in the required period. Record known mission or acquisition gaps from authoritative metadata.
+- A download date is not an observation date. Never treat the product's release date as its acquisition date.
+
+### Stratum distribution
+- Valid counts per pre-defined slope × land-cover × elevation primary stratum, with missing/unknown land-cover and slope classes shown explicitly.
+- Report whether each cell meets the planned threshold and whether spatial independence is plausible.
+- A cell below the threshold is marked **insufficient coverage**, not pooled post hoc into a favorable neighboring class.
+
+### Reference quality classes
+Classify reference observations before residual analysis, using metadata-defined categories such as:
+- surveyed control / static GNSS;
+- RTK or PPK;
+- published benchmark or authoritative control;
+- spaceborne lidar (ICESat-2 ATL08 or GEDI);
+- other / quality uncertain.
+
+For every class, report vertical and horizontal uncertainty, confidence level, datum/frame/epoch, processing method, quality flags and date. OPUS is a processing service/solution type, not a blanket accuracy class; record the actual solution and uncertainty. CORS data are not automatically a surveyed point at the DEM comparison location.
+
+### Vertical-reference eligibility
+A point without a documented vertical reference, transformation, and compatible epoch is **not eligible for absolute vertical validation**. Exclude it using a pre-registered rule and report the count/reason. It may be retained for a separately labeled relative or exploratory analysis only if that analysis is scientifically appropriate.
+
+The coverage report must be committed before calculating or viewing DEM residuals. Its status may be:
+- `coverage_checked`
+- `reference_ready`
+- `coverage_insufficient`
+- `datum_limited`
+
+## 13. Sample-size and insufficient-coverage rules
+
+- At least 30 valid, spatially suitable observations per primary cell may be used for **exploratory** summaries only.
+- At least 50 observations per primary cell is a **minimum reporting floor** for a confirmatory accuracy claim, not a guarantee of adequate power.
+- Before confirmatory analysis, conduct a power/precision assessment using a justified expected error scale, spatial dependence and target confidence-interval width. Increase the sample or downgrade the claim if precision is inadequate.
+- Count independent spatial blocks/effective sample size, not only raw observations. A thousand points along one track may provide much less independent information than a thousand spatially distributed controls.
+- If a pre-registered region or stratum lacks coverage, report **“not evaluable with available reference data”** and preserve the original scope. Do not silently replace it after examining residuals. A replacement is allowed only through a documented amendment based on coverage/safety criteria, with the original result and reason retained.
+
+## 14. Statistical analysis plan (freeze before residuals)
+
+The registration must specify the primary endpoint, paired comparison design, confidence interval method and any hypothesis tests before residuals are examined.
+
+Recommended default:
+1. Primary summaries: signed bias, RMSE, MAE, NMAD, residual dispersion, absolute-error quantiles and spatial coverage, with denominators and missingness.
+2. Confidence intervals: spatial block bootstrap (block size and resampling unit chosen from spatial autocorrelation/design, documented before final analysis); use a suitable alternative when the data do not support bootstrap assumptions.
+3. Product comparison: paired comparisons at the same valid reference locations. Estimate the difference in the selected primary metric with a confidence interval; do not compare unrelated samples as if paired.
+4. If formal tests are needed, pre-specify them. A paired permutation test or Wilcoxon signed-rank test may be considered for paired residual differences when assumptions/interpretation are appropriate. Kruskal–Wallis is not a substitute for a paired design.
+5. Define the family of comparisons and control multiplicity in advance (for example, Holm family-wise correction for confirmatory comparisons or Benjamini–Hochberg FDR for explicitly exploratory families). Report raw and adjusted p-values where tests are used. Do not run dozens of unregistered tests and highlight only significant results.
+6. Do not use statistical significance alone as acceptance. Define use-case-specific tolerances for bias, error/precision and coverage before analysis; if no defensible threshold exists, report the estimate and uncertainty without a pass/fail label.
+7. Define outlier handling, missing-data treatment, tie handling, test direction and software/package versions before analysis. No residual-based exclusions unless explicitly pre-registered and fully reported.
+
+## 15. Dataset release and processing freeze
+
+For every reference source, freeze:
+- Product/collection and exact release/version (for example, the specific ICESat-2 ATL08 or GEDI L2A release available at registration).
+- Query/collection IDs, quality filters, geospatial footprint, processing options and download date.
+- Original source metadata and checksums for downloaded files where licensing and size permit; otherwise preserve immutable identifiers, metadata and a reproducible retrieval record.
+- DEM release/tile IDs, acquisition/production dates, vertical reference, checksum, resampling method and analysis code commit.
+
+Do not hardcode a version label merely because it is mentioned in a review. Verify the selected release against the authoritative data catalog at the time of registration, then freeze it for that analysis.
+
+## 16. Region selection rationale and limits of claim
+
+The pilot environments are selected to span contrasting surface and terrain conditions, not because they are assumed to represent Yemen:
+- Urban: tests DSM/DTM semantics and built structures.
+- Steep highlands: tests slope-related error and vertical-reference sensitivity.
+- Arid coastal plain: tests a comparatively low-relief environment.
+- Wadi: tests narrow valley geometry, vegetation, mixed pixels and possible DEM void/filling effects.
+
+If the wadi is omitted, GEOLOGIA must state that wadi behavior was not evaluated. Likewise, results do not cover untested coastal, island, desert, urban, agricultural or mountain environments merely because they share a broad regional label.
+
+### What GEOLOGIA may claim
+
+After all release gates pass, GEOLOGIA may report product performance **only** for the exact product/version, reference method/datum, time window, pilot polygon and adequately sampled strata that were evaluated, including uncertainty and limitations.
+
+It may not claim:
+- country-wide Yemen accuracy from a few pilot areas;
+- accuracy in untested regions or under-sampled strata;
+- that a remote sensing source is ground truth without independent quality evidence;
+- that an accuracy estimate is DEM-only when datum/reference/temporal contributions have not been defensibly separated;
+- that DSM performance establishes bare-earth DTM accuracy, or vice versa.
+
+The pre-registered scope and any amendments must be visible alongside every GEOLOGIA accuracy statement.
