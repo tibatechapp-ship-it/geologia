@@ -303,8 +303,13 @@ def test_reason_record_requires_evidence_reference():
     import pytest
     from pydantic import ValidationError
     with pytest.raises(ValidationError):
-        ReasonRecord(code=ReasonCode.LICENSE_INCOMPATIBLE, stage="license",
-            detail="License terms prohibit the declared use.", reviewer="reviewer-1", recorded_at=NOW)
+        ReasonRecord(
+            code=ReasonCode.LICENSE_INCOMPATIBLE,
+            stage="license",
+            detail="License terms prohibit the declared use.",
+            reviewer="reviewer-1",
+            recorded_at=NOW,
+        )
 
 
 def test_declared_product_version_must_match_context():
