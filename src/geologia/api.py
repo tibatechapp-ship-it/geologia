@@ -385,6 +385,8 @@ def project_dem_accuracy_assessment_save(
             aoi_dataset_sha256=aoi["sha256"],
             coverage_footprint_reference=body.coverage_footprint_reference,
             requirement=body.requirement,
+            declared_use=declared_use,
+            independent_review=review,
         )
     except FormatDependencyError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
