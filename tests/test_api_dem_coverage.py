@@ -10,7 +10,9 @@ def _coverage_payload():
     return {
         "context": {
             "product_dataset_id": "dataset-dem-1",
+            "product_dataset_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "reference_dataset_id": "dataset-reference-1",
+            "reference_dataset_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "product_version_id": "copernicus-glo30-release-x",
             "pilot_area_id": "yemen-pilot-west-01",
             "reference_source_id": "icesat2-atl08-release-x",
@@ -113,7 +115,10 @@ def test_project_coverage_assessment_is_persisted_and_chain_verified(tmp_path, m
 
     payload = _coverage_payload()
     payload["context"]["product_dataset_id"] = product.json()["id"]
+    payload["context"]["product_dataset_sha256"] = product.json()["sha256"]
     payload["context"]["reference_dataset_id"] = reference.json()["id"]
+    payload["context"]["reference_dataset_sha256"] = reference.json()["sha256"]
+    payload["evidence"]["source_sha256"] = reference.json()["sha256"]
     saved = client.post(
         f"/api/v1/projects/{project['id']}/dem/coverage-assessments",
         json={"created_by": "operator-1", "request": payload},
@@ -160,7 +165,10 @@ def test_persistent_assessment_rejects_dataset_integrity_mismatch(tmp_path, monk
     )
     payload = _coverage_payload()
     payload["context"]["product_dataset_id"] = product.json()["id"]
+    payload["context"]["product_dataset_sha256"] = product.json()["sha256"]
     payload["context"]["reference_dataset_id"] = reference.json()["id"]
+    payload["context"]["reference_dataset_sha256"] = reference.json()["sha256"]
+    payload["evidence"]["source_sha256"] = reference.json()["sha256"]
     product_path = store.get_dataset_content_path(product.json()["id"])
     with open(product_path, "ab") as target:
         target.write(b"tampered")
