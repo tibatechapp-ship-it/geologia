@@ -54,7 +54,8 @@ def readiness_input():
 
 
 def coverage_assessment():
-    m = lambda value: CoverageMetric(value=value, available=True)
+    def m(value):
+        return CoverageMetric(value=value, available=True)
     evidence = CoverageEvidence(
         observations_per_primary_cell=m(50),
         valid_independent_locations_per_km2=m(40),
