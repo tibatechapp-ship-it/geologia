@@ -405,3 +405,27 @@ def test_manifest_product_version_must_match_accuracy_metadata(tmp_path):
             reference_sha,
             product_manifest=mismatched_manifest,
         )
+
+
+def test_legacy_reference_uncertainty_is_explicitly_unknown_and_not_propagated(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        requirement=requirement(),
+    )
+
+    model = report["reference_uncertainty_model"]
+    assert model["kind"] == "unknown"
+    assert model["interpretation"] == "legacy_untyped_not_propagated"
+    assert "not converted, combined" in model["note"]
+    assert report["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
+    assert all(
+        record["reference_uncertainty_kind"] == "unknown"
+        and record["reference_uncertainty_semantics"]
+        == "legacy_untyped_not_propagated"
+        for record in report["residuals"]
+    )

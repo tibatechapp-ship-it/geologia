@@ -416,6 +416,8 @@ def compute_dem_reference_residuals(
                     "reference_elevation_m": elevation,
                     "terrain_stratum": stratum,
                     "reference_uncertainty_m": uncertainty,
+                    "reference_uncertainty_kind": "unknown",
+                    "reference_uncertainty_semantics": "legacy_untyped_not_propagated",
                 })
     except OSError as exc:
         raise FormatValidationError("reference CSV cannot be read") from exc
@@ -549,6 +551,8 @@ def compute_dem_reference_residuals(
                 "reference_elevation_m": observation["reference_elevation_m"],
                 "residual_m": residual,
                 "reference_uncertainty_m": observation["reference_uncertainty_m"],
+                "reference_uncertainty_kind": observation["reference_uncertainty_kind"],
+                "reference_uncertainty_semantics": observation["reference_uncertainty_semantics"],
                 "overlapping_valid_tiles": len(candidates),
             }
             residual_records.append(record)
@@ -661,6 +665,17 @@ def compute_dem_reference_residuals(
         "dem_tiles": tile_records,
         "reference_source_id": metadata.reference_source_id,
         "reference_release": metadata.reference_release,
+        "reference_uncertainty_model": {
+            "schema": "legacy-reference-uncertainty-v1",
+            "source_field": "uncertainty_m",
+            "kind": "unknown",
+            "unit": "m",
+            "interpretation": "legacy_untyped_not_propagated",
+            "note": (
+                "Numeric values are preserved for traceability only; they are not "
+                "converted, combined, or used to adjust residual metrics."
+            ),
+        },
         "reference_dataset_sha256": reference_sha,
         "reference_file_size_bytes": reference_size,
         "reference_metadata_reference": metadata.reference_metadata_reference,
