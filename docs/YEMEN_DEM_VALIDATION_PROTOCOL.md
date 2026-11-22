@@ -649,3 +649,61 @@ The readiness report must therefore show a separate disposition for each product
 The primary intended user of the v1 assessment is a **geological researcher or geospatial analyst preparing regional exploratory geological/geomorphological maps and interpretations** for research, screening and hypothesis development. The assessment is written to support that professional analytical workflow; it is not a general-purpose assurance statement for every GEOLOGIA platform user, public end user, government land-use decision-maker, or engineering practitioner.
 
 GEOLOGIA may display the assessment to other audiences, but the interface and exported report must preserve the intended-user statement, evaluated area, task profile, limitations and disposition together. A bare “ready” label must never be shown without its declared use and scope. Any government planning, operational land allocation, infrastructure, engineering or other materially different decision context requires a separately specified task profile and fit-for-purpose assessment before the product is represented as suitable for that context.
+
+## 42. Terrain representativeness of the Makkah 5 m DEM case study
+
+This section defines how the Makkah study may, and may not, inform interpretation of Yemen terrain classes. It does not transfer the study's reported accuracy to Yemen and does not create a Yemen DEM ranking.
+
+### 42.1 What the published study actually establishes
+
+Mirza, Dawod and Al-Ghamdi (2011) describe a Makkah metropolitan study area of approximately 1,593 km², bounded by 39°35′–40°02′ E and 21°09′–21°37′ N. The paper describes the metropolitan terrain as complex and notes several mountainous areas. It reports 200 first-order terrestrial GPS control points with known orthometric heights distributed across the metropolitan study area.
+
+The paper reports the following elevation ranges for the DEM surfaces, which must not be mistaken for the distribution of the 200 GPS control-point elevations:
+
+| Dataset surface | Published elevation range | Interpretation |
+|---|---:|---|
+| ASTER DEM | 117–914 m | Raster-surface range reported by the study |
+| SRTM3 DEM | 84–933 m | Raster-surface range reported by the study |
+| National 5 m DEM | 80–982 m | Raster-surface range reported by the study |
+
+The publication does not provide a machine-readable control-point file, a tabulated elevation distribution for the 200 control points, a quantitative slope-class distribution for those points, or a quantified land-cover composition of the point sample. The map showing control-point locations is not a substitute for those missing point-level data. Accordingly, the study's terrain representativeness for a specific Yemen stratum is **unquantified** until the original point data and suitable ancillary characterization data are obtained and checked.
+
+### 42.2 Required comparison dimensions
+
+A representativeness assessment must compare the Makkah study sample and the target Yemen pilot stratum using the same documented definitions and spatial support. Record at least:
+
+| Requirement | Value to report | Source | Note |
+|---|---|---|---|
+| Study footprint | Published polygon/bounds and area | Original study and georeferenced study boundary | The published bounds are not the control-point distribution |
+| Control-point sample | Valid point count, coordinates, spatial blocks and point-level elevations | Original GPS control data and study metadata | The paper reports 200 points but does not publish a reusable point table in the cited text |
+| Elevation distribution | Min, max, median, quartiles and declared elevation-bin proportions | Original point elevations; target Yemen reference data | Do not substitute DEM-wide elevation extrema for point elevations |
+| Slope distribution | Slope definition, derivation surface, support, class counts and proportions | Independently documented terrain characterization for both areas | Do not derive the comparison from the DEM being evaluated |
+| Land-cover composition | Class definitions, observation date, sample counts and proportions | Date-appropriate authoritative land-cover data or documented interpretation | Urban/built-up, agricultural/vegetated, bare, water/shoreline and unknown must remain distinguishable |
+| Spatial sampling | Point density, spatial-block occupancy, clustering and unsampled areas | Original point coordinates and pilot polygon | A nominal total of 200 does not establish uniform or independent coverage |
+| Surface semantics | DSM/DTM status and correspondence to control-point surface | Exact product metadata and survey description | Urban structures and vegetation can create semantic mismatch |
+| Temporal compatibility | Survey date, DEM acquisition/production date and land-cover observation date | Original study metadata and product records | Publication date is not acquisition date |
+
+### 42.3 Reproducible representativeness procedure
+
+When original control-point coordinates and suitable ancillary data are available:
+
+1. Freeze the exact Makkah study footprint, original GPS point set, target Yemen pilot polygon, coordinate reference systems, terrain-class definitions and ancillary-data versions before examining DEM residuals.
+2. Characterize both point samples using the same independently sourced elevation, slope and land-cover layers. Do not use the candidate DEM under evaluation as the sole source for the terrain covariates used to establish its own representativeness.
+3. Match spatial support to the intended comparison. Record whether covariates are sampled at point locations or summarized over a declared neighborhood/footprint; do not silently mix point and raster-cell support.
+4. Report sample counts, missingness, empirical distributions, class proportions, quantiles and spatial-block coverage separately for Makkah and each Yemen target stratum.
+5. Quantify distributional overlap and differences using named statistics selected in the pre-analysis record. State their definitions, units, sample sizes and uncertainty. Do not invent universal cutoffs for elevation difference, slope similarity or land-cover proportion.
+6. Set any threshold for calling two environments sufficiently comparable from the declared geological/geomorphological task and a cited methodological or operational requirement before viewing DEM residuals. If no defensible threshold exists, publish the descriptive comparisons without a pass/fail representativeness label.
+
+### 42.4 Permitted interpretation and current disposition
+
+Until the missing point-level terrain characterization is obtained, assign the Makkah case study:
+
+- \`representativeness_status = unquantified\`
+- \`evidence_scope = urban_metropolitan_study_with_complex_and_mountainous_terrain\`
+- \`transfer_to_yemen_accuracy = prohibited\`
+
+The study may be cited as a neighboring-region case study demonstrating that a national 5 m DEM was evaluated against first-order GPS controls in a complex urban/metropolitan setting in western Saudi Arabia. It may motivate a future comparison with a Yemen urban or urban-adjacent mountainous task profile, but it does not establish that the study sample represents Yemen's western highlands, Tihama coastal plain, wadis, agricultural areas or any other Yemen class.
+
+If point-level data later become available, the status may be revised only through a dated, evidence-linked amendment reporting the full comparison dimensions above. A partial match must be named as partial and limited to the dimensions and strata actually supported. Missing evidence remains \`unquantified\`; it must not be converted into either a claim of representativeness or a claim that the Saudi product is unsuitable.
+
+Reference: Mirza, M., Dawod, G. and Al-Ghamdi, K. (2011), “Accuracy and relevance of Digital Elevation Models for Geomatics applications – A case study of Makkah Municipality, Saudi Arabia,” *International Journal of Geomatics and Geosciences*, 1(4), 803–812. The original paper reports the study footprint, sample count, terrain description and DEM elevation ranges; it does not supply the point-level terrain distributions required for a quantitative transferability test.
