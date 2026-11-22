@@ -1,5 +1,23 @@
 # GEOLOGIA | جيولوجيا
 
+> [!IMPORTANT]
+> **This repository has been merged.** As of GEOLOGIA v0.10.0 (2026-11-22), this
+> project lives on as the **`workspace/` layer of the unified monorepo
+> [tibatechapp-ship-it/Ali-Algomori](https://github.com/tibatechapp-ship-it/Ali-Algomori)** —
+> synced through commit #102 (monorepo v0.12.0). Development, issues, and pull
+> requests continue there. This repository is preserved as an archive of the
+> standalone history (AGPLv3 era, through #102); the workspace layer is now
+> distributed under the GEOLOGIA Proprietary License 1.0 — see the monorepo's
+> LICENSE.md and NOTICE.md.
+>
+> **تم دمج هذا المستودع.** اعتباراً من GEOLOGIA v0.10.0 (2026-11-22) يعيش هذا
+> المشروع كطبقة `workspace/` في المستودع الموحد
+> [tibatechapp-ship-it/Ali-Algomori](https://github.com/tibatechapp-ship-it/Ali-Algomori)
+> — متزامن حتى الالتزام #102 (الإصدار الموحد v0.12.0). التطوير والقضايا وطلبات
+> الدمج تُكمَل هناك. هذا المستودع محفوظ أرشيفاً للتاريخ المستقل (حقبة AGPLv3
+> حتى #102)، وطبقة مساحة العمل الآن تحت رخصة GEOLOGIA الملكية 1.0 — راجع
+> LICENSE.md وNOTICE.md في جذر المستودع الموحد.
+
 **Bilingual open-source geoscience platform** — engineering foundation, not a certified scientific analysis system.
 
 The local, model-independent chief geoscience agent is **Ali Algomori (علي الگوموري)**. Its current routing and planning core is deterministic and evidence-backed; it is not a trained neural model or a substitute for scientific engines. The current API provides a local workspace for projects, datasets, and durable analysis-plan records. It does not execute scientific engines.
