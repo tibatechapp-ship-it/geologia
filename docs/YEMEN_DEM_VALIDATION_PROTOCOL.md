@@ -547,3 +547,60 @@ Candidate status is assigned per product and purpose:
 - **Commercial benchmark:** obtainable only under paid/restricted terms (e.g., WorldDEM Neo).
 
 No candidate may be promoted to primary independent reference solely because it has finer pixels, a better quoted accuracy in another geography, or a different national origin. The primary validation reference remains independently sourced and assessed under Sections 4 and 30–38.
+
+
+## 40. Published accuracy metrics, product specification context and candidate status
+
+### 40.1 Metric comparability is a hard reporting rule
+
+Do not directly rank or numerically compare published accuracy values that use different metrics or definitions (including LE90, RMSE, MAE, standard deviation/STD, CE90, and bias) unless a documented conversion is valid for the source distribution and assumptions. In particular:
+
+- LE90 is a 90th-percentile absolute-error statistic under the product's stated definition and validation convention; it does not by itself identify bias, dispersion, or the residual distribution.
+- RMSE is the square root of mean squared residuals and is sensitive to large errors; it combines bias and residual dispersion unless explicitly decomposed.
+- MAE, standard deviation and bias describe different properties and are not interchangeable with either LE90 or RMSE.
+- Do not convert LE90 to RMSE using a generic factor unless the distributional model, bias treatment, sample and confidence convention are justified and recorded. If not, state **not directly comparable**.
+
+When a product specification reports LE90 and an external study reports RMSE, any discussion of their relative magnitude must be labeled **indicative/contextual only**, not a product ranking or evidence that one product is more accurate. Keep metric-specific columns and do not sort mixed metrics into a single accuracy leaderboard.
+
+### 40.2 Product-specification provenance and scope
+
+For every quoted manufacturer/provider accuracy claim, readiness metadata must preserve:
+
+- Exact product name, product type (DSM/DTM), release/version and relevant processing baseline.
+- Official specification/document URL, document title/version and publication or access date.
+- Exact metric and inequality/value as stated, confidence/percentile convention, and whether the statistic is absolute or relative.
+- The stated reference vertical datum/frame and definition of absolute accuracy, where disclosed.
+- Validation geography, terrain/land-cover conditions, reference method, sample design and known limitations, where disclosed.
+- Whether the specification describes global performance, a particular test area, or a vendor-defined validation sample; record **not disclosed** rather than infer missing context.
+
+A quoted global or vendor specification is a product-level context claim, not a Yemen-specific accuracy result. Do not use it as a default acceptance threshold or as a substitute for local validation. For Copernicus GLO-30, preserve the exact applicable release/specification and its stated LE90 convention; the commonly quoted <4 m LE90 must not be treated as RMSE or as demonstrated performance in Yemen.
+
+### 40.3 Saudi 5 m DEM — conditional terrain representation
+
+The Makkah result is a regional case study only. Before citing it as relevant to a Yemen terrain class, characterize the study footprint using documented slope, elevation, land-cover/built-up composition and reference-point distribution, to the extent the publication or data permits. Explicitly state which Yemen class it may inform (if any) and which it does not represent. Do not generalize it to all western highlands, and do not treat it as representative of Tihama, wadis, or other Yemen environments without evidence of terrain/land-cover and sampling comparability. If the study does not report sufficient terrain statistics, mark representativeness **unquantified**.
+
+### 40.4 Reconsideration trigger for GF-7 and LuTan-1
+
+Review the literature/access status at each documented candidate-inventory update. Reconsider GF-7 or LuTan-1 for the Yemen candidate list only when at least one trigger is met:
+
+1. A public or otherwise lawfully obtainable DEM product is released that demonstrably covers a pre-registered Yemen pilot area; or
+2. Raw/processing-level data are lawfully obtainable and GEOLOGIA has a documented feasible processing route for the pilot area.
+
+Record review date, trigger evidence, access/license, coverage, metadata, processing requirements and decision. A sensor publication or accuracy result from a non-Yemen test area alone does not trigger inclusion in the candidate comparison.
+
+### 40.5 Candidate exclusion and unresolved-status reason codes
+
+The readiness report must store status separately from a structured reason code; do not collapse all non-eligible products into one “rejected” label. Initial controlled codes:
+
+- geographic_coverage_missing — no coverage of the defined pilot area.
+- accuracy_requirement_not_met — a pre-declared, use-case-specific accuracy requirement is demonstrably not met by a compatible metric and applicable evidence. Do not invent a universal 10 m threshold or compare incompatible metrics to decide this.
+- license_incompatible — terms do not permit the intended use, redistribution or workflow.
+- technical_format_incompatible — data cannot be read/transformed by the supported workflow, with the limitation recorded.
+- source_dependence_conflict — lineage overlaps with another candidate/reference in a way that prevents the intended independent comparison.
+- temporal_mismatch — acquisition/epoch is incompatible with the declared reference/use case and cannot be adequately handled.
+- metadata_insufficient — required product/version/datum/metric/lineage information is missing.
+- access_unavailable — required data cannot currently be obtained lawfully or reliably.
+- not_assessed — screening has not been completed.
+- unresolved — evidence is conflicting or insufficient for a defensible decision.
+
+A product may carry multiple reason codes. Preserve source evidence, reviewer, timestamp and disposition for each. unresolved or metadata_insufficient is not a claim that the product is inaccurate; it means GEOLOGIA cannot currently establish eligibility. Any accuracy threshold must be set before examining local residuals and must be tied to a declared use case.
