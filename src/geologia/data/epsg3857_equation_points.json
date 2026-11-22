@@ -1,0 +1,77 @@
+{
+  "schema": "geologia-epsg3857-equation-control-points/1",
+  "source": {
+    "repository": "tibatechapp-ship-it/Ali-Algomori",
+    "path": "src/geologia/data/reference/transformations.json",
+    "source_commit": "ca72da2599f6664fe8548047eeec593aab955682",
+    "source_blob_sha": "c542ec985d3b5ef521607307320f797ecb5b5896",
+    "owner_authorized_reuse_date": "2026-11-22"
+  },
+  "method": {
+    "authority": "EPSG:3857 WGS 84 / Pseudo-Mercator",
+    "method_code": 1024,
+    "reference": "EPSG Guidance Note 7-2",
+    "radius_m": 6378137.0,
+    "forward": "X = R * lambda; Y = R * ln(tan(pi/4 + phi/2))",
+    "inverse": "lambda = X/R; phi = 2*atan(exp(Y/R)) - pi/2",
+    "tolerance_note": "1e-6 metres for forward equation points; 1e-12 degrees for inverse round-trip"
+  },
+  "transformations": [
+    {
+      "name": "riyadh_wgs84_to_3857",
+      "kind": "forward",
+      "source": "epsg_method_1024_equations",
+      "from_crs": "EPSG:4326",
+      "to_crs": "EPSG:3857",
+      "x": 46.6753,
+      "y": 24.7136,
+      "expected_x": 5195870.628623282,
+      "expected_y": 2840607.6257099733,
+      "tol": 1e-6,
+      "tol_unit": "m",
+      "place": "Riyadh, Saudi Arabia"
+    },
+    {
+      "name": "jeddah_wgs84_to_3857",
+      "kind": "forward",
+      "source": "epsg_method_1024_equations",
+      "from_crs": "EPSG:4326",
+      "to_crs": "EPSG:3857",
+      "x": 39.1925,
+      "y": 21.4858,
+      "expected_x": 4362889.142915375,
+      "expected_y": 2449900.2161562033,
+      "tol": 1e-6,
+      "tol_unit": "m",
+      "place": "Jeddah, Saudi Arabia"
+    },
+    {
+      "name": "dammam_wgs84_to_3857",
+      "kind": "forward",
+      "source": "epsg_method_1024_equations",
+      "from_crs": "EPSG:4326",
+      "to_crs": "EPSG:3857",
+      "x": 50.1039,
+      "y": 26.4207,
+      "expected_x": 5577540.6347571,
+      "expected_y": 3051280.434113087,
+      "tol": 1e-6,
+      "tol_unit": "m",
+      "place": "Dammam, Saudi Arabia"
+    },
+    {
+      "name": "riyadh_3857_to_wgs84_roundtrip",
+      "kind": "roundtrip",
+      "source": "epsg_method_1024_equations",
+      "from_crs": "EPSG:3857",
+      "to_crs": "EPSG:4326",
+      "x": 5195870.628623282,
+      "y": 2840607.6257099733,
+      "expected_x": 46.6753,
+      "expected_y": 24.7136,
+      "tol": 1e-12,
+      "tol_unit": "deg",
+      "place": "Riyadh inverse equation round-trip"
+    }
+  ]
+}
