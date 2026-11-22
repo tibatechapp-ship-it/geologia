@@ -19,7 +19,9 @@ from geologia.dem_readiness.models import Availability, EvidenceValue, ReasonCod
 def unit_context():
     return CoverageUnitContext(
         product_dataset_id="dataset-dem-1",
+        product_dataset_sha256="b" * 64,
         reference_dataset_id="dataset-reference-1",
+        reference_dataset_sha256="a" * 64,
         product_version_id="copernicus-glo30-release-x",
         pilot_area_id="yemen-pilot-west-01",
         reference_source_id="icesat2-atl08-release-x",
