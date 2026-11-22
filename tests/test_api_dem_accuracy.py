@@ -235,7 +235,6 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
 
     without_accuracy = dict(readiness_request)
     without_accuracy.pop("accuracy_assessment_id")
-    without_accuracy.pop("independent_review")
     not_evaluable = client.post(
         f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
         json=without_accuracy,
