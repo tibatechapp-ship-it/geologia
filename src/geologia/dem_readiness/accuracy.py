@@ -507,8 +507,8 @@ def compute_dem_reference_residuals(
             uncertainty_sidecar_sha, typed_uncertainties = (
                 _load_reference_uncertainty_sidecar(
                     Path(reference_uncertainty_sidecar_path),
-                reference_uncertainty_sidecar_sha256,
-                reference_sha,
+                    reference_uncertainty_sidecar_sha256,
+                    reference_sha,
                     seen_ids,
                 )
             )
