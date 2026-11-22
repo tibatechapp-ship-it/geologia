@@ -168,6 +168,8 @@ class DEMAccuracyAssessmentInput(BaseModel):
 
 
 class DEMReadinessAssessmentInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     product_manifest_dataset_id: str = Field(..., min_length=1, max_length=64)
     product_metadata_dataset_id: str = Field(..., min_length=1, max_length=64)
     aoi_dataset_id: str = Field(..., min_length=1, max_length=64)
