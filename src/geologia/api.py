@@ -866,7 +866,59 @@ def project_dem_accuracy_assessment_list(
 def project_dem_accuracy_assessment_chain(project_id: str) -> dict:
     if store.get_project(project_id) is None:
         raise HTTPException(status_code=404, detail="project not found")
-    return store.verify_accuracy_assessment_chain(project_id)
+    result = store.verify_accuracy_assessment_chain(project_id)
+    record_chain_valid = result["valid"]
+    dependency_errors: list[dict[str, str]] = []
+    offset = 0
+    page_size = 200
+    while True:
+        page = store.list_accuracy_assessments(
+            project_id, limit=page_size, offset=offset
+        )
+        records = page["assessments"]
+        for record in records:
+            request = record["request"]
+            assessment = record["assessment"]
+            sidecar_id = assessment.get(
+                "reference_uncertainty_sidecar_dataset_id"
+            )
+            if sidecar_id is None:
+                continue
+            sidecar = store.get_dataset(sidecar_id)
+            sidecar_path = store.get_dataset_content_path(sidecar_id)
+            expected_sha256 = assessment.get(
+                "reference_uncertainty_sidecar_dataset_sha256"
+            )
+            report_sha256 = assessment.get(
+                "reference_uncertainty_sidecar_sha256"
+            )
+            valid_dependency = (
+                request.get("reference_uncertainty_sidecar_dataset_id")
+                == sidecar_id
+                and sidecar is not None
+                and sidecar["project_id"] == project_id
+                and sidecar["data_role"] == "reference_uncertainty_sidecar"
+                and sidecar["format"] == "json"
+                and sidecar["sha256"] == expected_sha256
+                and sidecar["sha256"] == report_sha256
+                and sidecar_path is not None
+                and _dataset_content_matches(sidecar, Path(sidecar_path))
+            )
+            if not valid_dependency:
+                dependency_errors.append(
+                    {
+                        "record_id": record["id"],
+                        "code": "reference_uncertainty_sidecar_integrity_mismatch",
+                    }
+                )
+        offset += len(records)
+        if not records or offset >= page["count"]:
+            break
+    result["record_chain_valid"] = record_chain_valid
+    result["dependency_integrity_valid"] = not dependency_errors
+    result["dependency_errors"] = dependency_errors
+    result["valid"] = record_chain_valid and not dependency_errors
+    return result
 
 
 @app.get("/api/v1/projects/{project_id}/dem/accuracy-assessments/{assessment_id}")
