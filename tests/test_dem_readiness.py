@@ -23,7 +23,9 @@ def evidence(value):
 
 def context(**overrides):
     values = {
-        name: evidence("verified")
+        name: evidence(
+            "independently_reviewed" if name == "validation_status" else "verified"
+        )
         for name in MandatoryProductContext.model_fields
     }
     values.update(overrides)
