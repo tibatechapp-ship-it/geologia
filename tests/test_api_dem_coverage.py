@@ -123,15 +123,19 @@ def _upload_coverage_dataset(project_id, filename, data, role):
 
 
 
-def _save_test_coverage_inspection(product, aoi):
+def _save_test_coverage_inspection(product, aoi, *, full=True):
     from geologia import store
 
     reference = f"coverage-inspection:{product['id']}:test-record"
     report = {
         "inspection_status": "measured",
-        "coverage_status": "full_aoi_extent_and_valid_pixels",
-        "aoi_fully_within_raster_extent": True,
-        "all_aoi_pixel_centres_valid": True,
+        "coverage_status": (
+            "full_aoi_extent_and_valid_pixels"
+            if full
+            else "partial_valid_data_within_raster_extent"
+        ),
+        "aoi_fully_within_raster_extent": full,
+        "all_aoi_pixel_centres_valid": full,
         "product_dataset_id": product["id"],
         "product_dataset_sha256": product["sha256"],
         "aoi_dataset_id": aoi["id"],
@@ -316,3 +320,38 @@ def test_dem_aoi_coverage_inspection_api_persists_measured_footprint(tmp_path, m
         event["event_type"] == "dataset_coverage_inspected"
         for event in provenance["events"]
     )
+
+
+def test_verified_assessment_rejects_partial_dem_footprint(tmp_path, monkeypatch):
+    project = _create_project(tmp_path, monkeypatch)
+    product = _upload_coverage_dataset(
+        project["id"], "candidate.tif", b"dem-placeholder-bytes", "dem"
+    )
+    reference = _upload_coverage_dataset(
+        project["id"],
+        "reference.geojson",
+        b'{"type":"FeatureCollection","features":[]}',
+        "reference_elevation_observations",
+    )
+    aoi = _upload_coverage_dataset(
+        project["id"], "pilot-aoi.geojson", _aoi_geojson_bytes(), "aoi_boundary"
+    )
+    payload = _coverage_payload()
+    payload["context"]["product_dataset_id"] = product.json()["id"]
+    payload["context"]["product_dataset_sha256"] = product.json()["sha256"]
+    payload["context"]["reference_dataset_id"] = reference.json()["id"]
+    payload["context"]["reference_dataset_sha256"] = reference.json()["sha256"]
+    payload["context"]["aoi_dataset_id"] = aoi.json()["id"]
+    payload["context"]["aoi_dataset_sha256"] = aoi.json()["sha256"]
+    payload["evidence"]["source_sha256"] = reference.json()["sha256"]
+    footprint_reference = _save_test_coverage_inspection(
+        product.json(), aoi.json(), full=False
+    )
+    payload["actual_coverage"]["value"] = footprint_reference
+    payload["evidence"]["coverage_footprint_reference"] = footprint_reference
+
+    response = client.post(
+        f"/api/v1/projects/{project['id']}/dem/coverage-assessments",
+        json={"created_by": "operator-1", "request": payload},
+    )
+    assert response.status_code == 409
