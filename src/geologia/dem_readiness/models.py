@@ -224,7 +224,9 @@ class ReadinessInput(BaseModel):
             )
         if self.independent_review is not None:
             if self.context.validation_status.value != ValidationStatus.INDEPENDENTLY_REVIEWED.value:
-                raise ValueError("independent review evidence requires independently_reviewed status")
+                raise ValueError(
+                    "independent review evidence requires independently_reviewed status"
+                )
             review = self.independent_review
             expected = (
                 self.declared_use.product_version_id,
