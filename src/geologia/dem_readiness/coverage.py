@@ -60,6 +60,8 @@ class CoverageMetrics(BaseModel):
 
     valid_independent_locations: int | None = Field(default=None, ge=0)
     polygon_area_km2: float | None = Field(default=None, gt=0)
+    occupied_1km_cells: int | None = Field(default=None, ge=0)
+    eligible_1km_cells: int | None = Field(default=None, gt=0)
     occupied_5km_blocks: int | None = Field(default=None, ge=0)
     eligible_5km_blocks: int | None = Field(default=None, gt=0)
     max_block_observation_fraction: float | None = Field(default=None, ge=0, le=1)
@@ -68,6 +70,12 @@ class CoverageMetrics(BaseModel):
 
     @model_validator(mode="after")
     def validate_spatial_counts(self) -> "CoverageMetrics":
+        if (
+            self.occupied_1km_cells is not None
+            and self.eligible_1km_cells is not None
+            and self.occupied_1km_cells > self.eligible_1km_cells
+        ):
+            raise ValueError("occupied_1km_cells cannot exceed eligible_1km_cells")
         if (
             self.occupied_5km_blocks is not None
             and self.eligible_5km_blocks is not None
@@ -106,6 +114,7 @@ class CoverageAssessment(BaseModel):
     actual_coverage: EvidenceValue
     coverage_status: CoverageStatus
     valid_independent_locations_per_km2: float | None = None
+    occupied_1km_cell_fraction: float | None = None
     gates: tuple[CoverageGate, ...]
     reason_codes: tuple[ReasonCode, ...]
     protocol_version: str = "1"
@@ -211,6 +220,13 @@ def evaluate_coverage_sufficiency(
     if metrics.valid_independent_locations is not None and metrics.polygon_area_km2 is not None:
         density = metrics.valid_independent_locations / metrics.polygon_area_km2
 
+    occupied_1km_fraction = (
+        metrics.occupied_1km_cells / metrics.eligible_1km_cells
+        if metrics.occupied_1km_cells is not None
+        and metrics.eligible_1km_cells is not None
+        else None
+    )
+
     gates: list[CoverageGate] = [
         _gate(
             code=CoverageGateCode.SPATIAL_DENSITY,
@@ -239,7 +255,10 @@ def evaluate_coverage_sufficiency(
             threshold=fraction_floor,
             unit="fraction of pre-defined eligible blocks",
             scope="full pre-registered polygon denominator",
-            explanation="Occupied share of all eligible blocks, without post-hoc boundary trimming.",
+            explanation=(
+                "Occupied share of all eligible blocks, "
+                "without post-hoc boundary trimming."
+            ),
         ),
         _gate(
             code=CoverageGateCode.BLOCK_CONCENTRATION,
@@ -348,6 +367,7 @@ def evaluate_coverage_sufficiency(
         actual_coverage=actual_coverage,
         coverage_status=coverage_status,
         valid_independent_locations_per_km2=density,
+        occupied_1km_cell_fraction=occupied_1km_fraction,
         gates=tuple(gates),
         reason_codes=tuple(dict.fromkeys(reasons)),
         interpretation=interpretation,
