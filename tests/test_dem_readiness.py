@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from geologia.dem_readiness.models import (
+    AccuracyAssessmentEvidence,
     Availability,
     DeclaredUseContext,
     EvidenceValue,
