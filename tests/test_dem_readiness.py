@@ -71,7 +71,9 @@ def reason(code, stage="coverage"):
 
 
 def test_complete_context_can_be_ready():
-    result = assess_readiness(ReadinessInput(context=context(), declared_use=use(), independent_review=review()))
+    result = assess_readiness(
+        ReadinessInput(context=context(), declared_use=use(), independent_review=review())
+    )
     assert result.disposition is ReadinessDisposition.READY
 
 
@@ -285,3 +287,58 @@ def test_not_assessed_reason_code_is_not_misclassified_as_unresolved():
         )
     )
     assert result.disposition is ReadinessDisposition.NOT_ASSESSED
+
+
+
+def test_independent_review_status_without_review_record_is_not_evaluable():
+    result = assess_readiness(ReadinessInput(context=context(), declared_use=use()))
+    assert result.disposition is ReadinessDisposition.NOT_EVALUABLE
+    assert result.blocking_fields == ("independent_review",)
+
+
+def test_independent_review_must_match_exact_declared_use():
+    import pytest
+    from pydantic import ValidationError
+
+    invalid = IndependentReviewEvidence(
+        product_version_id="release-1",
+        pilot_area_id="different-area",
+        task_profile_id="regional-reconnaissance-v1",
+        reviewer="independent-reviewer-2",
+        evidence_reference="evidence://independent-review/other-area",
+        reviewed_at=NOW,
+    )
+    with pytest.raises(ValidationError):
+        ReadinessInput(context=context(), declared_use=use(), independent_review=invalid)
+
+
+def test_declared_product_version_must_match_context():
+    import pytest
+    from pydantic import ValidationError
+
+    mismatched = context(product_version=evidence("release-2"))
+    with pytest.raises(ValidationError):
+        ReadinessInput(context=mismatched, declared_use=use(), independent_review=review())
+
+
+def test_timezone_with_missing_utc_offset_is_rejected():
+    from datetime import tzinfo
+
+    import pytest
+    from pydantic import ValidationError
+
+    class InvalidTimezone(tzinfo):
+        def utcoffset(self, dt):
+            return None
+
+        def dst(self, dt):
+            return None
+
+    invalid_time = datetime(2026, 11, 22, tzinfo=InvalidTimezone())
+    invalid_review = review().model_copy(update={"reviewed_at": invalid_time})
+    with pytest.raises(ValidationError):
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            independent_review=invalid_review,
+        )
