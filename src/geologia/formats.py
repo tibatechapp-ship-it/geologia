@@ -524,7 +524,7 @@ def inspect_dem_aoi_coverage(
             )
             aoi_in_raster = transform_geometry(
                 to_raster.transform,
-                _densify_geometry_for_crs(aoi, aoi_source_crs, pyproj),
+                _densify_geometry_for_crs(aoi, aoi_source_crs),
             )
             if aoi_in_raster.is_empty or not aoi_in_raster.is_valid:
                 raise FormatValidationError("AOI cannot be transformed to the DEM CRS")
