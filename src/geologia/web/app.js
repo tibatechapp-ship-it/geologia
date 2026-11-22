@@ -76,7 +76,7 @@ async function loadDatasets(){
     try{
      const report=await api("/api/v1/datasets/"+encodeURIComponent(d.id)+"/provenance");
      const output=document.createElement("pre");output.className="provenance-report";output.setAttribute("aria-live","polite");
-     output.textContent=tr("provenanceTitle")+"\\n"+JSON.stringify(report,null,2);
+     output.textContent=tr("provenanceTitle")+"\n"+JSON.stringify(report,null,2);
      row.querySelector(".provenance-report")?.remove();row.append(output);
      const safe=report.chain_integrity==="verified"&&report.content_integrity==="verified";
      feedback("uploadStatus",tr("provenanceDone")+": "+report.content_integrity,!safe);
