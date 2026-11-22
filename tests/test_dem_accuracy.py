@@ -152,8 +152,11 @@ def _compute(dem, reference, reference_sha, **kwargs):
         .encode("utf-8")
     ).hexdigest()
     aoi = _aoi()
-    manifest_sha = canonical_hash(manifest.model_dump(mode="json"))
-    aoi_sha = canonical_hash(aoi)
+    manifest_sha = kwargs.pop(
+        "product_manifest_sha256",
+        canonical_hash(manifest.model_dump(mode="json")),
+    )
+    aoi_sha = kwargs.pop("aoi_dataset_sha256", canonical_hash(aoi))
     return compute_dem_reference_residuals(
         [dem],
         reference,
@@ -342,8 +345,18 @@ def test_manifest_hash_must_match_canonical_manifest_content(tmp_path):
 def test_aoi_hash_must_match_canonical_geometry(tmp_path):
     dem = _write_dem(tmp_path)
     reference, reference_sha = _write_reference_csv(tmp_path)
-    # The helper supplies the exact canonical AOI hash; mutate the supplied hash
-    # only after it has been computed by the test wrapper.
+    with pytest.raises(Exception, match="AOI SHA-256"):
+        _compute(
+            dem,
+            reference,
+            reference_sha,
+            aoi_dataset_sha256="d" * 64,
+        )
+
+
+def test_successful_report_records_canonical_hash_binding(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
     report = _compute(dem, reference, reference_sha)
     assert report["aoi_hash_binding"] == "verified_canonical_aoi_payload"
     assert report["product_manifest_hash_binding"] == "verified_canonical_manifest"
