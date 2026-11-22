@@ -133,13 +133,32 @@ class DeclaredUseContext(BaseModel):
     declared_scale: NonEmpty
 
 
+class IndependentReviewEvidence(BaseModel):
+    """Attributable review bound to the exact declared product, area and task."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    product_version_id: NonEmpty
+    pilot_area_id: NonEmpty
+    task_profile_id: NonEmpty
+    reviewer: NonEmpty
+    evidence_reference: NonEmpty
+    reviewed_at: datetime
+
+    @model_validator(mode="after")
+    def require_timezone(self) -> "IndependentReviewEvidence":
+        if self.reviewed_at.tzinfo is None:
+            raise ValueError("reviewed_at must be timezone-aware")
+        return self
+
+
 class ReasonRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     code: ReasonCode
     stage: NonEmpty
     detail: NonEmpty
-    evidence_reference: str | None = None
+    evidence_reference: NonEmpty
     reviewer: NonEmpty
     recorded_at: datetime
 
@@ -182,10 +201,11 @@ class ReadinessInput(BaseModel):
     unresolved_items: tuple[ReasonRecord, ...] = ()
     accepted_restrictions: tuple[ReasonRecord, ...] = ()
     scope_exceptions: tuple[ScopeException, ...] = ()
+    independent_review: IndependentReviewEvidence | None = None
 
     @model_validator(mode="after")
     def validate_scope_exceptions(self) -> "ReadinessInput":
-        known_fields = set(self.context.model_fields)
+        known_fields = set(MandatoryProductContext.model_fields)
         exception_fields = [item.field_name for item in self.scope_exceptions]
         if len(exception_fields) != len(set(exception_fields)):
             raise ValueError("only one scope exception may be recorded per field")
@@ -202,6 +222,14 @@ class ReadinessInput(BaseModel):
                 "scope exceptions may only apply to not_available fields: "
                 + ", ".join(available)
             )
+        if self.independent_review is not None:
+            if self.context.validation_status.value != ValidationStatus.INDEPENDENTLY_REVIEWED.value:
+                raise ValueError("independent review evidence requires independently_reviewed status")
+            review = self.independent_review
+            expected = (self.declared_use.product_version_id, self.declared_use.pilot_area_id, self.declared_use.task_profile_id)
+            actual = (review.product_version_id, review.pilot_area_id, review.task_profile_id)
+            if actual != expected:
+                raise ValueError("independent review evidence must match the exact declared use")
         return self
 
 
