@@ -956,7 +956,17 @@ def project_dem_accuracy_assessment_save(
     except (UnicodeDecodeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail="AOI or manifest JSON is invalid") from exc
 
+    coverage_inspection_sha256 = hashlib.sha256(
+        json.dumps(
+            coverage,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    ).hexdigest()
     report.update({
+        "coverage_inspection_sha256": coverage_inspection_sha256,
         "project_id": project_id,
         "product_manifest_dataset_id": manifest_dataset["id"],
         "product_manifest_dataset_sha256": manifest_dataset["sha256"],
@@ -1116,6 +1126,52 @@ def project_dem_accuracy_assessment_chain(project_id: str) -> dict:
                     {
                         "record_id": record["id"],
                         "code": "dem_tile_manifest_dependency_unavailable",
+                    }
+                )
+
+            aoi_id = assessment.get("aoi_dataset_id")
+            coverage = (
+                store.get_dataset_coverage_inspection(aoi_id)
+                if aoi_id is not None
+                else None
+            )
+            coverage_valid = (
+                coverage is not None
+                and request.get("aoi_dataset_id") == aoi_id
+                and coverage.get("format")
+                == "dem_tile_collection_coverage_inspection"
+                and coverage.get("project_id") == project_id
+                and coverage.get("aoi_dataset_id") == aoi_id
+                and coverage.get("aoi_dataset_sha256")
+                == assessment.get("aoi_dataset_file_sha256")
+                and coverage.get("product_dataset_ids")
+                == assessment.get("dem_tile_dataset_ids")
+                and coverage.get("product_dataset_sha256s")
+                == assessment.get("dem_tile_dataset_sha256s")
+            )
+            if coverage_valid:
+                try:
+                    current_coverage_sha256 = hashlib.sha256(
+                        json.dumps(
+                            coverage,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                            ensure_ascii=False,
+                            allow_nan=False,
+                        ).encode("utf-8")
+                    ).hexdigest()
+                except (TypeError, ValueError):
+                    coverage_valid = False
+                else:
+                    coverage_valid = (
+                        current_coverage_sha256
+                        == assessment.get("coverage_inspection_sha256")
+                    )
+            if not coverage_valid:
+                dependency_errors.append(
+                    {
+                        "record_id": record["id"],
+                        "code": "coverage_inspection_dependency_integrity_mismatch",
                     }
                 )
 
