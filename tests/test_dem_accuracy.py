@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
+from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
+
 from geologia.dem_readiness.accuracy import (
     AccuracyRequirement,
     DEMAccuracyMetadata,
@@ -111,11 +113,36 @@ def _aoi():
 
 
 def _compute(dem, reference, reference_sha, **kwargs):
+    assessment_metadata = kwargs.pop("metadata", metadata())
+    declared_use = kwargs.pop(
+        "declared_use",
+        DeclaredUseContext(
+            product_name="GEOLOGIA",
+            product_version_id=assessment_metadata.product_version_id,
+            pilot_area_id="pilot-yemen-1",
+            task_profile_id="regional-recon-v1",
+            intended_user="geological researcher",
+            declared_scale="regional reconnaissance",
+        ),
+    )
+    independent_review = kwargs.pop(
+        "independent_review",
+        IndependentReviewEvidence(
+            product_version_id=assessment_metadata.product_version_id,
+            pilot_area_id=declared_use.pilot_area_id,
+            task_profile_id=declared_use.task_profile_id,
+            reviewer=assessment_metadata.independence_reviewer,
+            evidence_reference=assessment_metadata.independence_evidence_reference,
+            reviewed_at=assessment_metadata.independence_reviewed_at,
+        ),
+    )
     return compute_dem_reference_residuals(
         [dem],
         reference,
         _aoi(),
-        metadata=kwargs.pop("metadata", metadata()),
+        metadata=assessment_metadata,
+        declared_use=declared_use,
+        independent_review=independent_review,
         product_manifest_sha256="a" * 64,
         reference_dataset_sha256=reference_sha,
         aoi_dataset_sha256="c" * 64,
@@ -231,3 +258,44 @@ def test_accuracy_metadata_rejects_timezone_without_valid_offset():
 def test_accuracy_requirement_rejects_non_finite_limit():
     with pytest.raises(ValidationError):
         requirement(maximum_value_m=float("nan"))
+
+
+def test_confirmatory_accuracy_requires_exact_review_scope(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    wrong_scope_review = IndependentReviewEvidence(
+        product_version_id="dem-release-2026-01",
+        pilot_area_id="different-pilot-area",
+        task_profile_id="regional-recon-v1",
+        reviewer="reviewer-1",
+        evidence_reference="evidence://independence/review-1",
+        reviewed_at=NOW,
+    )
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        independent_review=wrong_scope_review,
+        requirement=requirement(),
+    )
+
+    assert report["metrics_scope"] == "descriptive_only"
+    assert report["accuracy_disposition"] == "not_evaluable"
+    assert "source_dependence_conflict" in report["reason_codes"]
+
+
+def test_confirmatory_accuracy_requires_review_record(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+
+    report = _compute(
+        dem,
+        reference,
+        reference_sha,
+        independent_review=None,
+        requirement=requirement(),
+    )
+
+    assert report["metrics_scope"] == "descriptive_only"
+    assert report["accuracy_disposition"] == "not_evaluable"
