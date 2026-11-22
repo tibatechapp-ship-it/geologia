@@ -925,7 +925,10 @@ def dataset_reference_coverage_metrics(
     except FormatValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except (UnicodeDecodeError, ValueError) as exc:
-        raise HTTPException(status_code=422, detail=f"invalid reference/AOI GeoJSON: {exc}") from exc
+        raise HTTPException(
+            status_code=422,
+            detail=f"invalid reference/AOI GeoJSON: {exc}",
+        ) from exc
 
     report.update({
         "reference_dataset_id": reference["id"],
