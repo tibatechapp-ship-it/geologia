@@ -1,12 +1,13 @@
 """Tests for read-only geoid GeoTIFF metadata inspection."""
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 rasterio = pytest.importorskip("rasterio")
+from affine import Affine
 from rasterio.transform import from_origin
 
 from scripts.inspect_geoid_grid_metadata import inspect_directory, inspect_grid
@@ -30,8 +31,6 @@ def write_grid(path: Path, *, crs="EPSG:4326", transform=None, width=8, height=4
 
 
 def test_inspection_accepts_matching_global_geographic_metadata(tmp_path):
-    import numpy as np
-
     path = tmp_path / "fixture.tif"
     write_grid(path)
     spec = {
@@ -48,8 +47,6 @@ def test_inspection_accepts_matching_global_geographic_metadata(tmp_path):
 
 
 def test_inspection_rejects_wrong_crs_and_dimensions(tmp_path):
-    import numpy as np
-
     path = tmp_path / "fixture.tif"
     write_grid(path, crs="EPSG:3857", width=7)
     spec = {
@@ -66,9 +63,6 @@ def test_inspection_rejects_wrong_crs_and_dimensions(tmp_path):
 
 
 def test_inspection_rejects_rotated_grid(tmp_path):
-    import numpy as np
-    from affine import Affine
-
     path = tmp_path / "fixture.tif"
     transform = Affine(45, 1, -180, 0, -45, 90)
     write_grid(path, transform=transform)
@@ -93,8 +87,6 @@ def test_missing_file_fails_closed(tmp_path):
 
 
 def test_report_never_authorizes_scientific_transform(tmp_path):
-    import numpy as np
-
     path = tmp_path / "fixture.tif"
     write_grid(path)
     manifest = {
