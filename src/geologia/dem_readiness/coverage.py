@@ -4,6 +4,7 @@ This module evaluates reference coverage only. It does not calculate DEM
 accuracy, validate source independence, or infer terrain representativeness.
 """
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Annotated
 
@@ -58,6 +59,8 @@ class CoverageUnitContext(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    product_dataset_id: NonEmpty
+    reference_dataset_id: NonEmpty
     product_version_id: NonEmpty
     pilot_area_id: NonEmpty
     reference_source_id: NonEmpty
@@ -118,6 +121,31 @@ class CoverageGate(BaseModel):
     explanation: NonEmpty
 
 
+class CoverageEvidenceAttestation(BaseModel):
+    """Caller-attributed provenance for footprint verification and computed metrics."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    coverage_footprint_reference: NonEmpty
+    coverage_verification_method: NonEmpty
+    coverage_reviewer: NonEmpty
+    coverage_verified_at: datetime
+    metrics_source_reference: NonEmpty
+    metrics_computation_method: NonEmpty
+    metrics_computed_by: NonEmpty
+    metrics_computed_at: datetime
+    source_sha256: Annotated[str, Field(pattern=r"^[0-9a-fA-F]{64}$")]
+    analysis_code_commit: NonEmpty
+
+    @model_validator(mode="after")
+    def validate_timestamps(self) -> "CoverageEvidenceAttestation":
+        if self.coverage_verified_at.tzinfo is None:
+            raise ValueError("coverage_verified_at must be timezone-aware")
+        if self.metrics_computed_at.tzinfo is None:
+            raise ValueError("metrics_computed_at must be timezone-aware")
+        return self
+
+
 class CoverageAssessmentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -126,6 +154,23 @@ class CoverageAssessmentRequest(BaseModel):
     actual_coverage: EvidenceValue
     coverage_status: CoverageStatus
     metrics: CoverageMetrics
+    evidence: CoverageEvidenceAttestation | None = None
+
+    @model_validator(mode="after")
+    def require_attestation_for_verified_coverage(self) -> "CoverageAssessmentRequest":
+        if self.coverage_status is CoverageStatus.VERIFIED:
+            if self.actual_coverage.availability is not Availability.AVAILABLE:
+                raise ValueError("verified coverage requires available actual_coverage evidence")
+            if self.evidence is None:
+                raise ValueError("verified coverage requires a complete evidence attestation")
+        return self
+
+
+class CoverageAssessmentSubmission(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    created_by: NonEmpty
+    request: CoverageAssessmentRequest
 
 
 class CoverageAssessment(BaseModel):
@@ -136,6 +181,7 @@ class CoverageAssessment(BaseModel):
     status: CoverageDecisionStatus
     actual_coverage: EvidenceValue
     coverage_status: CoverageStatus
+    evidence: CoverageEvidenceAttestation | None = None
     valid_independent_locations_per_km2: float | None = None
     occupied_1km_cell_fraction: float | None = None
     gates: tuple[CoverageGate, ...]
@@ -202,6 +248,7 @@ def evaluate_coverage_sufficiency(
             status=CoverageDecisionStatus.NOT_ASSESSED,
             actual_coverage=actual_coverage,
             coverage_status=coverage_status,
+            evidence=request.evidence,
             gates=(),
             reason_codes=(ReasonCode.NOT_ASSESSED,),
             interpretation=(
@@ -221,6 +268,7 @@ def evaluate_coverage_sufficiency(
             status=CoverageDecisionStatus.NOT_EVALUABLE,
             actual_coverage=actual_coverage,
             coverage_status=coverage_status,
+            evidence=request.evidence,
             gates=(),
             reason_codes=(ReasonCode.METADATA_INSUFFICIENT,),
             interpretation=(
@@ -383,9 +431,10 @@ def evaluate_coverage_sufficiency(
     else:
         status = CoverageDecisionStatus.SUFFICIENT
         interpretation = (
-            "All applicable frozen coverage screening gates passed for this exact "
-            "product footprint, polygon, phase and reference source. This does not "
-            "establish datum readiness, source independence or DEM accuracy."
+            "All applicable frozen coverage screening gates passed for the supplied "
+            "and attested product footprint, polygon, phase and reference source. "
+            "This is an input-screening result, not independent verification; it does "
+            "not establish datum readiness, source independence or DEM accuracy."
         )
 
     return CoverageAssessment(
@@ -394,6 +443,7 @@ def evaluate_coverage_sufficiency(
         status=status,
         actual_coverage=actual_coverage,
         coverage_status=coverage_status,
+        evidence=request.evidence,
         valid_independent_locations_per_km2=density,
         occupied_1km_cell_fraction=occupied_1km_fraction,
         gates=tuple(gates),
