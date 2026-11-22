@@ -144,7 +144,7 @@ def test_geojson_upload_and_structural_inspection_are_explicit(app_url, browser_
     dataset.locator("button.inspect-button").first.click()
     report = dataset.locator("pre.inspection-report")
     expect(report).to_be_visible()
-    report_data = json.loads(report.inner_text().split("\\n", 1)[1])
+    report_data = json.loads(report.inner_text().split("\n", 1)[1])
     assert report_data["feature_count"] == 2
     assert report_data["coordinate_count"] == 2
     assert report_data["bbox_xy"] == [44.2, 15.3, 44.5, 15.8]
