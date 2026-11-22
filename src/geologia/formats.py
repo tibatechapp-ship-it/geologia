@@ -402,7 +402,19 @@ def _densify_geometry_for_crs(geometry: Any, crs: Any):
             )
         max_segment_length = 1000.0 / min(factors)
 
-    polygons = list(geometry.geoms) if geometry.geom_type == "MultiPolygon" else [geometry]
+    if geometry.geom_type == "Polygon":
+        polygons = [geometry]
+    elif geometry.geom_type == "MultiPolygon":
+        polygons = list(geometry.geoms)
+    elif geometry.geom_type == "GeometryCollection":
+        polygons = [
+            item for item in geometry.geoms
+            if item.geom_type in {"Polygon", "MultiPolygon"}
+        ]
+        if not polygons:
+            return geometry
+    else:
+        return geometry
     estimated_segments = 0
     for polygon in polygons:
         rings = [polygon.exterior, *polygon.interiors]
@@ -764,9 +776,9 @@ def inspect_dem_tile_collection_coverage(
                 if dataset.crs is None:
                     raise FormatValidationError("DEM tile must declare a horizontal CRS")
                 tile_crs = pyproj.CRS.from_user_input(dataset.crs)
-                if not tile_crs.is_projected:
+                if not (tile_crs.is_projected or tile_crs.is_geographic):
                     raise FormatValidationError(
-                        "DEM tile collection requires a common projected CRS"
+                        "DEM tiles must use a common horizontal projected or geographic CRS"
                     )
                 transform = dataset.transform
                 affine_values = (
@@ -959,7 +971,6 @@ def inspect_dem_tile_collection_coverage(
                         target_rows = slice(overlap_row - row, overlap_row_end - row)
                         target_cols = slice(overlap_col - col, overlap_col_end - col)
                         valid[target_rows, target_cols] |= source_mask
-                    inside_count += 0
                     inside_count += count_inside
                     valid_count += int(numpy.count_nonzero(inside & valid))
 
