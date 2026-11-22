@@ -24,6 +24,8 @@ def exploratory_metrics():
     return CoverageMetrics(
         valid_independent_locations=60,
         polygon_area_km2=3.0,
+        occupied_1km_cells=40,
+        eligible_1km_cells=60,
         occupied_5km_blocks=20,
         eligible_5km_blocks=30,
         max_block_observation_fraction=0.50,
@@ -35,6 +37,8 @@ def confirmatory_metrics():
     return CoverageMetrics(
         valid_independent_locations=120,
         polygon_area_km2=3.0,
+        occupied_1km_cells=60,
+        eligible_1km_cells=80,
         occupied_5km_blocks=30,
         eligible_5km_blocks=40,
         max_block_observation_fraction=0.50,
@@ -52,6 +56,7 @@ def test_exploratory_coverage_passes_all_frozen_gates():
     )
     assert result.status is CoverageDecisionStatus.SUFFICIENT
     assert result.valid_independent_locations_per_km2 == 20
+    assert result.occupied_1km_cell_fraction == pytest.approx(2 / 3)
     assert all(gate.status.value in {"pass", "not_applicable"} for gate in result.gates)
 
 
