@@ -36,7 +36,7 @@ def inspect_crs(value: str) -> dict[str, Any]:
         "is_projected": bool(crs.is_projected),
         "is_vertical": bool(crs.is_vertical),
         "is_compound": bool(crs.is_compound),
-        "is_3d": bool(crs.is_3d),
+        "is_3d": len(crs.axis_info) >= 3,
         "axis_units": [axis.unit_name for axis in crs.axis_info],
         "axis_directions": [axis.direction for axis in crs.axis_info],
     }
@@ -57,8 +57,8 @@ def reproject_geojson(
         or target_crs.is_vertical
         or source_crs.is_compound
         or target_crs.is_compound
-        or source_crs.is_3d
-        or target_crs.is_3d
+        or len(source_crs.axis_info) >= 3
+        or len(target_crs.axis_info) >= 3
     ):
         raise ValueError(
             "vertical or 3D CRS operations are not supported; "
