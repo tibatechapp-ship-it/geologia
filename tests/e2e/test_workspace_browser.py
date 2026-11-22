@@ -49,6 +49,13 @@ def test_workspace_create_upload_inspect_plan_and_language(app_url, browser_page
     assert '"column_count": 3' in report_text
     assert '"scientific_interpretation": false' in report_text
 
+    dataset.locator("button.provenance-button").click()
+    provenance = dataset.locator("pre.provenance-report")
+    expect(provenance).to_be_visible()
+    provenance_text = provenance.inner_text()
+    assert '"chain_integrity": "verified"' in provenance_text
+    assert '"content_integrity": "verified"' in provenance_text
+
     request_text = "Assess groundwater level trends in the Sanaa basin"
     page.locator("#analysisRequest").fill(request_text)
     page.locator("#jobForm button[type=submit]").click()
