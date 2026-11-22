@@ -305,6 +305,21 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     )
     assert stale_sidecar_readiness.status_code == 409
 
+    tampered_accuracy_chain = client.get(
+        f"/api/v1/projects/{project['id']}/dem/accuracy-assessments/chain"
+    )
+    assert tampered_accuracy_chain.status_code == 200
+    tampered_chain = tampered_accuracy_chain.json()
+    assert tampered_chain["record_chain_valid"] is True
+    assert tampered_chain["dependency_integrity_valid"] is False
+    assert tampered_chain["valid"] is False
+    assert tampered_chain["dependency_errors"] == [
+        {
+            "record_id": record["id"],
+            "code": "reference_uncertainty_sidecar_integrity_mismatch",
+        }
+    ]
+
     without_accuracy = dict(readiness_request)
     without_accuracy.pop("accuracy_assessment_id")
     not_evaluable = client.post(
