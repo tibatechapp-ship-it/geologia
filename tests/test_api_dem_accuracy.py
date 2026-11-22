@@ -298,6 +298,7 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert readiness_record["assessment"]["accuracy_assessment_id"] == record["id"]
 
     sidecar_path = Path(store.get_dataset_content_path(sidecar.json()["id"]))
+    original_sidecar_bytes = sidecar_path.read_bytes()
     sidecar_path.write_text("{}\n", encoding="utf-8")
     stale_sidecar_readiness = client.post(
         f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
@@ -319,6 +320,8 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
             "code": "reference_uncertainty_sidecar_integrity_mismatch",
         }
     ]
+    # Restore the sidecar so the following readiness-chain baseline is valid.
+    sidecar_path.write_bytes(original_sidecar_bytes)
 
     without_accuracy = dict(readiness_request)
     without_accuracy.pop("accuracy_assessment_id")
