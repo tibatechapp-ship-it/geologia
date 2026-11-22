@@ -41,6 +41,14 @@ bash scripts/start-local.sh
 
 The bootstrap may install Rust and native build tools because some Python dependencies need compilation on Android. No AI model weights are installed. It also creates a `~/.shortcuts/GEOLOGIA` launcher for the Termux:Widget companion app; add that shortcut to your home screen for one-tap startup. Stop the background server with `bash scripts/termux-widget-stop.sh`. For Windows, see [Local installation](docs/LOCAL_INSTALL.md).
 
+Optional GIS and heavy geospatial format parser dependencies are not installed by default. For parser-backed metadata inspection, install the optional extra:
+
+```bash
+python -m pip install -e ".[formats]"
+```
+
+See [format inspection limits](docs/FORMAT_INSPECTION.md).
+
 Optional GIS dependencies are not installed by default:
 
 ```bash
@@ -112,7 +120,7 @@ The executable starts the API on `127.0.0.1`, opens the local workspace, and sto
 - `POST /api/v1/projects/{project_id}/datasets`
 - `GET /api/v1/projects/{project_id}/datasets`
 - `GET /api/v1/datasets/{dataset_id}`
-- `POST /api/v1/datasets/{dataset_id}/inspect` (GeoJSON/CSV structural metrics only)
+- `POST /api/v1/datasets/{dataset_id}/inspect` (bounded CSV/GeoJSON; optional GeoPackage/GeoTIFF/LAS metadata inspection)
 - `POST /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/jobs/{job_id}`
