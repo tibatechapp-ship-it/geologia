@@ -59,7 +59,7 @@ The evaluator uses the thresholds already fixed in protocol v1:
 
 Report the occupied-cell fraction on the registered 1 km grid descriptively; protocol v1 does not set a universal pass/fail threshold for that fraction. The spatial block bootstrap uses 5 km primary blocks, sensitivity widths 2.5 km and 10 km, and 2,000 replicates. These are operational screening gates, not universal standards or power guarantees. The confirmatory phase still requires a separate precision/power assessment.
 
-The software evaluator consumes exact product-footprint evidence and measured coverage metrics. It has no input for `analogue_region` or `yemen_target_stratum`; a Saudi analogue cannot satisfy a Yemen product-coverage gate.
+The stateless API evaluator is exposed at `POST /api/v1/dem/coverage-assessments`; frozen thresholds are available at `GET /api/v1/dem/coverage-thresholds`. It consumes exact product-footprint evidence and measured coverage metrics. Its request schema has no input for `analogue_region` or `yemen_target_stratum`; a Saudi analogue cannot satisfy a Yemen product-coverage gate. The endpoint does not persist an assessment or certify product readiness.
 
 ## 5. Required next evidence collection
 
