@@ -117,6 +117,27 @@ def initialize() -> None:
                 "SELECT sql FROM sqlite_master WHERE type='table' AND name='jobs'"
             ).fetchone()["sql"]
             if "cancel_requested" not in job_schema:
+                # Rebuilding the parent jobs table triggers ON DELETE CASCADE
+                # on job_events. Preserve the append-only history explicitly
+                # across this schema migration, including its stable event IDs.
+                event_columns: list[str] = []
+                event_rows: list[tuple[Any, ...]] = []
+                if conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='job_events'"
+                ).fetchone():
+                    event_columns = [
+                        row["name"] for row in conn.execute("PRAGMA table_info(job_events)")
+                    ]
+                    if event_columns:
+                        event_rows = [
+                            tuple(row) for row in conn.execute(
+                                "SELECT " + ", ".join(
+                                    '"' + column.replace('"', '""') + '"'
+                                    for column in event_columns
+                                ) + " FROM job_events"
+                            ).fetchall()
+                        ]
+
                 conn.execute("DROP TABLE IF EXISTS jobs_new")
                 conn.execute("""
                     CREATE TABLE jobs_new (
@@ -144,6 +165,17 @@ def initialize() -> None:
                 """)
                 conn.execute("DROP TABLE jobs")
                 conn.execute("ALTER TABLE jobs_new RENAME TO jobs")
+
+                if event_rows:
+                    quoted_columns = ", ".join(
+                        '"' + column.replace('"', '""') + '"'
+                        for column in event_columns
+                    )
+                    placeholders = ", ".join("?" for _ in event_columns)
+                    conn.executemany(
+                        f"INSERT INTO job_events ({quoted_columns}) VALUES ({placeholders})",
+                        event_rows,
+                    )
             else:
                 job_columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
                 additions = {
