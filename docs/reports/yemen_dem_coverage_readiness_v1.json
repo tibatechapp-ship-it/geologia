@@ -81,6 +81,7 @@
     "No product ranking or suitability certification is issued.",
     "The test GeoJSON is not scientific reference data.",
     "No Yemen pilot polygon coverage or reference-source coverage was verified.",
+    "The occupied fraction of the registered 1 km grid was not available for reporting.",
     "Saudi regional analogue geography does not establish actual Yemen product coverage or quantitative representativeness."
   ]
 }
