@@ -468,15 +468,15 @@ def test_modified_dataset_bytes_are_rejected_before_inspection_and_reads(tmp_pat
     assert len(tampered) == len(source)
     Path(stored_path).write_bytes(tampered)
 
-    for endpoint, method in (
-        (f"/api/v1/datasets/{dataset_id}/inspect", "post"),
-        (f"/api/v1/datasets/{dataset_id}/geojson", "get"),
-        (f"/api/v1/datasets/{dataset_id}/reproject", "post"),
-    ):
-        response = getattr(client, method)(
-            endpoint,
-            json={"target_crs": "EPSG:3857"} if method == "post" and endpoint.endswith("/reproject") else None,
-        )
+    blocked = [
+        client.post(f"/api/v1/datasets/{dataset_id}/inspect"),
+        client.get(f"/api/v1/datasets/{dataset_id}/geojson"),
+        client.post(
+            f"/api/v1/datasets/{dataset_id}/reproject",
+            json={"target_crs": "EPSG:3857"},
+        ),
+    ]
+    for response in blocked:
         assert response.status_code == 409
         assert "integrity mismatch" in response.json()["detail"]
 
