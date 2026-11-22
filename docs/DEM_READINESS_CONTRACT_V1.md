@@ -16,7 +16,7 @@ The evaluator applies this order:
 4. **`ready_for_declared_use`** only when mandatory context is complete, validation is assessed, and no mandatory failure, unresolved item or accepted restriction remains.
 5. **`not_assessed`** is retained for work that has not been evaluated; it is never a pass.
 
-A readiness pass requires `validation_status = independently_reviewed`. The statuses `planned`, `coverage_checked`, `reference_ready` and `not_assessed` remain `not_assessed`; `analyzed` without independent review remains `not_evaluable`. An unavailable `validation_status` cannot be bypassed through a scope exception.
+A readiness pass requires `validation_status = independently_reviewed` **and** a separate `independent_review` record containing a reviewer, timezone-aware review timestamp, evidence reference, and exact matching `product_version_id`, `pilot_area_id`, and `task_profile_id`. The status string alone is insufficient. Mandatory failure/restriction records also require an evidence reference. The statuses `planned`, `coverage_checked`, `reference_ready` and `not_assessed` remain `not_assessed`; `analyzed` without independent review remains `not_evaluable`. An unavailable `validation_status` cannot be bypassed through a scope exception.
 
 A missing field is not automatically a proven failure. A missing field also cannot be bypassed by calling the result “conditional”: the exception must identify the field, explain why the declared task does not depend on it or document compensating controls, cite evidence, and name a reviewer and timestamp.
 
@@ -78,3 +78,8 @@ These are operational screens, not universal standards and not guarantees of sta
 ## 5. Explicitly out of scope
 
 This first implementation does not infer that a product has geographic coverage from a named analogue region, calculate coverage from raster files, determine DSM/DTM from pixels, validate licenses, resolve source lineage, or calculate accuracy. Those are evidence-producing workflows that must populate this contract with attributable records before readiness can be assessed.
+
+
+## 6. Attributable independent review gate
+
+The `independently_reviewed` status is a workflow assertion, not review evidence. A readiness assessment must include an `IndependentReviewEvidence` record bound to the exact product version, pilot area and task profile. The record includes a named reviewer, timezone-aware review timestamp and evidence reference. A missing record or a mismatch returns `not_evaluable`; it cannot be converted to `ready` or bypassed through a scope exception. Reason records used to establish failures or accepted restrictions require an evidence reference.
