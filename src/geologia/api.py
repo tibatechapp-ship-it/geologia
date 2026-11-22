@@ -340,6 +340,114 @@ def project_dem_readiness_assessment_save(
         if accuracy_record is None or accuracy_record["project_id"] != project_id:
             raise HTTPException(status_code=404, detail="accuracy assessment not found")
         accuracy_report = accuracy_record["assessment"]
+        accuracy_request = accuracy_record["request"]
+        if accuracy_report.get("dem_tiles") is None or [
+            item.get("sha256") for item in accuracy_report.get("dem_tiles", [])
+        ] != list(manifest.tile_dataset_sha256s):
+            raise HTTPException(
+                status_code=409,
+                detail="accuracy record tile checksums do not match the current manifest",
+            )
+        for tile_id, tile_sha256 in zip(
+            manifest.tile_dataset_ids, manifest.tile_dataset_sha256s, strict=True
+        ):
+            tile = store.get_dataset(tile_id)
+            tile_path = store.get_dataset_content_path(tile_id) if tile else None
+            if (
+                tile is None
+                or tile["project_id"] != project_id
+                or tile["data_role"] != "dem"
+                or tile["sha256"] != tile_sha256
+                or tile_path is None
+                or not _dataset_content_matches(tile, Path(tile_path))
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="DEM tile content changed after the accuracy assessment",
+                )
+        reference_id = accuracy_report.get("reference_dataset_id")
+        reference_dataset = store.get_dataset(reference_id) if reference_id else None
+        reference_path = (
+            store.get_dataset_content_path(reference_id) if reference_dataset else None
+        )
+        if (
+            reference_dataset is None
+            or reference_dataset["project_id"] != project_id
+            or reference_dataset["data_role"] != "reference_elevation_observations"
+            or reference_dataset["sha256"] != accuracy_report.get("reference_dataset_sha256")
+            or reference_path is None
+            or not _dataset_content_matches(
+                reference_dataset, Path(reference_path)
+            )
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="reference dataset content changed after the accuracy assessment",
+            )
+        aoi_id = accuracy_report.get("aoi_dataset_id")
+        aoi_dataset = store.get_dataset(aoi_id) if aoi_id else None
+        aoi_path = store.get_dataset_content_path(aoi_id) if aoi_dataset else None
+        if (
+            aoi_dataset is None
+            or aoi_dataset["project_id"] != project_id
+            or aoi_dataset["data_role"] != "aoi_boundary"
+            or aoi_dataset["sha256"] != accuracy_report.get("aoi_dataset_file_sha256")
+            or aoi_path is None
+            or not _dataset_content_matches(aoi_dataset, Path(aoi_path))
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="AOI dataset content changed after the accuracy assessment",
+            )
+        try:
+            aoi_payload = _read_json(Path(aoi_path))
+            canonical_manifest = json.dumps(
+                manifest.model_dump(mode="json"),
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+            canonical_aoi = json.dumps(
+                aoi_payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            )
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail="accuracy source JSON is invalid") from exc
+        if (
+            hashlib.sha256(canonical_manifest.encode("utf-8")).hexdigest()
+            != accuracy_report.get("product_manifest_sha256")
+            or hashlib.sha256(canonical_aoi.encode("utf-8")).hexdigest()
+            != accuracy_report.get("aoi_dataset_sha256")
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="canonical manifest or AOI hash no longer matches accuracy evidence",
+            )
+        coverage = store.get_dataset_coverage_inspection(aoi_id)
+        if (
+            coverage is None
+            or coverage.get("format") != "dem_tile_collection_coverage_inspection"
+            or coverage.get("project_id") != project_id
+            or coverage.get("product_dataset_ids") != list(manifest.tile_dataset_ids)
+            or coverage.get("product_dataset_sha256s")
+            != list(manifest.tile_dataset_sha256s)
+            or coverage.get("aoi_dataset_id") != aoi_id
+            or coverage.get("aoi_dataset_sha256") != aoi_dataset["sha256"]
+            or coverage.get("aoi_crs")
+            != accuracy_request.get("metadata", {}).get("aoi_crs")
+            or coverage.get("coverage_footprint_reference")
+            != accuracy_report.get("coverage_footprint_reference")
+            or coverage.get("aoi_fully_within_raster_extent") is not True
+            or coverage.get("all_aoi_pixel_centres_valid") is not True
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="coverage inspection no longer matches the accuracy evidence",
+            )
         if (
             accuracy_report.get("product_manifest_dataset_id")
             != manifest_dataset["id"]
