@@ -383,7 +383,7 @@ def _polygonal_aoi(payload: dict[str, Any]):
     return aoi
 
 
-def _densify_geometry_for_crs(geometry: Any, crs: Any, pyproj: Any):
+def _densify_geometry_for_crs(geometry: Any, crs: Any):
     """Densify polygon edges before CRS transformation to limit chord error."""
     if crs.is_geographic:
         max_segment_length = 0.01  # approximately 1.1 km north-south
@@ -394,7 +394,8 @@ def _densify_geometry_for_crs(geometry: Any, crs: Any, pyproj: Any):
             for axis in axes[:2]
         ]
         if len(factors) < 2 or any(
-            not math.isfinite(factor) or factor <= 0 for factor in factors
+            not math.isfinite(factor) or factor <= 0
+            for factor in factors
         ):
             raise FormatValidationError(
                 "CRS axis units cannot be converted for boundary densification"
@@ -447,15 +448,26 @@ def inspect_dem_aoi_coverage(
     try:
         aoi = _polygonal_aoi(aoi_payload)
         aoi_source_crs = pyproj.CRS.from_user_input(aoi_crs)
-        if aoi_source_crs.is_compound or aoi_source_crs.is_vertical:
+        if (
+            aoi_source_crs.is_compound
+            or aoi_source_crs.is_vertical
+            or not (aoi_source_crs.is_geographic or aoi_source_crs.is_projected)
+        ):
             raise FormatValidationError("AOI CRS must be a horizontal 2D CRS")
+        if (
+            aoi_source_crs.is_geographic
+            and aoi.bounds[2] - aoi.bounds[0] > 180
+        ):
+            raise FormatValidationError(
+                "AOI crosses the antimeridian; split it into non-crossing polygons"
+            )
         area_crs = pyproj.CRS.from_epsg(6933)
         to_area = pyproj.Transformer.from_crs(
             aoi_source_crs, area_crs, always_xy=True
         )
         aoi_area_geometry = transform_geometry(
             to_area.transform,
-            _densify_geometry_for_crs(aoi, aoi_source_crs, pyproj),
+            _densify_geometry_for_crs(aoi, aoi_source_crs),
         )
         aoi_area_m2 = float(aoi_area_geometry.area)
         if not math.isfinite(aoi_area_m2) or aoi_area_m2 <= 0:
