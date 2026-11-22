@@ -389,3 +389,120 @@ def test_verified_assessment_rejects_partial_dem_footprint(tmp_path, monkeypatch
         json={"created_by": "operator-1", "request": payload},
     )
     assert response.status_code == 409
+
+
+def test_reference_coverage_metrics_api_computes_and_persists_counts(tmp_path, monkeypatch):
+    import pytest
+
+    pytest.importorskip("pyproj")
+    pytest.importorskip("shapely")
+    from geologia import store
+
+    project = _create_project(tmp_path, monkeypatch)
+    aoi_payload = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [0, 0],
+                [10000, 0],
+                [10000, 10000],
+                [0, 10000],
+                [0, 0],
+            ]],
+        },
+    }
+    observations = [
+        (1, 100, 100, "2024-01-01T00:00:00Z"),
+        (2, 1100, 100, "2023-01-01T00:00:00Z"),
+        (3, 5100, 100, "2022-01-01T00:00:00Z"),
+        (4, 6100, 100, "2021-01-01T00:00:00Z"),
+        (5, 100, 5100, "2020-06-01T00:00:00Z"),
+    ]
+    reference_payload = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {
+                    "observation_id": f"obs-{index}",
+                    "site_id": f"site-{index}",
+                    "source_id": "reference-source-1",
+                    "observed_at": observed_at,
+                    "primary_stratum_id": "steep-bare",
+                    "independence_group_id": "reviewed-group-1",
+                    "independence_status": "independent",
+                    "quality_flag": "accepted",
+                    "vertical_datum": "EGM2008",
+                    "reference_method": "static GNSS",
+                    "horizontal_uncertainty_m": 0.02,
+                    "vertical_uncertainty_m": 0.03,
+                    "horizontal_reference_frame": "ITRF2014",
+                    "coordinate_epoch": "2020.0",
+                    "geoid_model": "EGM2008",
+                },
+                "geometry": {"type": "Point", "coordinates": [x, y]},
+            }
+            for index, x, y, observed_at in observations
+        ],
+    }
+    aoi = _upload_coverage_dataset(
+        project["id"],
+        "pilot-aoi.geojson",
+        json.dumps(aoi_payload).encode("utf-8"),
+        "aoi_boundary",
+    )
+    reference = _upload_coverage_dataset(
+        project["id"],
+        "reference-observations.geojson",
+        json.dumps(reference_payload).encode("utf-8"),
+        "reference_elevation_observations",
+    )
+    assert aoi.status_code == 201
+    assert reference.status_code == 201
+
+    request = {
+        "aoi_dataset_id": aoi.json()["id"],
+        "aoi_crs": "EPSG:6933",
+        "reference_crs": "EPSG:6933",
+        "dem_epoch": "2025-01-01",
+        "computed_by": "analyst-1",
+        "analysis_code_commit": "a1b2c3d4",
+        "independence_review": {
+            "reference": "review://independence/1",
+            "reviewer": "reviewer-1",
+            "reviewed_at": "2026-11-22T02:00:00Z",
+            "definition": "Unique sites reviewed for source lineage and spatial independence.",
+            "source_lineage_reviewed": True,
+            "spatial_independence_reviewed": True,
+            "source_dependence_conflicts": False,
+        },
+    }
+    response = client.post(
+        f"/api/v1/datasets/{reference.json()['id']}/reference-coverage-metrics",
+        json=request,
+    )
+    assert response.status_code == 200
+    report = response.json()
+    assert report["status"] == "measured"
+    assert report["metrics"]["valid_independent_locations"] == 5
+    assert report["metrics"]["polygon_area_km2"] == pytest.approx(100)
+    assert report["metrics"]["occupied_1km_cells"] == 5
+    assert report["metrics"]["eligible_1km_cells"] == 100
+    assert report["metrics"]["occupied_5km_blocks"] == 3
+    assert report["metrics"]["eligible_5km_blocks"] == 4
+    assert report["metrics"]["max_block_observation_fraction"] == pytest.approx(0.4)
+    assert report["metrics"]["temporal_match_fraction"] == 1
+    assert report["metadata_completeness"]["complete_for_all_fields"] is True
+
+    saved = client.get(
+        f"/api/v1/datasets/{reference.json()['id']}/reference-coverage-metrics"
+    )
+    assert saved.status_code == 200
+    assert saved.json()["metrics_reference"] == report["metrics_reference"]
+    provenance = store.get_dataset_provenance(reference.json()["id"])
+    assert any(
+        event["event_type"] == "reference_coverage_metrics_computed"
+        for event in provenance["events"]
+    )
