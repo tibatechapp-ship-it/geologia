@@ -116,14 +116,17 @@ The executable starts the API on `127.0.0.1`, opens the local workspace, and sto
 - `POST /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/jobs/{job_id}`
+- `GET /api/v1/jobs/{job_id}/events` (append-only lifecycle event history)
+- `POST /api/v1/jobs/{job_id}/cancel` (immediate cancellation before execution; cooperative request for running jobs)
+- `POST /api/v1/datasets/{dataset_id}/validate` and `GET /api/v1/datasets/{dataset_id}/validation` (structural/schema checks only)
 
 ## Engineering audit
 
-See [the full-history engineering audit](docs/ENGINEERING_AUDIT.md) for verified fixes, known blockers, and the ordered remediation roadmap.
+See [the full-history engineering audit](docs/ENGINEERING_AUDIT.md) for verified fixes, known blockers, and the ordered remediation roadmap. See the [job lifecycle contract](docs/JOB_LIFECYCLE.md), [worker isolation architecture](docs/WORKER_ARCHITECTURE.md), and [security threat model](docs/SECURITY_THREAT_MODEL.md) for the execution safety gates.
 
 ## Scientific and security honesty
 
-The index includes the 24 original GEOLOGIA core notes after first use. External full-text research remains empty until explicitly ingested after license review; the source catalog is not an ingested corpus. See the [international source/license matrix](docs/ALI_SOURCE_LICENSE_MATRIX.md). The 30 engine registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. Jobs remain `planned`; no geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
+The index includes the 24 original GEOLOGIA core notes after first use. External full-text research remains empty until explicitly ingested after license review; the source catalog is not an ingested corpus. See the [international source/license matrix](docs/ALI_SOURCE_LICENSE_MATRIX.md). The 30 engine registry entries are catalog references, not integrations. Health reports `engines_integrated: 0` and `execution_enabled: false`. Job records default to `planned`; the durable state machine and cancellation/event APIs are infrastructure only and do not start a worker or execute an engine. No geologic interpretation, groundwater yield, mineral probability, or drilling recommendation is produced.
 
 Do not expose this development API publicly. The launchers bind to loopback only. Remote deployment still requires authentication, authorization, quotas, private storage, isolated workers, and monitoring. Raster processing, general vector transformations, raster reprojection, worker isolation, and scientific engine adapters are not implemented. GeoJSON CRS inspection and vector reprojection are available through the optional `gis` extra. CRS metadata supplied by uploaders is treated as a declaration and is not inferred from coordinates. See [Phase 5](docs/PHASE5.md).
 
