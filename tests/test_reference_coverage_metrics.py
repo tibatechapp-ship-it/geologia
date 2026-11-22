@@ -73,6 +73,7 @@ def _compute(features, review=None):
         reference_crs="EPSG:6933",
         aoi_crs="EPSG:6933",
         dem_epoch=date(2025, 1, 1),
+        primary_stratum_ids=["steep-bare"],
         independence_review=review or _review(),
     )
 
