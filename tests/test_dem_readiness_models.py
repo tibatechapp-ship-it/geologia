@@ -56,3 +56,31 @@ def test_validation_status_rejects_unknown_values():
     )
     with pytest.raises(ValidationError):
         MandatoryProductContext(**fields)
+
+from geologia.dem_readiness.models import (
+    AnalogueRepresentativenessContext,
+    RepresentativenessStatus,
+)
+
+
+def test_analogue_pair_is_separate_from_product_coverage():
+    analogue = AnalogueRepresentativenessContext(
+        analogue_region="Asir western highlands",
+        yemen_target_stratum="Yemen western highlands",
+        representativeness_status=RepresentativenessStatus.UNQUANTIFIED,
+        limitations=("Matched slope and land-cover distributions are not yet available.",),
+    )
+    assert analogue.representativeness_status is RepresentativenessStatus.UNQUANTIFIED
+    assert not hasattr(analogue, "actual_coverage")
+
+
+def test_assessed_analogue_requires_attributable_evidence():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        AnalogueRepresentativenessContext(
+            analogue_region="Najran western mountain belt",
+            yemen_target_stratum="Northern Yemen highlands",
+            representativeness_status=RepresentativenessStatus.ASSESSED,
+        )
