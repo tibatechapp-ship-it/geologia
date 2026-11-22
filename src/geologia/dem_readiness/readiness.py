@@ -41,7 +41,9 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
             "All recorded reasons are retained; secondary reasons are not hidden."
         )
         blocking = ()
-    elif data.unresolved_items or unexcepted:
+    elif unexcepted or any(
+        item.code is not ReasonCode.NOT_ASSESSED for item in data.unresolved_items
+    ):
         disposition = ReadinessDisposition.NOT_EVALUABLE
         explanation = (
             "No mandatory failure is proven, but unresolved evidence or missing "
@@ -56,6 +58,11 @@ def assess_readiness(data: ReadinessInput) -> ReadinessAssessment:
         explanation = (
             "The validation has not reached independent review; no readiness claim is made."
         )
+        blocking = ()
+    elif any(item.code is ReasonCode.NOT_ASSESSED for item in data.unresolved_items):
+        codes = tuple(dict.fromkeys((*codes, ReasonCode.NOT_ASSESSED)))
+        disposition = ReadinessDisposition.NOT_ASSESSED
+        explanation = "The relevant validation work has not been performed; no readiness claim is made."
         blocking = ()
     elif data.context.validation_status.value == "analyzed":
         codes = tuple(dict.fromkeys((*codes, ReasonCode.UNRESOLVED)))
