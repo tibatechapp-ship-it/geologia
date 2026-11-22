@@ -165,13 +165,15 @@ class CoverageAssessmentRequest(BaseModel):
                 raise ValueError("verified coverage requires available actual_coverage evidence")
             if self.evidence is None:
                 raise ValueError("verified coverage requires a complete evidence attestation")
-        if (
-            self.evidence is not None
-            and self.evidence.source_sha256 != self.context.reference_dataset_sha256
-        ):
-            raise ValueError(
-                "metrics source_sha256 must match the exact reference dataset checksum"
-            )
+        if self.evidence is not None:
+            if self.evidence.source_sha256 != self.context.reference_dataset_sha256:
+                raise ValueError(
+                    "metrics source_sha256 must match the exact reference dataset checksum"
+                )
+            if self.actual_coverage.value != self.evidence.coverage_footprint_reference:
+                raise ValueError(
+                    "actual_coverage must match the attested coverage footprint reference"
+                )
         return self
 
 
