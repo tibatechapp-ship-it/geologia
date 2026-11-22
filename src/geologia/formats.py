@@ -508,7 +508,9 @@ def inspect_dem_aoi_coverage(
                 transform_geometry(to_area_from_raster.transform, pixel_polygon).area
             )
             if not math.isfinite(pixel_area_m2) or pixel_area_m2 <= 0:
-                raise FormatValidationError("DEM pixel area cannot be measured in the equal-area CRS")
+                raise FormatValidationError(
+                    "DEM pixel area cannot be measured in the equal-area CRS"
+                )
 
             aoi_pixel_count_in_raster = 0
             valid_aoi_pixel_count = 0
