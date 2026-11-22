@@ -1,11 +1,13 @@
 import csv
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from geologia.api import app
+from geologia import store
 
 client = TestClient(app)
 
@@ -104,6 +106,42 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     )
     assert aoi.status_code == 201
     assert reference.status_code == 201
+    invalid_sidecar = _upload(
+        project["id"],
+        "invalid-uncertainty.json",
+        b'{"schema":"wrong","records":{}}',
+        "reference_uncertainty_sidecar",
+    )
+    assert invalid_sidecar.status_code == 422
+
+    sidecar_payload = {
+        "schema": "geologia.reference-uncertainty.v1",
+        "reference_dataset_sha256": reference.json()["sha256"],
+        "records": {
+            point[0]: {
+                "kind": "standard_uncertainty",
+                "value": 0.15,
+                "unit": "m",
+                "source_reference": "survey-method://gnss-uncertainty-v2",
+                "method": "documented-survey-uncertainty",
+                "scope": "point_specific",
+                "dependence": "unknown",
+                "reviewer": "reviewer-1",
+                "recorded_at": datetime.now(UTC).isoformat(),
+            }
+            for point in points
+        },
+    }
+    sidecar_bytes = json.dumps(sidecar_payload, sort_keys=True).encode("utf-8")
+    sidecar = _upload(
+        project["id"],
+        "reference-uncertainty.json",
+        sidecar_bytes,
+        "reference_uncertainty_sidecar",
+    )
+    assert sidecar.status_code == 201
+    assert sidecar.json()["summary"]["validation"] == "typed_uncertainty_records_validated"
+    assert sidecar.json()["summary"]["record_count"] == len(points)
 
     manifest_payload = {
         "schema": "geologia.dem-tile-manifest.v1",
@@ -134,6 +172,7 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     request = {
         "product_manifest_dataset_id": manifest.json()["id"],
         "reference_dataset_id": reference.json()["id"],
+        "reference_uncertainty_sidecar_dataset_id": sidecar.json()["id"],
         "aoi_dataset_id": aoi.json()["id"],
         "metadata": {
             "product_version_id": "dem-release-2026-01",
@@ -194,6 +233,16 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     )
     assert record["assessment"]["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
     assert record["assessment"]["readiness_disposition"] == "not_assessed"
+    assert record["assessment"]["reference_uncertainty_sidecar_dataset_id"] == sidecar.json()["id"]
+    assert (
+        record["assessment"]["reference_uncertainty_sidecar_dataset_sha256"]
+        == sidecar.json()["sha256"]
+    )
+    assert (
+        record["assessment"]["reference_uncertainty_summary"]["status"]
+        == "descriptive_metadata_only"
+    )
+    assert record["assessment"]["reference_uncertainty_summary"]["count"] == 4
 
     mismatched_request = json.loads(json.dumps(request))
     mismatched_request["independent_review"]["pilot_area_id"] = "pilot-other"
@@ -247,6 +296,14 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     readiness_record = readiness.json()
     assert readiness_record["assessment"]["disposition"] == "ready_for_declared_use"
     assert readiness_record["assessment"]["accuracy_assessment_id"] == record["id"]
+
+    sidecar_path = Path(store.get_dataset_content_path(sidecar.json()["id"]))
+    sidecar_path.write_text("{}\n", encoding="utf-8")
+    stale_sidecar_readiness = client.post(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
+        json=readiness_request,
+    )
+    assert stale_sidecar_readiness.status_code == 409
 
     without_accuracy = dict(readiness_request)
     without_accuracy.pop("accuracy_assessment_id")

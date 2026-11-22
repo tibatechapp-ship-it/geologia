@@ -25,6 +25,7 @@ from geologia.dem_readiness.accuracy import (
 from geologia.dem_readiness.models import (
     AccuracyAssessmentEvidence,
     DeclaredUseContext,
+    ElevationUncertainty,
     IndependentReviewEvidence,
     MandatoryProductContext,
     ReadinessInput,
@@ -83,6 +84,7 @@ ALLOWED_DATA_ROLES = {
     "geochemistry_samples", "geophysics_surveys", "aoi_boundary", "data_layers",
     "crs_definition", "imagery", "ground_control_points",
     "reference_elevation_observations", "dem_tile_manifest",
+    "reference_uncertainty_sidecar",
 }
 
 
@@ -146,6 +148,7 @@ class DEMTileCollectionCoverageInput(BaseModel):
 class DEMAccuracyAssessmentInput(BaseModel):
     product_manifest_dataset_id: str = Field(..., min_length=1, max_length=64)
     reference_dataset_id: str = Field(..., min_length=1, max_length=64)
+    reference_uncertainty_sidecar_dataset_id: str | None = Field(default=None, max_length=64)
     aoi_dataset_id: str = Field(..., min_length=1, max_length=64)
     metadata: DEMAccuracyMetadata
     declared_use: DeclaredUseContext
@@ -408,6 +411,32 @@ def project_dem_readiness_assessment_save(
                 status_code=409,
                 detail="AOI dataset content changed after the accuracy assessment",
             )
+        uncertainty_sidecar_id = accuracy_report.get(
+            "reference_uncertainty_sidecar_dataset_id"
+        )
+        if uncertainty_sidecar_id is not None:
+            sidecar_dataset = store.get_dataset(uncertainty_sidecar_id)
+            sidecar_path = store.get_dataset_content_path(uncertainty_sidecar_id)
+            if (
+                accuracy_request.get("reference_uncertainty_sidecar_dataset_id")
+                != uncertainty_sidecar_id
+                or sidecar_dataset is None
+                or sidecar_dataset["project_id"] != project_id
+                or sidecar_dataset["data_role"] != "reference_uncertainty_sidecar"
+                or sidecar_dataset["format"] != "json"
+                or sidecar_dataset["sha256"]
+                != accuracy_report.get("reference_uncertainty_sidecar_dataset_sha256")
+                or sidecar_dataset["sha256"]
+                != accuracy_report.get("reference_uncertainty_sidecar_sha256")
+                or sidecar_path is None
+                or not _dataset_content_matches(
+                    sidecar_dataset, Path(sidecar_path)
+                )
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="reference uncertainty sidecar changed after accuracy assessment",
+                )
         try:
             aoi_payload = _read_json(Path(aoi_path))
             canonical_manifest = json.dumps(
@@ -615,11 +644,45 @@ def project_dem_accuracy_assessment_save(
     ):
         raise HTTPException(status_code=404, detail="AOI dataset not found")
 
-    for item in (manifest_dataset, reference, aoi):
+    uncertainty_sidecar = None
+    uncertainty_sidecar_path = None
+    if body.reference_uncertainty_sidecar_dataset_id is not None:
+        uncertainty_sidecar = store.get_dataset(
+            body.reference_uncertainty_sidecar_dataset_id
+        )
+        if (
+            uncertainty_sidecar is None
+            or uncertainty_sidecar["project_id"] != project_id
+            or uncertainty_sidecar["data_role"] != "reference_uncertainty_sidecar"
+            or uncertainty_sidecar["format"] != "json"
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail="typed reference uncertainty sidecar dataset not found",
+            )
+        uncertainty_sidecar_path = store.get_dataset_content_path(
+            uncertainty_sidecar["id"]
+        )
+        if (
+            uncertainty_sidecar_path is None
+            or not _dataset_content_matches(
+                uncertainty_sidecar, Path(uncertainty_sidecar_path)
+            )
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="reference uncertainty sidecar failed integrity verification",
+            )
+
+    assessment_datasets = [manifest_dataset, reference, aoi]
+    if uncertainty_sidecar is not None:
+        assessment_datasets.append(uncertainty_sidecar)
+    for item in assessment_datasets:
         content_path = store.get_dataset_content_path(item["id"])
         if content_path is None or not _dataset_content_matches(item, Path(content_path)):
             raise HTTPException(
-                status_code=409, detail="accuracy input dataset failed integrity verification"
+                status_code=409,
+                detail="accuracy input dataset failed integrity verification",
             )
 
     try:
@@ -742,6 +805,16 @@ def project_dem_accuracy_assessment_save(
             requirement=body.requirement,
             declared_use=declared_use,
             independent_review=review,
+            reference_uncertainty_sidecar_path=(
+                Path(uncertainty_sidecar_path)
+                if uncertainty_sidecar_path is not None
+                else None
+            ),
+            reference_uncertainty_sidecar_sha256=(
+                uncertainty_sidecar["sha256"]
+                if uncertainty_sidecar is not None
+                else None
+            ),
         )
     except FormatDependencyError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -756,6 +829,14 @@ def project_dem_accuracy_assessment_save(
         "product_manifest_dataset_sha256": manifest_dataset["sha256"],
         "aoi_dataset_file_sha256": aoi["sha256"],
         "reference_dataset_id": reference["id"],
+        "reference_uncertainty_sidecar_dataset_id": (
+            uncertainty_sidecar["id"] if uncertainty_sidecar is not None else None
+        ),
+        "reference_uncertainty_sidecar_dataset_sha256": (
+            uncertainty_sidecar["sha256"]
+            if uncertainty_sidecar is not None
+            else None
+        ),
         "aoi_dataset_id": aoi["id"],
         "declared_use": declared_use.model_dump(mode="json"),
         "independent_review": review.model_dump(mode="json"),
@@ -1146,7 +1227,55 @@ async def dataset_upload(
         summary = {"validation": "stored_only"}
         effective_crs = crs.strip() if crs and crs.strip() else None
         if suffix in {".geojson", ".json"}:
-            if data_role == "dem_tile_manifest":
+            if data_role == "reference_uncertainty_sidecar":
+                if suffix != ".json":
+                    raise HTTPException(status_code=415, detail="uncertainty sidecar must be .json")
+                try:
+                    payload = _read_json(temporary_path)
+                except (UnicodeDecodeError, ValueError) as exc:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="uncertainty sidecar JSON is invalid",
+                    ) from exc
+                if (
+                    not isinstance(payload, dict)
+                    or payload.get("schema") != "geologia.reference-uncertainty.v1"
+                ):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="uncertainty sidecar schema is unsupported",
+                    )
+                reference_sha = payload.get("reference_dataset_sha256")
+                records = payload.get("records")
+                if (
+                    not isinstance(reference_sha, str)
+                    or len(reference_sha) != 64
+                    or any(char not in "0123456789abcdefABCDEF" for char in reference_sha)
+                    or not isinstance(records, dict)
+                    or not records
+                ):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="uncertainty sidecar header or records are invalid",
+                    )
+                try:
+                    for point_id, record in records.items():
+                        if not isinstance(point_id, str) or not point_id.strip():
+                            raise ValueError("point_id must be a non-empty string")
+                        ElevationUncertainty.model_validate(record)
+                except (TypeError, ValueError, ValidationError) as exc:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="uncertainty sidecar contains an invalid typed record",
+                    ) from exc
+                summary = {
+                    "validation": "typed_uncertainty_records_validated",
+                    "schema": payload["schema"],
+                    "reference_dataset_sha256": reference_sha.lower(),
+                    "record_count": len(records),
+                    "scientific_interpretation": False,
+                }
+            elif data_role == "dem_tile_manifest":
                 try:
                     manifest = DEMTileManifest.model_validate(
                         _read_json(temporary_path)

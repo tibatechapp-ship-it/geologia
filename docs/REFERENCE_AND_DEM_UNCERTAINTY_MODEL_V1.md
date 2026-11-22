@@ -150,3 +150,10 @@ Each record is validated by the `ElevationUncertainty` contract. Expanded uncert
 The report emits `reference_uncertainty_summary` separately from observed residual metrics. Without a sidecar, it returns `not_evaluable` because the legacy CSV uncertainty semantics are unknown. With a sidecar, a descriptive minimum/median/maximum is emitted only when every record is known and all records share one uncertainty kind, unit, and scope. Expanded uncertainty additionally requires identical coverage factor/convention; confidence-interval half-widths require identical confidence level/interval convention. The summary also reports counts by dependence status.
 
 Mixed kinds, mixed units or scopes, incompatible coverage/confidence conventions, or any unknown record return `not_evaluable` with a reason code. The descriptive summary is a distribution of declared metadata values—not a combined uncertainty, confidence interval, uncertainty propagation, or DEM accuracy estimate. It does not change the residual metrics or readiness disposition.
+
+
+## API dataset workflow
+
+The API accepts the sidecar as a JSON dataset uploaded with `X-Data-Role: reference_uncertainty_sidecar`. Upload validation checks the schema, SHA-256-shaped reference binding, non-empty point records, and every record against `ElevationUncertainty`. The DEM accuracy request may then include `reference_uncertainty_sidecar_dataset_id`. The API verifies upload-time byte integrity, binds the dataset ID and hash into the assessment record, and rechecks the sidecar bytes before reusing that accuracy assessment in a readiness request. The sidecar must reference the exact uploaded reference CSV SHA-256; the engine separately requires an exact match between sidecar point IDs and CSV point IDs.
+
+Legacy requests that omit the sidecar dataset ID remain supported and continue to report uncertainty semantics as unknown.
