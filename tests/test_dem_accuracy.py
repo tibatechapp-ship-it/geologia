@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
+from geologia.formats import FormatValidationError
+
 from geologia.dem_readiness.manifest import DEMTileManifest
 from geologia.dem_readiness.models import DeclaredUseContext, IndependentReviewEvidence
 
@@ -327,7 +329,7 @@ def test_manifest_hash_must_match_canonical_manifest_content(tmp_path):
     dem = _write_dem(tmp_path)
     reference, reference_sha = _write_reference_csv(tmp_path)
 
-    with pytest.raises(Exception, match="manifest SHA-256"):
+    with pytest.raises(FormatValidationError, match="manifest SHA-256"):
         _compute(
             dem,
             reference,
@@ -345,7 +347,7 @@ def test_manifest_hash_must_match_canonical_manifest_content(tmp_path):
 def test_aoi_hash_must_match_canonical_geometry(tmp_path):
     dem = _write_dem(tmp_path)
     reference, reference_sha = _write_reference_csv(tmp_path)
-    with pytest.raises(Exception, match="AOI SHA-256"):
+    with pytest.raises(FormatValidationError, match="AOI SHA-256"):
         _compute(
             dem,
             reference,
