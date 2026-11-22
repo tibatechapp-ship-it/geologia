@@ -1,11 +1,13 @@
 import csv
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from geologia.api import app
+from geologia import store
 
 client = TestClient(app)
 
@@ -285,6 +287,14 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     readiness_record = readiness.json()
     assert readiness_record["assessment"]["disposition"] == "ready_for_declared_use"
     assert readiness_record["assessment"]["accuracy_assessment_id"] == record["id"]
+
+    sidecar_path = Path(store.get_dataset_content_path(sidecar.json()["id"]))
+    sidecar_path.write_text("{}\n", encoding="utf-8")
+    stale_sidecar_readiness = client.post(
+        f"/api/v1/projects/{project['id']}/dem/readiness-assessments",
+        json=readiness_request,
+    )
+    assert stale_sidecar_readiness.status_code == 409
 
     without_accuracy = dict(readiness_request)
     without_accuracy.pop("accuracy_assessment_id")
