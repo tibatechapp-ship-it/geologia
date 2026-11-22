@@ -1,12 +1,13 @@
+from importlib import import_module
 from pathlib import Path
 
 import pytest
 
+from geologia.formats import FormatValidationError, inspect_dem_aoi_coverage
+
 rasterio = pytest.importorskip("rasterio")
 np = pytest.importorskip("numpy")
-from rasterio.transform import from_origin
-
-from geologia.formats import FormatValidationError, inspect_dem_aoi_coverage
+from_origin = import_module("rasterio.transform").from_origin
 
 
 def _write_dem(path: Path, *, crs="EPSG:32638"):
