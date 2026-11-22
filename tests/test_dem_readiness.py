@@ -321,3 +321,30 @@ def test_declared_product_version_must_match_context():
         ReadinessInput(
             context=mismatched, declared_use=use(), independent_review=review()
         )
+
+
+
+def test_timezone_with_missing_utc_offset_is_rejected():
+    from datetime import tzinfo
+
+    import pytest
+    from pydantic import ValidationError
+
+    class InvalidTimezone(tzinfo):
+        def utcoffset(self, dt):
+            return None
+
+        def dst(self, dt):
+            return None
+
+    invalid_time = datetime(2026, 11, 22, tzinfo=InvalidTimezone())
+    with pytest.raises(ValidationError):
+        IndependentReviewEvidence(
+            product_version_id="release-1",
+            pilot_area_id="pilot-north",
+            task_profile_id="regional-reconnaissance-v1",
+            reviewer="independent-reviewer-2",
+            evidence_reference="evidence://independent-review/invalid-time",
+            reviewed_at=invalid_time,
+        )
+
