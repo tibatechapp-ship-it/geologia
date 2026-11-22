@@ -120,6 +120,7 @@ The executable starts the API on `127.0.0.1`, opens the local workspace, and sto
 - `POST /api/v1/projects/{project_id}/datasets`
 - `GET /api/v1/projects/{project_id}/datasets`
 - `GET /api/v1/datasets/{dataset_id}`
+- `GET /api/v1/datasets/{dataset_id}/provenance` (project-wide hash-chain integrity, dataset events only)
 - `POST /api/v1/datasets/{dataset_id}/inspect` (bounded CSV/GeoJSON; optional GeoPackage/GeoTIFF/LAS metadata inspection)
 - `POST /api/v1/projects/{project_id}/jobs`
 - `GET /api/v1/projects/{project_id}/jobs`
