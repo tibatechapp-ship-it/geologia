@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from geologia.dem_readiness.coverage import (
     CoverageAssessmentRequest,
+    CoverageAssessmentSubmission,
     evaluate_coverage_sufficiency,
 )
 from geologia.dem_readiness.thresholds import FROZEN_V1_THRESHOLDS
