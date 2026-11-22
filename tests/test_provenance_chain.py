@@ -10,7 +10,7 @@ def test_provenance_event_hash_detects_payload_tampering(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
     project = store.create_project("Audit", "", "en")
     path = tmp_path / "sample.csv"
-    path.write_text("x\n1\n", encoding="utf-8")
+    content = b"x\n2\\n"\n    path.write_bytes(content)
     dataset = store.create_dataset(
         project["id"], name="Sample", file_format="csv",
         original_filename="sample.csv", content_path=str(path),
@@ -35,7 +35,7 @@ def test_validation_and_inspection_events_are_chained(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "uploads"))
     project = store.create_project("Audit validation", "", "en")
     path = tmp_path / "sample.csv"
-    path.write_text("x\n1\n", encoding="utf-8")
+    content = b"x\n2\\n"\n    path.write_bytes(content)
     dataset = store.create_dataset(
         project["id"], name="Sample", file_format="csv",
         original_filename="sample.csv", content_path=str(path),
@@ -60,7 +60,7 @@ def test_provenance_api_returns_verified_event_chain(tmp_path, monkeypatch):
     monkeypatch.setenv("GEOLOGIA_UPLOAD_DIR", str(tmp_path / "api-uploads"))
     project = store.create_project("API audit", "", "en")
     path = tmp_path / "api.csv"
-    path.write_text("x\n2\n", encoding="utf-8")
+    content = b"x\n2\\n"\n    path.write_bytes(content)
     dataset = store.create_dataset(
         project["id"], name="API sample", file_format="csv",
         original_filename="api.csv", content_path=str(path),
