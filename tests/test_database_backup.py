@@ -65,6 +65,7 @@ def test_restore_requires_offline_destination_and_never_overwrites_by_default(tm
     (tmp_path / "destination.sqlite3-wal").write_bytes(b"active")
     with pytest.raises(RuntimeError, match="sidecars"):
         restore_database_backup(backup, destination, overwrite=True)
+    (tmp_path / "destination.sqlite3-wal").unlink()
     with sqlite3.connect(destination) as connection:
         assert connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='existing'"
