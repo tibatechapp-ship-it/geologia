@@ -66,7 +66,7 @@ def _review(**overrides):
     return IndependenceReviewAttestation.model_validate(values)
 
 
-def _compute(features, review=None):
+def _compute(features, review=None, primary_stratum_ids=None):
     pytest.importorskip("pyproj")
     pytest.importorskip("shapely")
     return compute_reference_coverage_metrics(
@@ -75,7 +75,7 @@ def _compute(features, review=None):
         reference_crs="EPSG:6933",
         aoi_crs="EPSG:6933",
         dem_epoch=date(2025, 1, 1),
-        primary_stratum_ids=["steep-bare"],
+        primary_stratum_ids=primary_stratum_ids or ["steep-bare"],
         independence_review=review or _review(),
     )
 
@@ -168,3 +168,15 @@ def test_inconsistent_repeated_site_id_is_rejected():
     ]
     with pytest.raises(FormatValidationError, match="inconsistent coordinates"):
         _compute(features)
+
+
+def test_registered_primary_strata_keep_zero_count_cells_visible():
+    report = _compute(
+        [_feature(1, 100, 100)],
+        primary_stratum_ids=["steep-bare", "urban-built-up"],
+    )
+
+    assert report["metrics"]["primary_cell_observation_counts"] == {
+        "steep-bare": 1,
+        "urban-built-up": 0,
+    }
