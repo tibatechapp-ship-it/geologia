@@ -42,13 +42,13 @@ Required fields:
 | `spatial_resolution_x`, `spatial_resolution_y` | Resolution by axis with units |
 | `validation_status` | Whether validation is planned, checked, analyzed, reviewed, or not assessed |
 
-Coverage sufficiency must consume `actual_coverage` and `coverage_status` only. Analogue representativeness must consume `analogue_region`, `yemen_target_stratum`, and `representativeness_status`; these are intentionally not substitutes for actual product coverage.
+Coverage sufficiency must consume `actual_coverage` and `coverage_status` only. The separate `AnalogueRepresentativenessContext` records `analogue_region`, `yemen_target_stratum`, and `representativeness_status`; it is intentionally not part of the coverage input and cannot substitute for actual product coverage. An `assessed` analogue record requires an evidence reference, reviewer and timezone-aware timestamp. An `unquantified` record must state its limitations.
 
 The contract requires exact provenance values or explicit, attributable unavailability. It does not silently fill metadata from product-family assumptions.
 
 ## 3. Reason codes and preservation
 
-Reason codes are separate from disposition. Multiple codes may coexist on one assessment. The evaluator preserves all recorded codes in first-seen order; a primary status must not erase secondary reasons.
+Reason codes are separate from disposition. Multiple codes may coexist on one assessment. Every reason record requires a stage, detailed explanation, evidence reference, reviewer and timezone-aware timestamp. The evaluator preserves all recorded codes in first-seen order; a primary status must not erase secondary reasons.
 
 - `not_ready_for_declared_use`: proven mandatory failure.
 - `not_evaluable`: unresolved or missing evidence blocks a decision, without proving product failure.
