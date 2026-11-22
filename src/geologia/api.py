@@ -1135,8 +1135,31 @@ def project_dem_accuracy_assessment_chain(project_id: str) -> dict:
                 if aoi_id is not None
                 else None
             )
+            coverage_manifest = None
+            coverage_manifest_path = (
+                store.get_dataset_content_path(manifest_id)
+                if manifest_id is not None
+                else None
+            )
+            if (
+                coverage_manifest_path is not None
+                and _dataset_dependency_matches(
+                    project_id,
+                    manifest_id,
+                    assessment.get("product_manifest_dataset_sha256"),
+                    roles=("dem_tile_manifest",),
+                    formats=("json",),
+                )
+            ):
+                try:
+                    coverage_manifest = DEMTileManifest.model_validate(
+                        _read_json(Path(coverage_manifest_path))
+                    )
+                except (UnicodeDecodeError, ValueError, ValidationError):
+                    coverage_manifest = None
             coverage_valid = (
                 coverage is not None
+                and coverage_manifest is not None
                 and request.get("aoi_dataset_id") == aoi_id
                 and coverage.get("format")
                 == "dem_tile_collection_coverage_inspection"
@@ -1145,9 +1168,9 @@ def project_dem_accuracy_assessment_chain(project_id: str) -> dict:
                 and coverage.get("aoi_dataset_sha256")
                 == assessment.get("aoi_dataset_file_sha256")
                 and coverage.get("product_dataset_ids")
-                == assessment.get("dem_tile_dataset_ids")
+                == list(coverage_manifest.tile_dataset_ids)
                 and coverage.get("product_dataset_sha256s")
-                == assessment.get("dem_tile_dataset_sha256s")
+                == list(coverage_manifest.tile_dataset_sha256s)
             )
             if coverage_valid:
                 try:
