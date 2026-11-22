@@ -70,7 +70,7 @@ async function loadDatasets(){
    info.append(name,meta);
    const tag=document.createElement("span");tag.className="tag";tag.textContent=d.data_role||tr("unclassified");
    const actions=document.createElement("div");actions.className="dataset-actions";actions.append(tag);
-    const provenance=document.createElement("button");provenance.type="button";provenance.className="inspect-button provenance-button";provenance.textContent=tr("datasetProvenance");
+    const provenance=document.createElement("button");provenance.type="button";provenance.className="provenance-button";provenance.textContent=tr("datasetProvenance");
     provenance.addEventListener("click",async()=>{
      provenance.disabled=true;provenance.textContent=tr("provenanceLoading");
      try{
