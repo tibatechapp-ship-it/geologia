@@ -195,6 +195,14 @@ def test_api_computes_and_persists_manifest_bound_dem_accuracy(tmp_path, monkeyp
     assert record["assessment"]["metrics"]["rmse_m"] == pytest.approx((1.5) ** 0.5)
     assert record["assessment"]["readiness_disposition"] == "not_assessed"
 
+    mismatched_request = json.loads(json.dumps(request))
+    mismatched_request["independent_review"]["pilot_area_id"] = "pilot-other"
+    mismatched = client.post(
+        f"/api/v1/projects/{project['id']}/dem/accuracy-assessments",
+        json=mismatched_request,
+    )
+    assert mismatched.status_code == 409
+
     chain = client.get(
         f"/api/v1/projects/{project['id']}/dem/accuracy-assessments/chain"
     )
