@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from geologia.dem_readiness.models import (
+    AccuracyAssessmentEvidence,
     Availability,
     DeclaredUseContext,
     EvidenceValue,
@@ -91,7 +92,12 @@ def reason(code, stage="coverage"):
 
 def test_complete_context_can_be_ready():
     result = assess_readiness(
-        ReadinessInput(\n            context=context(),\n            declared_use=use(),\n            independent_review=review(),\n            accuracy_assessment=accuracy_evidence(),\n        )
+        ReadinessInput(
+            context=context(),
+            declared_use=use(),
+            independent_review=review(),
+            accuracy_assessment=accuracy_evidence(),
+        )
     )
     assert result.disposition is ReadinessDisposition.READY
 
