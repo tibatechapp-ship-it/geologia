@@ -24,10 +24,13 @@ from geologia.dem_readiness.accuracy import (
 )
 from geologia.dem_readiness.models import (
     AccuracyAssessmentEvidence,
+    Availability,
     DeclaredUseContext,
+    EvidenceValue,
     IndependentReviewEvidence,
     MandatoryProductContext,
     ReadinessInput,
+    ReasonCode,
     ReasonRecord,
     ScopeException,
 )
@@ -301,10 +304,13 @@ def project_dem_readiness_assessment_save(
     project_id: str,
     body: DEMReadinessAssessmentInput,
 ) -> dict:
-    """Evaluate readiness using verified persisted accuracy evidence and save the decision."""
+    """Derive readiness metadata from registered evidence, then persist the decision."""
+    from geologia.formats import FormatDependencyError, FormatValidationError, _dependency
+
     if store.get_project(project_id) is None:
         raise HTTPException(status_code=404, detail="project not found")
     manifest_dataset = store.get_dataset(body.product_manifest_dataset_id)
+    metadata_dataset = store.get_dataset(body.product_metadata_dataset_id)
     if (
         manifest_dataset is None
         or manifest_dataset["project_id"] != project_id
@@ -312,30 +318,183 @@ def project_dem_readiness_assessment_save(
         or manifest_dataset["format"] != "json"
     ):
         raise HTTPException(status_code=404, detail="DEM product manifest not found")
-    manifest_path = store.get_dataset_content_path(manifest_dataset["id"])
-    if manifest_path is None or not _dataset_content_matches(
-        manifest_dataset, Path(manifest_path)
+    if (
+        metadata_dataset is None
+        or metadata_dataset["project_id"] != project_id
+        or metadata_dataset["data_role"] != "dem_product_metadata"
+        or metadata_dataset["format"] != "json"
     ):
-        raise HTTPException(
-            status_code=409, detail="DEM product manifest failed integrity verification"
-        )
+        raise HTTPException(status_code=404, detail="DEM product metadata not found")
+
+    manifest_path = store.get_dataset_content_path(manifest_dataset["id"])
+    metadata_path = store.get_dataset_content_path(metadata_dataset["id"])
+    for item, content_path in (
+        (manifest_dataset, manifest_path),
+        (metadata_dataset, metadata_path),
+    ):
+        if content_path is None or not _dataset_content_matches(
+            item, Path(content_path)
+        ):
+            raise HTTPException(
+                status_code=409, detail="product metadata input failed integrity verification"
+            )
     try:
         manifest = DEMTileManifest.model_validate(_read_json(Path(manifest_path)))
-    except (UnicodeDecodeError, ValueError, ValidationError) as exc:
-        raise HTTPException(status_code=422, detail="DEM product manifest is invalid") from exc
-    if manifest.product_version_id != body.declared_use.product_version_id:
-        raise HTTPException(
-            status_code=409,
-            detail="manifest product version does not match the declared use",
+        product_metadata = DEMProductMetadata.model_validate(
+            _read_json(Path(metadata_path))
         )
-    product_version = body.context.product_version
+    except (UnicodeDecodeError, ValueError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail="product metadata or manifest is invalid") from exc
     if (
-        product_version.availability.value != "available"
-        or product_version.value != manifest.product_version_id
+        manifest.product_version_id != body.declared_use.product_version_id
+        or product_metadata.product_version_id != manifest.product_version_id
     ):
         raise HTTPException(
             status_code=409,
-            detail="readiness context must identify the exact manifest product version",
+            detail="manifest, product metadata and declared use must match the exact version",
+        )
+
+    dem_paths = []
+    for tile_id, tile_sha256 in zip(
+        manifest.tile_dataset_ids, manifest.tile_dataset_sha256s, strict=True
+    ):
+        tile = store.get_dataset(tile_id)
+        tile_path = store.get_dataset_content_path(tile_id) if tile else None
+        if (
+            tile is None
+            or tile["project_id"] != project_id
+            or tile["data_role"] != "dem"
+            or tile["format"] not in {"tif", "tiff", "hgt"}
+            or tile["sha256"] != tile_sha256
+            or tile_path is None
+            or not _dataset_content_matches(tile, Path(tile_path))
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="DEM tile membership or content does not match the manifest",
+            )
+        dem_paths.append(Path(tile_path))
+
+    try:
+        rasterio = _dependency("rasterio")
+        pyproj = _dependency("pyproj")
+        declared_crs = pyproj.CRS.from_user_input(product_metadata.horizontal_crs)
+        actual_resolution_x = None
+        actual_resolution_y = None
+        actual_resolution_unit = None
+        reference_transform = None
+        with ExitStack() as stack:
+            for path in dem_paths:
+                try:
+                    dataset = stack.enter_context(rasterio.open(path, "r"))
+                except Exception as exc:
+                    raise FormatValidationError("DEM tile cannot be opened") from exc
+                if dataset.count < 1 or dataset.crs is None:
+                    raise FormatValidationError("DEM tile must have a band and horizontal CRS")
+                tile_crs = pyproj.CRS.from_user_input(dataset.crs)
+                if not tile_crs.equals(declared_crs):
+                    raise FormatValidationError(
+                        "product metadata horizontal CRS does not match DEM raster CRS"
+                    )
+                unit_x = tile_crs.axis_info[0].unit_name
+                unit_y = tile_crs.axis_info[1].unit_name
+                if unit_x.casefold() != unit_y.casefold():
+                    raise FormatValidationError("DEM CRS axes use incompatible units")
+                resolution_x = math.hypot(dataset.transform.a, dataset.transform.d)
+                resolution_y = math.hypot(dataset.transform.b, dataset.transform.e)
+                if actual_resolution_x is None:
+                    actual_resolution_x = resolution_x
+                    actual_resolution_y = resolution_y
+                    actual_resolution_unit = unit_x
+                    reference_transform = dataset.transform
+                else:
+                    if (
+                        not math.isclose(
+                            resolution_x, actual_resolution_x, rel_tol=1e-9, abs_tol=1e-9
+                        )
+                        or not math.isclose(
+                            resolution_y, actual_resolution_y, rel_tol=1e-9, abs_tol=1e-9
+                        )
+                        or any(
+                            not math.isclose(left, right, rel_tol=0, abs_tol=1e-9)
+                            for left, right in zip(
+                                (
+                                    dataset.transform.a, dataset.transform.b,
+                                    dataset.transform.d, dataset.transform.e,
+                                ),
+                                (
+                                    reference_transform.a, reference_transform.b,
+                                    reference_transform.d, reference_transform.e,
+                                ),
+                            )
+                        )
+                    ):
+                        raise FormatValidationError(
+                            "DEM tiles do not share a common pixel resolution and orientation"
+                        )
+                    offset_col, offset_row = (~reference_transform) * (
+                        dataset.transform.c, dataset.transform.f
+                    )
+                    if (
+                        not math.isclose(offset_col, round(offset_col), abs_tol=1e-6)
+                        or not math.isclose(offset_row, round(offset_row), abs_tol=1e-6)
+                    ):
+                        raise FormatValidationError("DEM tile origins are not grid-aligned")
+        if (
+            actual_resolution_x is None
+            or actual_resolution_y is None
+            or actual_resolution_unit is None
+        ):
+            raise FormatValidationError("DEM raster resolution could not be measured")
+        if product_metadata.resolution_unit.casefold() != actual_resolution_unit.casefold():
+            raise FormatValidationError(
+                "product metadata resolution unit does not match the raster CRS"
+            )
+        if not math.isclose(
+            product_metadata.spatial_resolution_x,
+            actual_resolution_x,
+            rel_tol=1e-6,
+            abs_tol=1e-9,
+        ) or not math.isclose(
+            product_metadata.spatial_resolution_y,
+            actual_resolution_y,
+            rel_tol=1e-6,
+            abs_tol=1e-9,
+        ):
+            raise FormatValidationError(
+                "declared spatial resolution does not match the actual DEM raster"
+            )
+    except FormatDependencyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except FormatValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    aoi = store.get_dataset(body.aoi_dataset_id)
+    if (
+        aoi is None
+        or aoi["project_id"] != project_id
+        or aoi["data_role"] != "aoi_boundary"
+        or aoi["format"] not in {"geojson", "json"}
+    ):
+        raise HTTPException(status_code=404, detail="AOI dataset not found")
+    aoi_path = store.get_dataset_content_path(aoi["id"])
+    if aoi_path is None or not _dataset_content_matches(aoi, Path(aoi_path)):
+        raise HTTPException(status_code=409, detail="AOI dataset failed integrity verification")
+    coverage = store.get_dataset_coverage_inspection(aoi["id"])
+    if (
+        coverage is None
+        or coverage.get("format") != "dem_tile_collection_coverage_inspection"
+        or coverage.get("inspection_status") != "measured"
+        or coverage.get("project_id") != project_id
+        or coverage.get("product_dataset_ids") != list(manifest.tile_dataset_ids)
+        or coverage.get("product_dataset_sha256s") != list(manifest.tile_dataset_sha256s)
+        or coverage.get("aoi_dataset_id") != aoi["id"]
+        or coverage.get("aoi_dataset_sha256") != aoi["sha256"]
+        or coverage.get("mosaic_crs") != declared_crs.to_string()
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="persisted coverage inspection does not match manifest and AOI",
         )
 
     review = body.independent_review
@@ -352,30 +511,25 @@ def project_dem_readiness_assessment_save(
             raise HTTPException(status_code=404, detail="accuracy assessment not found")
         accuracy_report = accuracy_record["assessment"]
         accuracy_request = accuracy_record["request"]
-        if accuracy_report.get("dem_tiles") is None or [
-            item.get("sha256") for item in accuracy_report.get("dem_tiles", [])
-        ] != list(manifest.tile_dataset_sha256s):
+        if (
+            accuracy_report.get("product_manifest_dataset_id") != manifest_dataset["id"]
+            or accuracy_report.get("product_manifest_dataset_sha256")
+            != manifest_dataset["sha256"]
+            or accuracy_report.get("product_version_id") != manifest.product_version_id
+            or accuracy_report.get("declared_use") != body.declared_use.model_dump(mode="json")
+            or accuracy_report.get("dem_vertical_datum") != product_metadata.vertical_datum
+            or accuracy_report.get("surface_type") != product_metadata.surface_type
+            or accuracy_report.get("coverage_footprint_reference")
+            != coverage.get("coverage_footprint_reference")
+            or accuracy_report.get("dem_tiles") is None
+            or [
+                item.get("sha256") for item in accuracy_report.get("dem_tiles", [])
+            ] != list(manifest.tile_dataset_sha256s)
+        ):
             raise HTTPException(
                 status_code=409,
-                detail="accuracy record tile checksums do not match the current manifest",
+                detail="accuracy assessment does not match current product metadata and coverage",
             )
-        for tile_id, tile_sha256 in zip(
-            manifest.tile_dataset_ids, manifest.tile_dataset_sha256s, strict=True
-        ):
-            tile = store.get_dataset(tile_id)
-            tile_path = store.get_dataset_content_path(tile_id) if tile else None
-            if (
-                tile is None
-                or tile["project_id"] != project_id
-                or tile["data_role"] != "dem"
-                or tile["sha256"] != tile_sha256
-                or tile_path is None
-                or not _dataset_content_matches(tile, Path(tile_path))
-            ):
-                raise HTTPException(
-                    status_code=409,
-                    detail="DEM tile content changed after the accuracy assessment",
-                )
         reference_id = accuracy_report.get("reference_dataset_id")
         reference_dataset = store.get_dataset(reference_id) if reference_id else None
         reference_path = (
@@ -387,107 +541,38 @@ def project_dem_readiness_assessment_save(
             or reference_dataset["data_role"] != "reference_elevation_observations"
             or reference_dataset["sha256"] != accuracy_report.get("reference_dataset_sha256")
             or reference_path is None
-            or not _dataset_content_matches(
-                reference_dataset, Path(reference_path)
-            )
+            or not _dataset_content_matches(reference_dataset, Path(reference_path))
         ):
             raise HTTPException(
-                status_code=409,
-                detail="reference dataset content changed after the accuracy assessment",
+                status_code=409, detail="reference dataset changed after accuracy assessment"
             )
-        aoi_id = accuracy_report.get("aoi_dataset_id")
-        aoi_dataset = store.get_dataset(aoi_id) if aoi_id else None
-        aoi_path = store.get_dataset_content_path(aoi_id) if aoi_dataset else None
         if (
-            aoi_dataset is None
-            or aoi_dataset["project_id"] != project_id
-            or aoi_dataset["data_role"] != "aoi_boundary"
-            or aoi_dataset["sha256"] != accuracy_report.get("aoi_dataset_file_sha256")
-            or aoi_path is None
-            or not _dataset_content_matches(aoi_dataset, Path(aoi_path))
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail="AOI dataset content changed after the accuracy assessment",
-            )
-        try:
-            aoi_payload = _read_json(Path(aoi_path))
-            canonical_manifest = json.dumps(
-                manifest.model_dump(mode="json"),
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-                allow_nan=False,
-            )
-            canonical_aoi = json.dumps(
-                aoi_payload,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=False,
-                allow_nan=False,
-            )
-        except (UnicodeDecodeError, ValueError) as exc:
-            raise HTTPException(status_code=409, detail="accuracy source JSON is invalid") from exc
-        if (
-            hashlib.sha256(canonical_manifest.encode("utf-8")).hexdigest()
-            != accuracy_report.get("product_manifest_sha256")
-            or hashlib.sha256(canonical_aoi.encode("utf-8")).hexdigest()
-            != accuracy_report.get("aoi_dataset_sha256")
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail="canonical manifest or AOI hash no longer matches accuracy evidence",
-            )
-        coverage = store.get_dataset_coverage_inspection(aoi_id)
-        if (
-            coverage is None
-            or coverage.get("format") != "dem_tile_collection_coverage_inspection"
-            or coverage.get("project_id") != project_id
-            or coverage.get("product_dataset_ids") != list(manifest.tile_dataset_ids)
-            or coverage.get("product_dataset_sha256s")
-            != list(manifest.tile_dataset_sha256s)
-            or coverage.get("aoi_dataset_id") != aoi_id
-            or coverage.get("aoi_dataset_sha256") != aoi_dataset["sha256"]
-            or coverage.get("aoi_crs")
-            != accuracy_request.get("metadata", {}).get("aoi_crs")
-            or coverage.get("coverage_footprint_reference")
-            != accuracy_report.get("coverage_footprint_reference")
+            accuracy_report.get("aoi_dataset_id") != aoi["id"]
+            or accuracy_report.get("aoi_dataset_file_sha256") != aoi["sha256"]
+            or accuracy_report.get("aoi_dataset_sha256")
+            != hashlib.sha256(
+                json.dumps(
+                    _read_json(Path(aoi_path)),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                    allow_nan=False,
+                ).encode("utf-8")
+            ).hexdigest()
+            or accuracy_report.get("coverage_footprint_reference")
+            != coverage.get("coverage_footprint_reference")
             or coverage.get("aoi_fully_within_raster_extent") is not True
             or coverage.get("all_aoi_pixel_centres_valid") is not True
+            or coverage.get("aoi_crs")
+            != accuracy_request.get("metadata", {}).get("aoi_crs")
         ):
             raise HTTPException(
-                status_code=409,
-                detail="coverage inspection no longer matches the accuracy evidence",
-            )
-        if (
-            accuracy_report.get("product_manifest_dataset_id")
-            != manifest_dataset["id"]
-            or accuracy_report.get("product_manifest_dataset_sha256")
-            != manifest_dataset["sha256"]
-            or accuracy_report.get("product_version_id")
-            != manifest.product_version_id
-            or accuracy_report.get("declared_use")
-            != body.declared_use.model_dump(mode="json")
-        ):
-            raise HTTPException(
-                status_code=409,
-                detail="accuracy assessment does not match this manifest and declared use",
+                status_code=409, detail="accuracy assessment no longer matches AOI coverage"
             )
         try:
             persisted_review = IndependentReviewEvidence.model_validate(
                 accuracy_report["independent_review"]
             )
-        except (KeyError, ValidationError) as exc:
-            raise HTTPException(
-                status_code=409, detail="accuracy record has no valid review evidence"
-            ) from exc
-        if review is not None and review != persisted_review:
-            raise HTTPException(
-                status_code=409,
-                detail="submitted independent review differs from the persisted accuracy review",
-            )
-        review = persisted_review
-        try:
             assessed_at = datetime.fromisoformat(accuracy_record["created_at"])
             accuracy_evidence = AccuracyAssessmentEvidence(
                 assessment_id=accuracy_record["id"],
@@ -512,12 +597,95 @@ def project_dem_readiness_assessment_save(
             raise HTTPException(
                 status_code=409, detail="persisted accuracy evidence is malformed"
             ) from exc
+        if review is not None and review != persisted_review:
+            raise HTTPException(
+                status_code=409,
+                detail="submitted independent review differs from persisted accuracy review",
+            )
+        review = persisted_review
+
+    if review is not None:
+        expected_scope = (
+            manifest.product_version_id,
+            body.declared_use.pilot_area_id,
+            body.declared_use.task_profile_id,
+        )
+        actual_scope = (
+            review.product_version_id,
+            review.pilot_area_id,
+            review.task_profile_id,
+        )
+        if actual_scope != expected_scope:
+            raise HTTPException(
+                status_code=409,
+                detail="independent review does not match exact declared product, area and task",
+            )
+        if review.reviewed_at.astimezone(timezone.utc) > datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=409, detail="independent review timestamp is in the future"
+            )
+
+    full_coverage = (
+        coverage.get("aoi_fully_within_raster_extent") is True
+        and coverage.get("all_aoi_pixel_centres_valid") is True
+    )
+    validation_status = (
+        "independently_reviewed"
+        if review is not None
+        else "coverage_checked"
+    )
+
+    def available(value):
+        return EvidenceValue(availability=Availability.AVAILABLE, value=value)
+
+    context = MandatoryProductContext(
+        product_version=available(manifest.product_version_id),
+        spec_source=available(product_metadata.spec_source),
+        spec_date=available(product_metadata.spec_date.isoformat()),
+        metric_type=available(product_metadata.metric_type),
+        vertical_datum=available(product_metadata.vertical_datum),
+        surface_type=available(product_metadata.surface_type),
+        actual_coverage=available(coverage["coverage_footprint_reference"]),
+        coverage_status=available("verified" if full_coverage else coverage["coverage_status"]),
+        spatial_resolution_x=available(
+            f"{actual_resolution_x:g} {actual_resolution_unit}"
+        ),
+        spatial_resolution_y=available(
+            f"{actual_resolution_y:g} {actual_resolution_unit}"
+        ),
+        validation_status=available(validation_status),
+    )
+
+    mandatory_failures = list(body.mandatory_failures)
+    unresolved_items = list(body.unresolved_items)
+    if product_metadata.license_disposition == "incompatible":
+        mandatory_failures.append(
+            ReasonRecord(
+                code=ReasonCode.LICENSE_INCOMPATIBLE,
+                stage="license",
+                detail="Product metadata declares the license incompatible with this use.",
+                evidence_reference=product_metadata.evidence_reference,
+                reviewer=product_metadata.reviewer,
+                recorded_at=product_metadata.reviewed_at,
+            )
+        )
+    elif product_metadata.license_disposition == "unresolved":
+        unresolved_items.append(
+            ReasonRecord(
+                code=ReasonCode.UNRESOLVED,
+                stage="license",
+                detail="Product license compatibility has not been resolved.",
+                evidence_reference=product_metadata.evidence_reference,
+                reviewer=product_metadata.reviewer,
+                recorded_at=product_metadata.reviewed_at,
+            )
+        )
 
     readiness_input = ReadinessInput(
-        context=body.context,
+        context=context,
         declared_use=body.declared_use,
-        mandatory_failures=body.mandatory_failures,
-        unresolved_items=body.unresolved_items,
+        mandatory_failures=tuple(mandatory_failures),
+        unresolved_items=tuple(unresolved_items),
         accepted_restrictions=body.accepted_restrictions,
         scope_exceptions=body.scope_exceptions,
         independent_review=review,
@@ -528,6 +696,13 @@ def project_dem_readiness_assessment_save(
     report.update({
         "product_manifest_dataset_id": manifest_dataset["id"],
         "product_manifest_dataset_sha256": manifest_dataset["sha256"],
+        "product_metadata_dataset_id": metadata_dataset["id"],
+        "product_metadata_dataset_sha256": metadata_dataset["sha256"],
+        "aoi_dataset_id": aoi["id"],
+        "aoi_dataset_sha256": aoi["sha256"],
+        "actual_spatial_resolution_x": actual_resolution_x,
+        "actual_spatial_resolution_y": actual_resolution_y,
+        "actual_spatial_resolution_unit": actual_resolution_unit,
         "accuracy_assessment_id": (
             accuracy_record["id"] if accuracy_record is not None else None
         ),
