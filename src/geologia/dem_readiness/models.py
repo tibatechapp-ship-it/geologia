@@ -14,6 +14,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 NonEmpty = Annotated[str, Field(min_length=1)]
 
 
+def _is_timezone_aware(value: datetime) -> bool:
+    """Reject tzinfo objects that do not provide a usable UTC offset."""
+    return value.tzinfo is not None and value.utcoffset() is not None
+
+
 class Availability(StrEnum):
     AVAILABLE = "available"
     NOT_AVAILABLE = "not_available"
@@ -83,7 +88,7 @@ class EvidenceValue(BaseModel):
             raise ValueError("not_available evidence requires a documented reason")
         if not self.reviewer or not self.reviewer.strip():
             raise ValueError("not_available evidence requires a reviewer")
-        if self.recorded_at is None or self.recorded_at.tzinfo is None:
+        if self.recorded_at is None or not _is_timezone_aware(self.recorded_at):
             raise ValueError("not_available evidence requires a timezone-aware recorded_at")
         return self
 
@@ -147,7 +152,7 @@ class IndependentReviewEvidence(BaseModel):
 
     @model_validator(mode="after")
     def require_timezone(self) -> "IndependentReviewEvidence":
-        if self.reviewed_at.tzinfo is None:
+        if not _is_timezone_aware(self.reviewed_at):
             raise ValueError("reviewed_at must be timezone-aware")
         return self
 
@@ -164,7 +169,7 @@ class ReasonRecord(BaseModel):
 
     @model_validator(mode="after")
     def require_timezone(self) -> "ReasonRecord":
-        if self.recorded_at.tzinfo is None:
+        if not _is_timezone_aware(self.recorded_at):
             raise ValueError("recorded_at must be timezone-aware")
         return self
 
