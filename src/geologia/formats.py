@@ -768,10 +768,6 @@ def inspect_dem_tile_collection_coverage(
                     raise FormatValidationError(
                         "DEM tile collection exceeds the 50 GiB total file-size limit"
                     )
-                if path.suffix.lower() not in {".tif", ".tiff", ".hgt"}:
-                    raise FormatValidationError(
-                        "DEM tile collection supports GeoTIFF and HGT files only"
-                    )
                 try:
                     dataset = stack.enter_context(rasterio.open(path, "r"))
                 except Exception as exc:
