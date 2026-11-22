@@ -223,7 +223,10 @@ class ReadinessInput(BaseModel):
                 + ", ".join(available)
             )
         if self.independent_review is not None:
-            if self.context.validation_status.value != ValidationStatus.INDEPENDENTLY_REVIEWED.value:
+            if (
+                self.context.validation_status.value
+                != ValidationStatus.INDEPENDENTLY_REVIEWED.value
+            ):
                 raise ValueError(
                     "independent review evidence requires independently_reviewed status"
                 )
