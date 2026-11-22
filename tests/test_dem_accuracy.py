@@ -362,3 +362,41 @@ def test_successful_report_records_canonical_hash_binding(tmp_path):
     report = _compute(dem, reference, reference_sha)
     assert report["aoi_hash_binding"] == "verified_canonical_aoi_payload"
     assert report["product_manifest_hash_binding"] == "verified_canonical_manifest"
+
+
+def test_manifest_tile_hash_membership_must_match_dem_bytes(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    wrong_tile_manifest = DEMTileManifest(
+        schema="geologia.dem-tile-manifest.v1",
+        product_version_id="dem-release-2026-01",
+        tile_dataset_ids=(dem.name,),
+        tile_dataset_sha256=("0" * 64,),
+    )
+
+    with pytest.raises(FormatValidationError, match="tile SHA-256 membership"):
+        _compute(
+            dem,
+            reference,
+            reference_sha,
+            product_manifest=wrong_tile_manifest,
+        )
+
+
+def test_manifest_product_version_must_match_accuracy_metadata(tmp_path):
+    dem = _write_dem(tmp_path)
+    reference, reference_sha = _write_reference_csv(tmp_path)
+    mismatched_manifest = DEMTileManifest(
+        schema="geologia.dem-tile-manifest.v1",
+        product_version_id="another-release",
+        tile_dataset_ids=(dem.name,),
+        tile_dataset_sha256=(hashlib.sha256(dem.read_bytes()).hexdigest(),),
+    )
+
+    with pytest.raises(FormatValidationError, match="product version"):
+        _compute(
+            dem,
+            reference,
+            reference_sha,
+            product_manifest=mismatched_manifest,
+        )
